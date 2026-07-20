@@ -1,0 +1,97 @@
+import { supabase } from '../lib/supabase';
+import type { AssessmentInstanceRow, AssessmentInstanceStatus } from '../lib/database.types';
+import type { OrganizationRow } from './organizations';
+
+export type AssessmentWithOrganization = AssessmentInstanceRow & {
+  organization: Pick<OrganizationRow, 'id' | 'organization_name' | 'industry'>;
+};
+
+export async function fetchAssessmentsForBroker(
+  brokerId: string,
+  opts?: { search?: string; status?: AssessmentInstanceStatus | 'all'; industry?: string }
+): Promise<AssessmentWithOrganization[]> {
+  let query = supabase
+    .from('assessment_instances')
+    .select('*, organization:organizations(id, organization_name, industry)')
+    .eq('broker_id', brokerId);
+
+  if (opts?.status && opts.status !== 'all') {
+    query = query.eq('status', opts.status);
+  }
+
+  const { data, error } = await query.order('created_at', { ascending: false });
+  if (error) throw error;
+
+  let results = (data ?? []) as AssessmentWithOrganization[];
+
+  if (opts?.search) {
+    const q = opts.search.toLowerCase();
+    results = results.filter((r) =>
+      r.organization?.organization_name?.toLowerCase().includes(q)
+    );
+  }
+  if (opts?.industry && opts.industry !== 'all') {
+    results = results.filter((r) => r.organization?.industry === opts.industry);
+  }
+
+  return results;
+}
+
+export async function createDraftAssessment(
+  brokerId: string,
+  organizationId: string
+): Promise<AssessmentInstanceRow> {
+  const { data, error } = await supabase
+    .from('assessment_instances')
+    .insert({
+      broker_id: brokerId,
+      organization_id: organizationId,
+      status: 'draft',
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function fetchAssessmentCountByStatus(
+  brokerId: string
+): Promise<Record<AssessmentInstanceStatus, number>> {
+  const { data, error } = await supabase
+    .from('assessment_instances')
+    .select('status')
+    .eq('broker_id', brokerId);
+  if (error) throw error;
+
+  const counts: Record<AssessmentInstanceStatus, number> = {
+    draft: 0,
+    sent: 0,
+    not_opened: 0,
+    opened: 0,
+    in_progress: 0,
+    submitted: 0,
+    report_ready: 0,
+    expired: 0,
+    revoked: 0,
+  };
+
+  for (const row of data ?? []) {
+    counts[row.status as AssessmentInstanceStatus]++;
+  }
+  return counts;
+}
+
+export async function fetchReportsReady(
+  brokerId: string
+): Promise<AssessmentWithOrganization[]> {
+  const { data, error } = await supabase
+    .from('assessment_instances')
+    .select('*, organization:organizations(id, organization_name, industry)')
+    .eq('broker_id', brokerId)
+    .not('overall_score', 'is', null)
+    .order('submitted_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as AssessmentWithOrganization[];
+}
+
+export type { AssessmentInstanceRow, AssessmentInstanceStatus };
