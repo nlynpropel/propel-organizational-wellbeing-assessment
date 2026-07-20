@@ -66,19 +66,34 @@ export default function BrokerSidebar() {
         ))}
 
         {isAdmin && (
-          <NavLink
-            to="/admin"
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition mt-4 border-t border-white/10 pt-4 ${
-                isActive
-                  ? 'bg-white/10 text-white'
-                  : 'text-white/65 hover:text-white hover:bg-white/5'
-              }`
-            }
-          >
-            <Shield className="w-4.5 h-4.5" />
-            Propel Admin
-          </NavLink>
+          <>
+            <NavLink
+              to="/admin"
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition mt-4 border-t border-white/10 pt-4 ${
+                  isActive
+                    ? 'bg-white/10 text-white'
+                    : 'text-white/65 hover:text-white hover:bg-white/5'
+                }`
+              }
+            >
+              <Shield className="w-4.5 h-4.5" />
+              Propel Admin
+            </NavLink>
+            <NavLink
+              to="/admin/assessments"
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition ${
+                  isActive
+                    ? 'bg-white/10 text-white'
+                    : 'text-white/65 hover:text-white hover:bg-white/5'
+                }`
+              }
+            >
+              <ClipboardList className="w-4.5 h-4.5" />
+              Assessments
+            </NavLink>
+          </>
         )}
       </nav>
 

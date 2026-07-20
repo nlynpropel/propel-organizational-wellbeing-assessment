@@ -10,6 +10,10 @@ import NewClientPage from './pages/NewClientPage';
 import ClientDetailPage from './pages/ClientDetailPage';
 import ResultsPage from './pages/ResultsPage';
 import AssessmentsPage from './pages/AssessmentsPage';
+import AssessmentBuilderPage from './pages/AssessmentBuilderPage';
+import SendAssessmentPage from './pages/SendAssessmentPage';
+import AdminAssessmentsPage from './pages/AdminAssessmentsPage';
+import AssessmentReportPage from './pages/AssessmentReportPage';
 import ReportsPage from './pages/ReportsPage';
 import SettingsPage from './pages/SettingsPage';
 import AssessmentPlaceholderPage from './pages/AssessmentPlaceholderPage';
@@ -151,9 +155,14 @@ function AppRoutes() {
       <Route path="/clients/:id" element={<ProtectedRoute><ClientDetailPage /></ProtectedRoute>} />
       <Route path="/clients/:id/results" element={<ProtectedRoute><ResultsPage /></ProtectedRoute>} />
       <Route path="/assessments" element={<ProtectedRoute><AssessmentsPage /></ProtectedRoute>} />
+      <Route path="/assessments/builder" element={<ProtectedRoute><AssessmentBuilderPage /></ProtectedRoute>} />
+      <Route path="/assessments/builder/:assessmentId" element={<ProtectedRoute><AssessmentBuilderPage /></ProtectedRoute>} />
+      <Route path="/assessments/send" element={<ProtectedRoute><SendAssessmentPage /></ProtectedRoute>} />
+      <Route path="/reports/:instanceId" element={<ProtectedRoute><AssessmentReportPage /></ProtectedRoute>} />
       <Route path="/reports" element={<ProtectedRoute><ReportsPage /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
       <Route path="/admin" element={<ProtectedRoute adminOnly><AdminPage /></ProtectedRoute>} />
+      <Route path="/admin/assessments" element={<ProtectedRoute adminOnly><AdminAssessmentsPage /></ProtectedRoute>} />
 
       {/* Placeholder client assessment */}
       <Route path="/assessment/:token" element={<AssessmentPlaceholderPage />} />

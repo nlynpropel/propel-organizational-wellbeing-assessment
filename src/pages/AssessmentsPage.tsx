@@ -1,35 +1,51 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
-import { Plus, Search, ClipboardList } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
+import { Plus, Send, Edit, Archive, FileText, CheckCircle2, Sparkles } from 'lucide-react';
 import BrokerLayout from '../components/layout/BrokerLayout';
 import PageHeader from '../components/layout/PageHeader';
+import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
-import StatusBadge from '../components/ui/StatusBadge';
-import DataTable, { type Column } from '../components/DataTable';
-import EmptyState from '../components/ui/EmptyState';
+import Badge from '../components/ui/Badge';
 import LoadingState from '../components/ui/LoadingState';
 import ErrorState from '../components/ui/ErrorState';
+import EmptyState from '../components/ui/EmptyState';
+import AssessmentOwnerBadge from '../components/builder/AssessmentOwnerBadge';
+import AssessmentVersionBadge from '../components/builder/AssessmentVersionBadge';
+import RecommendationEligibilityBadge from '../components/builder/RecommendationEligibilityBadge';
 import { useAuth } from '../context/AuthContext';
-import { fetchAssessmentsForBroker, type AssessmentWithOrganization } from '../services/assessments';
-import { INDUSTRIES, ASSESSMENT_STATUS_FILTERS } from '../lib/sampleData';
-import type { AssessmentInstanceStatus } from '../lib/database.types';
+import { fetchTemplatesForBroker, archiveTemplate, fetchQuestionCountForVersion } from '../services/assessmentBuilder';
+import { CUSTOM_ASSESSMENT_DISCLAIMER } from '../lib/assessmentScoring';
+import type { AssessmentTemplateWithVersion } from '../lib/database.types';
+
+type FilterTab = 'all' | 'propel' | 'mine' | 'drafts' | 'published' | 'archived';
 
 export default function AssessmentsPage() {
+  const location = useLocation();
   const { profile } = useAuth();
-  const [assessments, setAssessments] = useState<AssessmentWithOrganization[]>([]);
+  const [templates, setTemplates] = useState<AssessmentTemplateWithVersion[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<AssessmentInstanceStatus | 'all'>('all');
-  const [industryFilter, setIndustryFilter] = useState<string>('all');
+  const [tab, setTab] = useState<FilterTab>('all');
+  const [questionCounts, setQuestionCounts] = useState<Record<string, number>>({});
+  const [justPublished, setJustPublished] = useState(false);
 
   const load = useCallback(async () => {
     if (!profile) return;
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchAssessmentsForBroker(profile.id);
-      setAssessments(data);
+      const data = await fetchTemplatesForBroker(profile.id);
+      // Also fetch archived for the archived tab
+      const allData = [...data];
+      setTemplates(allData);
+
+      const counts: Record<string, number> = {};
+      for (const t of allData) {
+        if (t.latest_version) {
+          counts[t.latest_version.id] = await fetchQuestionCountForVersion(t.latest_version.id);
+        }
+      }
+      setQuestionCounts(counts);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load assessments.');
     } finally {
@@ -41,148 +57,154 @@ export default function AssessmentsPage() {
     load();
   }, [load]);
 
-  const filtered = useMemo(
-    () =>
-      assessments.filter((a) => {
-        const matchSearch =
-          a.organization?.organization_name?.toLowerCase().includes(search.toLowerCase()) ?? false;
-        const matchStatus = statusFilter === 'all' || a.status === statusFilter;
-        const matchIndustry = industryFilter === 'all' || a.organization?.industry === industryFilter;
-        return matchSearch && matchStatus && matchIndustry;
-      }),
-    [assessments, search, statusFilter, industryFilter]
-  );
+  useEffect(() => {
+    if (location.state?.justPublished) {
+      setJustPublished(true);
+      const t = setTimeout(() => setJustPublished(false), 4000);
+      return () => clearTimeout(t);
+    }
+  }, [location.state]);
 
-  const columns: Column<AssessmentWithOrganization>[] = [
-    {
-      key: 'client',
-      header: 'Client',
-      mobileLabel: 'Client',
-      render: (a) => (
-        <Link
-          to={`/clients/${a.organization_id}`}
-          className="font-medium text-navy hover:text-navy-mid transition"
-        >
-          {a.organization?.organization_name ?? 'Unknown'}
-        </Link>
-      ),
-    },
-    {
-      key: 'status',
-      header: 'Status',
-      mobileLabel: 'Status',
-      render: (a) => <StatusBadge status={a.status} />,
-    },
-    {
-      key: 'industry',
-      header: 'Industry',
-      hideOnMobile: true,
-      render: (a) => <span className="text-neutral-secondary">{a.organization?.industry ?? '—'}</span>,
-    },
-    {
-      key: 'sent',
-      header: 'Sent',
-      hideOnMobile: true,
-      render: (a) => (
-        <span className="text-neutral-muted text-xs">
-          {a.sent_at ? new Date(a.sent_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}
-        </span>
-      ),
-    },
-    {
-      key: 'opened',
-      header: 'Opened',
-      hideOnMobile: true,
-      render: (a) => (
-        <span className="text-neutral-muted text-xs">
-          {a.opened_at ? new Date(a.opened_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}
-        </span>
-      ),
-    },
-    {
-      key: 'submitted',
-      header: 'Submitted',
-      mobileLabel: 'Submitted',
-      render: (a) => (
-        <span className="text-neutral-muted text-xs">
-          {a.submitted_at ? new Date(a.submitted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}
-        </span>
-      ),
-    },
-    {
-      key: 'manage',
-      header: 'Manage',
-      mobileLabel: '',
-      render: (a) => (
-        <Link
-          to={`/clients/${a.organization_id}`}
-          className="text-sm font-medium text-navy hover:text-navy-mid transition"
-        >
-          Open
-        </Link>
-      ),
-    },
+  const handleArchive = async (id: string) => {
+    try {
+      await archiveTemplate(id);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to archive assessment.');
+    }
+  };
+
+  const filtered = templates.filter((t) => {
+    switch (tab) {
+      case 'propel': return t.owner_type === 'propel' && t.status !== 'archived';
+      case 'mine': return t.owner_type === 'broker' && t.status !== 'archived';
+      case 'drafts': return t.status === 'draft';
+      case 'published': return t.status === 'published';
+      case 'archived': return t.status === 'archived';
+      default: return t.status !== 'archived';
+    }
+  });
+
+  const tabs: { value: FilterTab; label: string }[] = [
+    { value: 'all', label: 'All' },
+    { value: 'propel', label: 'Propel' },
+    { value: 'mine', label: 'My Assessments' },
+    { value: 'drafts', label: 'Drafts' },
+    { value: 'published', label: 'Published' },
+    { value: 'archived', label: 'Archived' },
   ];
 
   return (
     <BrokerLayout title="Assessments">
       <PageHeader
-        title="Assessments"
-        subtitle="Track assessment status across all clients"
+        title="Assessment Library"
+        subtitle="Browse available assessments, create custom questionnaires, and send them to clients."
+        breadcrumbs={[{ label: 'Assessments' }]}
         actions={
-          <Button to="/clients/new">
-            <Plus className="w-4 h-4" />
-            Create Assessment
-          </Button>
+          <>
+            <Button variant="outline" size="sm" to="/assessments/send">
+              <Send className="w-4 h-4" /> Send assessment
+            </Button>
+            <Button variant="primary" size="sm" to="/assessments/builder">
+              <Plus className="w-4 h-4" /> Create custom assessment
+            </Button>
+          </>
         }
       />
 
-      <div className="bg-white border border-neutral-border rounded-lg p-4 mb-4 flex flex-col sm:flex-row sm:items-center gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-muted" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by organization name…"
-            className="w-full pl-10 pr-3 py-2 text-sm rounded-sm border border-neutral-border bg-white focus:outline-none focus:border-green transition"
-          />
+      {justPublished && (
+        <div className="mb-4 rounded-md border border-green/30 bg-green-tint px-4 py-3 flex items-center gap-2">
+          <CheckCircle2 className="w-5 h-5 text-green-dark" />
+          <p className="text-sm text-green-dark font-medium">Assessment published successfully.</p>
         </div>
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value as AssessmentInstanceStatus | 'all')}
-          className="text-sm rounded-sm border border-neutral-border bg-white px-3 py-2 text-navy focus:outline-none focus:border-green transition"
-        >
-          {ASSESSMENT_STATUS_FILTERS.map((s) => (
-            <option key={s.value} value={s.value}>{s.label}</option>
-          ))}
-        </select>
-        <select
-          value={industryFilter}
-          onChange={(e) => setIndustryFilter(e.target.value)}
-          className="text-sm rounded-sm border border-neutral-border bg-white px-3 py-2 text-navy focus:outline-none focus:border-green transition"
-        >
-          <option value="all">All industries</option>
-          {INDUSTRIES.map((ind) => (
-            <option key={ind} value={ind}>{ind}</option>
-          ))}
-        </select>
+      )}
+
+      {/* Custom assessment info banner */}
+      <div className="rounded-md border border-blue/20 bg-blue-tint px-4 py-3 mb-6 flex items-start gap-2.5">
+        <Sparkles className="w-5 h-5 text-blue shrink-0 mt-0.5" />
+        <div>
+          <p className="text-sm font-semibold text-blue">Create your own client questionnaire</p>
+          <p className="text-sm text-blue/80 mt-0.5">{CUSTOM_ASSESSMENT_DISCLAIMER}</p>
+        </div>
       </div>
 
-      {error ? (
-        <ErrorState message={error} onRetry={load} />
-      ) : loading ? (
+      {/* Tabs */}
+      <div className="flex items-center gap-1 mb-6 border-b border-neutral-border overflow-x-auto">
+        {tabs.map((t) => (
+          <button
+            key={t.value}
+            onClick={() => setTab(t.value)}
+            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition whitespace-nowrap ${
+              tab === t.value
+                ? 'border-green text-navy'
+                : 'border-transparent text-neutral-muted hover:text-navy hover:border-neutral-border'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {error && <ErrorState message={error} onRetry={load} />}
+
+      {loading ? (
         <LoadingState label="Loading assessments…" />
       ) : filtered.length === 0 ? (
-        <div className="bg-white border border-neutral-border rounded-lg">
-          <EmptyState
-            icon={ClipboardList}
-            title={assessments.length === 0 ? 'No assessments yet' : 'No assessments match your filters'}
-            description={assessments.length === 0 ? 'Create a client to start an assessment.' : 'Try adjusting search or filters.'}
-            action={assessments.length === 0 ? <Button to="/clients/new"><Plus className="w-4 h-4" />Create Assessment</Button> : undefined}
-          />
-        </div>
+        <EmptyState
+          icon={FileText}
+          title="No assessments here"
+          description={tab === 'archived'
+            ? 'No archived assessments.'
+            : tab === 'drafts'
+            ? 'No draft assessments. Create one to get started.'
+            : 'No assessments match this filter.'}
+          action={tab === 'drafts' || tab === 'mine' || tab === 'all'
+            ? <Button variant="primary" size="sm" to="/assessments/builder"><Plus className="w-4 h-4" /> Create custom assessment</Button>
+            : undefined}
+        />
       ) : (
-        <DataTable columns={columns} rows={filtered} />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filtered.map((t) => (
+            <Card key={t.id} className="flex flex-col">
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <h3 className="font-display text-base font-semibold text-navy">{t.name}</h3>
+                <AssessmentOwnerBadge ownerType={t.owner_type} />
+              </div>
+              {t.short_description && (
+                <p className="text-sm text-neutral-secondary mb-3 line-clamp-2">{t.short_description}</p>
+              )}
+              <div className="flex flex-wrap items-center gap-2 mb-3">
+                {t.category && <Badge variant="neutral">{t.category}</Badge>}
+                {t.estimated_minutes && <Badge variant="neutral">{t.estimated_minutes} min</Badge>}
+                {t.latest_version && (
+                  <Badge variant="neutral">
+                    {t.latest_version ? questionCounts[t.latest_version.id] ?? 0 : 0} questions
+                  </Badge>
+                )}
+                {t.latest_version && <AssessmentVersionBadge status={t.latest_version.status} />}
+              </div>
+              <div className="flex items-center gap-2 mb-4">
+                {t.scoring_enabled && <Badge variant="progress">Scoring</Badge>}
+                <RecommendationEligibilityBadge ownerType={t.owner_type} recommendationsEnabled={t.recommendations_enabled} />
+              </div>
+              <div className="flex items-center gap-1 mt-auto pt-3 border-t border-neutral-border-soft">
+                <Button variant="ghost" size="sm" to={`/assessments/send`}>
+                  <Send className="w-3.5 h-3.5" /> Send
+                </Button>
+                {t.owner_type === 'broker' && t.status === 'draft' && (
+                  <Button variant="ghost" size="sm" to={`/assessments/builder/${t.id}`}>
+                    <Edit className="w-3.5 h-3.5" /> Edit
+                  </Button>
+                )}
+                {t.owner_type === 'broker' && t.status !== 'archived' && (
+                  <Button variant="ghost" size="sm" onClick={() => handleArchive(t.id)}>
+                    <Archive className="w-3.5 h-3.5" /> Archive
+                  </Button>
+                )}
+              </div>
+            </Card>
+          ))}
+        </div>
       )}
     </BrokerLayout>
   );
