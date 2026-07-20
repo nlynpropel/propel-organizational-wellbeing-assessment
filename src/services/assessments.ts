@@ -51,7 +51,8 @@ export async function createDraftAssessment(
     .limit(1)
     .single();
 
-  const versionId = tmpl?.latest_version?.id;
+  const latestVersion = tmpl?.latest_version as unknown;
+  const versionId = (Array.isArray(latestVersion) ? latestVersion[0]?.id : (latestVersion as { id?: string } | null)?.id) ?? undefined;
   const templateId = tmpl?.id;
 
   if (tmplErr || !versionId || !templateId) {

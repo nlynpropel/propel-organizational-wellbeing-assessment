@@ -67,6 +67,7 @@ export default function SendAssessmentPage() {
       }
       setQuestionCounts(counts);
     } catch (err) {
+      console.error('[SendAssessmentPage.loadData] Failed:', err);
       setError(err instanceof Error ? err.message : 'Failed to load data.');
     } finally {
       setLoading(false);
@@ -117,6 +118,7 @@ export default function SendAssessmentPage() {
       setCreatedLink(link);
       setStep(4);
     } catch (err) {
+      console.error('[SendAssessmentPage.handleCreateInstance] Failed:', err);
       setError(err instanceof Error ? err.message : 'Failed to create assessment instance.');
     } finally {
       setSubmitting(false);
@@ -365,9 +367,36 @@ export default function SendAssessmentPage() {
                 size="sm"
                 onClick={() => navigator.clipboard.writeText(createdLink)}
               >
-                Copy
+                Copy Link
               </Button>
             </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const msg = `Hello,\n\nYou've been invited to complete an assessment for ${organizations.find((o) => o.id === selectedOrgId)?.organization_name ?? 'your organization'}.\n\nUse the secure link below to begin:\n${createdLink}\n\nThank you,\nPropel`;
+                navigator.clipboard.writeText(msg);
+              }}
+            >
+              Copy Invitation Message
+            </Button>
+            <a href={createdLink} target="_blank" rel="noopener noreferrer">
+              <Button variant="outline" size="sm">
+                Open Assessment
+              </Button>
+            </a>
+          </div>
+          {respondentEmail && (
+            <p className="text-xs text-neutral-muted">
+              Respondent email (reference only): {respondentEmail}
+            </p>
+          )}
+          <div className="rounded-sm bg-orange-tint border border-orange/20 px-3 py-2">
+            <p className="text-xs text-orange-dark">
+              Email delivery is not enabled. Copy and send this link to the client.
+            </p>
           </div>
           <p className="text-xs text-neutral-muted">
             The link is tied to the exact version of the assessment that was selected.

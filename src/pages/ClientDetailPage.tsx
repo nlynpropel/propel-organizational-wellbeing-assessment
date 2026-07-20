@@ -305,6 +305,8 @@ function OverviewTab({
               <ClientLinkPanel
                 token={assessment.secure_token}
                 organization={org.organization_name}
+                instanceId={assessment.id}
+                respondentEmail={assessment.respondent_email}
                 dateSent={assessment.sent_at}
                 dateOpened={assessment.opened_at}
               />
@@ -376,6 +378,8 @@ function AssessmentTab({
           <ClientLinkPanel
             token={assessment.secure_token}
             organization={org.organization_name}
+            instanceId={assessment.id}
+            respondentEmail={assessment.respondent_email}
             dateSent={assessment.sent_at}
             dateOpened={assessment.opened_at}
           />
@@ -393,7 +397,7 @@ function AssessmentTab({
           <div className="mt-4 space-y-3">
             {[
               { label: 'Assessment created', date: assessment.created_at, done: true },
-              { label: 'Link sent to client', date: assessment.sent_at, done: !!assessment.sent_at },
+              { label: 'Assessment link created', date: assessment.sent_at, done: !!assessment.sent_at },
               { label: 'Client opened assessment', date: assessment.opened_at, done: !!assessment.opened_at },
               { label: 'Assessment submitted', date: assessment.submitted_at, done: !!assessment.submitted_at },
               { label: 'Report generated', date: assessment.status === 'report_ready' ? assessment.submitted_at : null, done: assessment.status === 'report_ready' },

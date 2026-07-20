@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { logDbError } from '../lib/logger';
 import type {
   AssessmentTemplateRow,
   AssessmentVersionRow,
@@ -71,7 +72,10 @@ export async function fetchTemplatesForBroker(brokerId: string): Promise<Assessm
     .or(`owner_type.eq.propel,and(owner_type.eq.broker,owner_profile_id.eq.${brokerId})`)
     .neq('status', 'archived')
     .order('created_at', { ascending: false });
-  if (error) throw error;
+  if (error) {
+    logDbError({ fn: 'fetchTemplatesForBroker', route: '/assessments', error });
+    throw error;
+  }
   return (data ?? []) as AssessmentTemplateWithVersion[];
 }
 
@@ -549,7 +553,10 @@ export async function createAssessmentInstance(input: CreateInstanceInput): Prom
     .insert(payload)
     .select()
     .single();
-  if (error) throw error;
+  if (error) {
+    logDbError({ fn: 'createAssessmentInstance', route: '/assessments/send', error });
+    throw error;
+  }
   return data;
 }
 
@@ -621,7 +628,10 @@ export async function resolveAssessmentByToken(token: string): Promise<ResolvedA
   const { data, error } = await supabase.rpc('resolve_assessment_by_token', {
     p_token: token,
   });
-  if (error) throw error;
+  if (error) {
+    logDbError({ fn: 'resolveAssessmentByToken', route: '/assessment/:token', error });
+    throw error;
+  }
   return data as ResolvedAssessment | { error: string; status?: string };
 }
 
@@ -651,6 +661,14 @@ export async function finalizeSubmissionByToken(token: string): Promise<Assessme
   });
   if (error) throw error;
   return data as AssessmentResultRow;
+}
+
+export async function regenerateAssessmentToken(instanceId: string): Promise<{ instance_id: string; secure_token: string } | { error: string }> {
+  const { data, error } = await supabase.rpc('regenerate_assessment_token', {
+    p_instance_id: instanceId,
+  });
+  if (error) throw error;
+  return data as { instance_id: string; secure_token: string } | { error: string };
 }
 
 // ============================================================

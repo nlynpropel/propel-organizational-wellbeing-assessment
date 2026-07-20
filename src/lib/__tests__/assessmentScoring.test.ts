@@ -105,6 +105,12 @@ function makeSectionWithQuestions(
       reverse_scored: false,
       reporting_label: null,
       scoring_dimension: null,
+      numeric_rating_min_value: 1,
+      numeric_rating_max_value: 5,
+      numeric_rating_step_value: 1,
+      numeric_rating_min_label: null,
+      numeric_rating_max_label: null,
+      maximum_selections: null,
       created_at: '',
       updated_at: '',
       options: q.options.map((o, j) => ({

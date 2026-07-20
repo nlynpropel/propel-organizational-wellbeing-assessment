@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Plus, Send, Edit, Archive, FileText, CheckCircle2, Sparkles } from 'lucide-react';
+import { Plus, Send, Edit, Archive, Ban, FileText, CheckCircle2, Sparkles } from 'lucide-react';
 import BrokerLayout from '../components/layout/BrokerLayout';
 import PageHeader from '../components/layout/PageHeader';
 import Card from '../components/ui/Card';
@@ -47,6 +47,7 @@ export default function AssessmentsPage() {
       }
       setQuestionCounts(counts);
     } catch (err) {
+      console.error('[AssessmentsPage.load] Failed:', err);
       setError(err instanceof Error ? err.message : 'Failed to load assessments.');
     } finally {
       setLoading(false);

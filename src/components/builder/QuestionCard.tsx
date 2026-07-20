@@ -188,7 +188,13 @@ export default function QuestionCard({
           stepValue={question.numeric_rating_step_value}
           minLabel={question.numeric_rating_min_label}
           maxLabel={question.numeric_rating_max_label}
-          onChange={(cfg) => update(cfg)}
+          onChange={(cfg) => update({
+            numeric_rating_min_value: cfg.min_value ?? question.numeric_rating_min_value,
+            numeric_rating_max_value: cfg.max_value ?? question.numeric_rating_max_value,
+            numeric_rating_step_value: cfg.step_value ?? question.numeric_rating_step_value,
+            numeric_rating_min_label: cfg.min_label ?? question.numeric_rating_min_label,
+            numeric_rating_max_label: cfg.max_label ?? question.numeric_rating_max_label,
+          })}
           disabled={disabled}
         />
       )}

@@ -66,6 +66,7 @@ export default function AssessmentPage() {
         setPhase('intro');
       }
     } catch (err) {
+      console.error('[AssessmentPage.load] Failed to load assessment:', err);
       const msg = err instanceof Error ? err.message : 'Failed to load assessment';
       setError(msg);
       setPhase('error');
