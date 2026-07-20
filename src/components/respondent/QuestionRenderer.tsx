@@ -1,5 +1,6 @@
 import { Check, Info } from 'lucide-react';
 import type { ResponseUpdate, QuestionData } from './questionTypes';
+import { getNumericRatingConfig, getNumericRatingSteps } from './questionTypes';
 import type { SavedResponse } from '../../lib/database.types';
 
 type Props = {
@@ -179,13 +180,14 @@ function NumericRating({
   response: SavedResponse | undefined;
   onChange: (update: ResponseUpdate) => void;
 }) {
-  const max = 10;
+  const config = getNumericRatingConfig(question);
+  const steps = getNumericRatingSteps(config);
   const current = response?.numeric_value ?? null;
 
   return (
     <div>
       <div className="flex gap-2 flex-wrap">
-        {Array.from({ length: max }, (_, i) => i + 1).map((n) => (
+        {steps.map((n) => (
           <button
             key={n}
             type="button"
@@ -209,8 +211,8 @@ function NumericRating({
         ))}
       </div>
       <div className="flex justify-between mt-2 text-xs text-neutral-muted">
-        <span>1 = Low</span>
-        <span>{max} = High</span>
+        <span>{config.min_label ? `${config.min_value} = ${config.min_label}` : `${config.min_value}`}</span>
+        <span>{config.max_label ? `${config.max_value} = ${config.max_label}` : `${config.max_value}`}</span>
       </div>
     </div>
   );

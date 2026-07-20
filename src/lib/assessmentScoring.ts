@@ -119,6 +119,8 @@ export type ScoredQuestion = {
   weight: number;
   reverseScored: boolean;
   options: Array<{ id: string; scoreValue: number | null; isNotApplicable: boolean }>;
+  numericRatingMin?: number;
+  numericRatingMax?: number;
 };
 
 export type ScoredSection = {
@@ -213,9 +215,16 @@ export function calculateSectionScore(
 
     answeredCount++;
 
-    const rawScore = response.scoreValue ?? selectedOption?.scoreValue ?? 0;
-    const minScore = Math.min(...q.options.filter((o) => !o.isNotApplicable).map((o) => o.scoreValue ?? 0));
-    const maxScore = Math.max(...q.options.filter((o) => !o.isNotApplicable).map((o) => o.scoreValue ?? 0));
+    const rawScore = response.scoreValue ?? selectedOption?.scoreValue ?? response.numericValue ?? 0;
+    let minScore: number;
+    let maxScore: number;
+    if (q.numericRatingMin !== undefined && q.numericRatingMax !== undefined) {
+      minScore = q.numericRatingMin;
+      maxScore = q.numericRatingMax;
+    } else {
+      minScore = Math.min(...q.options.filter((o) => !o.isNotApplicable).map((o) => o.scoreValue ?? 0));
+      maxScore = Math.max(...q.options.filter((o) => !o.isNotApplicable).map((o) => o.scoreValue ?? 0));
+    }
 
     const normalized = normalizeQuestionScore(rawScore, minScore, maxScore, q.reverseScored);
 
@@ -340,6 +349,27 @@ export function validateAssessment(sections: AssessmentSectionWithQuestions[]): 
               questionId: question.id,
             });
           }
+        }
+      }
+
+      // Numeric rating validation
+      if (question.question_type === 'numeric_rating') {
+        const min = question.numeric_rating_min_value ?? 1;
+        const max = question.numeric_rating_max_value ?? 10;
+        const step = question.numeric_rating_step_value ?? 1;
+        if (!(max > min)) {
+          warnings.push({
+            level: 'error',
+            message: `Numeric rating question "${question.question_text}" must have max value > min value.`,
+            questionId: question.id,
+          });
+        }
+        if (!(step > 0)) {
+          warnings.push({
+            level: 'error',
+            message: `Numeric rating question "${question.question_text}" must have step value > 0.`,
+            questionId: question.id,
+          });
         }
       }
 

@@ -46,12 +46,12 @@ export default function AssessmentPage() {
       if ('error' in data) {
         setAccessError({ message: data.error, status: data.status });
         setPhase('error');
-        track({ type: 'assessment_error', token, error: data.error });
+        track({ type: 'assessment_error', errorCode: data.status || 'access_error' });
         return;
       }
       setAssessment(data);
       setResponses(data.responses || []);
-      track({ type: 'assessment_opened', token, templateName: data.template.name });
+      track({ type: 'assessment_opened', templateCategory: data.template.category || 'uncategorized' });
 
       if (data.instance.status === 'submitted') {
         setAccessError({ message: 'This assessment has already been submitted.', status: 'submitted' });
@@ -61,6 +61,7 @@ export default function AssessmentPage() {
       if (data.responses.length > 0 || data.instance.status === 'in_progress') {
         setHasStarted(true);
         setPhase('section');
+        track({ type: 'assessment_resumed', hadSavedResponses: data.responses.length > 0 });
       } else {
         setPhase('intro');
       }
@@ -68,7 +69,7 @@ export default function AssessmentPage() {
       const msg = err instanceof Error ? err.message : 'Failed to load assessment';
       setError(msg);
       setPhase('error');
-      track({ type: 'assessment_error', token, error: msg });
+      track({ type: 'assessment_error', errorCode: 'load_failed' });
     }
   }, [token]);
 
@@ -122,39 +123,31 @@ export default function AssessmentPage() {
       });
 
       if (assessment) {
-        track({
-          type: 'question_answered',
-          token,
-          questionId: update.question_id,
-          questionType: 'answered',
-        });
+        // No per-question analytics event — privacy by design.
       }
 
       if (saveTimer.current) clearTimeout(saveTimer.current);
       saveTimer.current = setTimeout(() => flushSaves(), 800);
     },
-    [token, assessment, flushSaves]
+    [assessment, flushSaves]
   );
 
   const handleStart = () => {
     if (!assessment) return;
     setHasStarted(true);
     setPhase('section');
-    track({ type: 'assessment_started', token, templateName: assessment.template.name });
+    track({ type: 'assessment_started', templateCategory: assessment.template.category || 'uncategorized' });
   };
 
   const handleNext = () => {
     if (!assessment) return;
     if (sectionIndex < assessment.sections.length - 1) {
       setSectionIndex((i) => i + 1);
-      track({ type: 'section_navigated', token, sectionIndex: sectionIndex + 1, direction: 'next' });
+      track({ type: 'section_completed', sectionIndex, totalSections: assessment.sections.length });
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
       flushSaves().then(() => {
         setPhase('review');
-        const answered = responses.filter((r) => r.selected_option_id || r.text_value || r.numeric_value !== null || r.boolean_value !== null).length;
-        const total = assessment.sections.reduce((acc, s) => acc + s.questions.filter((q) => q.question_type !== 'information').length, 0);
-        track({ type: 'review_opened', token, answeredCount: answered, totalCount: total });
       });
     }
   };
@@ -162,7 +155,6 @@ export default function AssessmentPage() {
   const handlePrev = () => {
     if (sectionIndex > 0) {
       setSectionIndex((i) => i - 1);
-      track({ type: 'section_navigated', token, sectionIndex: sectionIndex - 1, direction: 'prev' });
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
       setPhase('intro');
@@ -177,12 +169,12 @@ export default function AssessmentPage() {
       const res = await finalizeSubmissionByToken(token);
       setResult(res);
       setPhase('complete');
-      track({ type: 'assessment_submitted', token, templateName: assessment.template.name });
+      track({ type: 'assessment_submitted', templateCategory: assessment.template.category || 'uncategorized' });
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to submit assessment';
       setError(msg);
       setPhase('review');
-      track({ type: 'assessment_error', token, error: msg });
+      track({ type: 'assessment_error', errorCode: 'submit_failed' });
     }
   };
 

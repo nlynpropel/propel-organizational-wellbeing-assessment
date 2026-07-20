@@ -29,6 +29,13 @@ export default function AssessmentSection({
             question_type: q.question_type,
             is_required: q.is_required,
             options: q.options,
+            numeric_rating: {
+              min_value: q.numeric_rating_min_value,
+              max_value: q.numeric_rating_max_value,
+              step_value: q.numeric_rating_step_value,
+              min_label: q.numeric_rating_min_label,
+              max_label: q.numeric_rating_max_label,
+            },
           };
           return (
             <QuestionRenderer

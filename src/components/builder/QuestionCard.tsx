@@ -5,6 +5,7 @@ import ScoringToggle from './ScoringToggle';
 import WeightInput from './WeightInput';
 import ReverseScoringToggle from './ReverseScoringToggle';
 import NotApplicableToggle from './NotApplicableToggle';
+import NumericRatingConfigEditor from './NumericRatingConfigEditor';
 import type { AssessmentQuestionType } from '../../lib/database.types';
 import { getDefaultOptionsForType } from '../../lib/assessmentScoring';
 
@@ -23,6 +24,11 @@ export type DraftQuestion = {
   allow_not_applicable: boolean;
   options: DraftOption[];
   sectionId?: string;
+  numeric_rating_min_value: number;
+  numeric_rating_max_value: number;
+  numeric_rating_step_value: number;
+  numeric_rating_min_label: string;
+  numeric_rating_max_label: string;
 };
 
 export default function QuestionCard({
@@ -150,6 +156,18 @@ export default function QuestionCard({
           options={question.options}
           onChange={(options) => update({ options })}
           isScored={question.is_scored}
+          disabled={disabled}
+        />
+      )}
+
+      {question.question_type === 'numeric_rating' && (
+        <NumericRatingConfigEditor
+          minValue={question.numeric_rating_min_value}
+          maxValue={question.numeric_rating_max_value}
+          stepValue={question.numeric_rating_step_value}
+          minLabel={question.numeric_rating_min_label}
+          maxLabel={question.numeric_rating_max_label}
+          onChange={(cfg) => update(cfg)}
           disabled={disabled}
         />
       )}

@@ -76,9 +76,27 @@ export default function AssessmentPreview({
                         <div className="w-full h-8 rounded-sm border border-neutral-border bg-neutral-bg/30" />
                       </div>
                     )}
-                    {question.question_type === 'information' && (
+                    {question.question_type === 'numeric_rating' && (
                       <div className="pl-6">
-                        <p className="text-sm text-neutral-secondary italic">Informational block</p>
+                        <div className="flex gap-1 flex-wrap">
+                          {Array.from(
+                            { length: Math.ceil((question.numeric_rating_max_value - question.numeric_rating_min_value) / question.numeric_rating_step_value) + 1 },
+                            (_, i) => question.numeric_rating_min_value + i * question.numeric_rating_step_value
+                          ).map((n, ni) => (
+                            <span key={ni} className="w-8 h-8 rounded-sm border border-neutral-border bg-neutral-bg/30 flex items-center justify-center text-xs text-neutral-muted">
+                              {n}
+                            </span>
+                          ))}
+                        </div>
+                        <div className="flex justify-between mt-1 text-xs text-neutral-muted">
+                          <span>{question.numeric_rating_min_label || question.numeric_rating_min_value}</span>
+                          <span>{question.numeric_rating_max_label || question.numeric_rating_max_value}</span>
+                        </div>
+                      </div>
+                    )}
+                    {question.question_type === 'numeric_input' && (
+                      <div className="pl-6">
+                        <div className="w-24 h-8 rounded-sm border border-neutral-border bg-neutral-bg/30" />
                       </div>
                     )}
                   </div>

@@ -337,6 +337,11 @@ export type CreateQuestionInput = {
   reverse_scored?: boolean;
   reporting_label?: string;
   scoring_dimension?: string;
+  numeric_rating_min_value?: number;
+  numeric_rating_max_value?: number;
+  numeric_rating_step_value?: number;
+  numeric_rating_min_label?: string;
+  numeric_rating_max_label?: string;
 };
 
 export async function fetchQuestionsForVersion(versionId: string): Promise<AssessmentQuestionRow[]> {
@@ -373,6 +378,11 @@ export async function createQuestion(input: CreateQuestionInput): Promise<Assess
     reverse_scored: input.reverse_scored ?? false,
     reporting_label: input.reporting_label ?? null,
     scoring_dimension: input.scoring_dimension ?? null,
+    numeric_rating_min_value: input.numeric_rating_min_value ?? 1,
+    numeric_rating_max_value: input.numeric_rating_max_value ?? 10,
+    numeric_rating_step_value: input.numeric_rating_step_value ?? 1,
+    numeric_rating_min_label: input.numeric_rating_min_label ?? null,
+    numeric_rating_max_label: input.numeric_rating_max_label ?? null,
   };
   const { data, error } = await supabase
     .from('assessment_questions')

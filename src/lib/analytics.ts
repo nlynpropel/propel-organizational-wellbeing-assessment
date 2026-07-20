@@ -4,16 +4,18 @@
  * Events are typed and logged to the console in development. In production,
  * this can be swapped for a real provider (PostHog, Mixpanel, etc.) by
  * replacing the `emit` implementation without touching call sites.
+ *
+ * Privacy: payloads never contain secure tokens, email addresses, respondent
+ * names, organization names, question IDs, answer values, or free-text.
  */
 
 export type AssessmentAnalyticsEvent =
-  | { type: 'assessment_opened'; token: string; templateName: string }
-  | { type: 'assessment_started'; token: string; templateName: string }
-  | { type: 'question_answered'; token: string; questionId: string; questionType: string }
-  | { type: 'section_navigated'; token: string; sectionIndex: number; direction: 'next' | 'prev' }
-  | { type: 'review_opened'; token: string; answeredCount: number; totalCount: number }
-  | { type: 'assessment_submitted'; token: string; templateName: string }
-  | { type: 'assessment_error'; token: string; error: string };
+  | { type: 'assessment_opened'; templateCategory: string }
+  | { type: 'assessment_started'; templateCategory: string }
+  | { type: 'section_completed'; sectionIndex: number; totalSections: number }
+  | { type: 'assessment_resumed'; hadSavedResponses: boolean }
+  | { type: 'assessment_submitted'; templateCategory: string }
+  | { type: 'assessment_error'; errorCode: string };
 
 type EmitFn = (event: AssessmentAnalyticsEvent) => void;
 

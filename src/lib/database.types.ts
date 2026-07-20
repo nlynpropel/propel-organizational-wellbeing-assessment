@@ -138,6 +138,11 @@ export type AssessmentQuestionRow = {
   reverse_scored: boolean;
   reporting_label: string | null;
   scoring_dimension: string | null;
+  numeric_rating_min_value: number;
+  numeric_rating_max_value: number;
+  numeric_rating_step_value: number;
+  numeric_rating_min_label: string | null;
+  numeric_rating_max_label: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -314,7 +319,6 @@ export type ResolvedAssessment = {
     title: string;
     description: string | null;
     display_order: number;
-    is_scored: boolean;
     questions: Array<{
       id: string;
       question_text: string;
@@ -322,8 +326,11 @@ export type ResolvedAssessment = {
       question_type: AssessmentQuestionType;
       display_order: number;
       is_required: boolean;
-      is_scored: boolean;
-      reporting_label: string | null;
+      numeric_rating_min_value: number;
+      numeric_rating_max_value: number;
+      numeric_rating_step_value: number;
+      numeric_rating_min_label: string | null;
+      numeric_rating_max_label: string | null;
       options: Array<{
         id: string;
         option_label: string;
