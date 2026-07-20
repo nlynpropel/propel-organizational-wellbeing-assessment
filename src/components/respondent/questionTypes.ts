@@ -27,6 +27,7 @@ export type QuestionData = {
   is_required: boolean;
   options: QuestionOption[];
   numeric_rating?: NumericRatingConfig;
+  maximum_selections?: number | null;
 };
 
 export type ResponseUpdate = {

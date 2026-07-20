@@ -143,6 +143,7 @@ export type AssessmentQuestionRow = {
   numeric_rating_step_value: number;
   numeric_rating_min_label: string | null;
   numeric_rating_max_label: string | null;
+  maximum_selections: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -331,6 +332,7 @@ export type ResolvedAssessment = {
       numeric_rating_step_value: number;
       numeric_rating_min_label: string | null;
       numeric_rating_max_label: string | null;
+      maximum_selections: number | null;
       options: Array<{
         id: string;
         option_label: string;

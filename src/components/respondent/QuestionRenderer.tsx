@@ -88,6 +88,8 @@ function OptionGrid({
     const next = selectedIds.includes(optionId)
       ? selectedIds.filter((id) => id !== optionId)
       : [...selectedIds, optionId];
+    const limit = question.maximum_selections;
+    if (limit != null && next.length > limit) return;
     onChange({
       question_id: question.id,
       selected_option_id: null,

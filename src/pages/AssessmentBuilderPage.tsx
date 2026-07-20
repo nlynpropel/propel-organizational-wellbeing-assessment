@@ -137,6 +137,7 @@ export default function AssessmentBuilderPage() {
             numeric_rating_step_value: q.numeric_rating_step_value ?? 1,
             numeric_rating_min_label: q.numeric_rating_min_label ?? '',
             numeric_rating_max_label: q.numeric_rating_max_label ?? '',
+            maximum_selections: q.maximum_selections ?? null,
             allow_not_applicable: q.options.some((o) => o.is_not_applicable),
             options: q.options.map((o) => ({
               id: o.id,
@@ -331,6 +332,7 @@ export default function AssessmentBuilderPage() {
             numeric_rating_step_value: q.numeric_rating_step_value,
             numeric_rating_min_label: q.numeric_rating_min_label || undefined,
             numeric_rating_max_label: q.numeric_rating_max_label || undefined,
+            maximum_selections: q.maximum_selections,
           });
           // Insert options
           for (let k = 0; k < q.options.length; k++) {
@@ -400,6 +402,7 @@ export default function AssessmentBuilderPage() {
         numeric_rating_step_value: q.numeric_rating_step_value,
         numeric_rating_min_label: q.numeric_rating_min_label || null,
         numeric_rating_max_label: q.numeric_rating_max_label || null,
+        maximum_selections: q.maximum_selections,
         created_at: '',
         updated_at: '',
         options: q.options.map((o, oi) => ({
@@ -641,6 +644,7 @@ export default function AssessmentBuilderPage() {
                           numeric_rating_step_value: 1,
                           numeric_rating_min_label: '',
                           numeric_rating_max_label: '',
+                          maximum_selections: null,
                           allow_not_applicable: false,
                           options: [],
                           sectionId: section.id,

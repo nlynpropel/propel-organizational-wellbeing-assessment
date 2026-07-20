@@ -342,6 +342,7 @@ export type CreateQuestionInput = {
   numeric_rating_step_value?: number;
   numeric_rating_min_label?: string;
   numeric_rating_max_label?: string;
+  maximum_selections?: number | null;
 };
 
 export async function fetchQuestionsForVersion(versionId: string): Promise<AssessmentQuestionRow[]> {
@@ -383,6 +384,7 @@ export async function createQuestion(input: CreateQuestionInput): Promise<Assess
     numeric_rating_step_value: input.numeric_rating_step_value ?? 1,
     numeric_rating_min_label: input.numeric_rating_min_label ?? null,
     numeric_rating_max_label: input.numeric_rating_max_label ?? null,
+    maximum_selections: input.maximum_selections ?? null,
   };
   const { data, error } = await supabase
     .from('assessment_questions')

@@ -36,6 +36,7 @@ export default function AssessmentSection({
               min_label: q.numeric_rating_min_label,
               max_label: q.numeric_rating_max_label,
             },
+            maximum_selections: q.maximum_selections,
           };
           return (
             <QuestionRenderer

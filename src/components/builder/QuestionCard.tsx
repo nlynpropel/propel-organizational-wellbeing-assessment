@@ -29,6 +29,7 @@ export type DraftQuestion = {
   numeric_rating_step_value: number;
   numeric_rating_min_label: string;
   numeric_rating_max_label: string;
+  maximum_selections: number | null;
 };
 
 export default function QuestionCard({
@@ -158,6 +159,26 @@ export default function QuestionCard({
           isScored={question.is_scored}
           disabled={disabled}
         />
+      )}
+
+      {question.question_type === 'multi_select' && (
+        <div className="rounded-sm border border-neutral-border bg-neutral-bg/30 p-3">
+          <label className="block text-sm font-medium text-navy mb-1.5">Maximum selections</label>
+          <input
+            type="number"
+            min={1}
+            value={question.maximum_selections ?? ''}
+            onChange={(e) =>
+              update({
+                maximum_selections: e.target.value === '' ? null : Math.max(1, parseInt(e.target.value, 10) || 1),
+              })
+            }
+            placeholder="No limit"
+            disabled={disabled}
+            className="w-32 px-3 py-1.5 rounded-sm border border-neutral-border bg-white text-navy text-sm focus:outline-none focus:border-green focus:ring-1 focus:ring-green/20"
+          />
+          <p className="mt-1 text-xs text-neutral-muted">Leave empty for no limit. Respondents can select at most this many options.</p>
+        </div>
       )}
 
       {question.question_type === 'numeric_rating' && (
