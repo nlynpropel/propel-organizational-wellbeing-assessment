@@ -6,7 +6,6 @@ import {
   ClipboardList,
   FileText,
   Settings,
-  Sparkles,
   Shield,
   Menu,
   X,
@@ -61,12 +60,12 @@ export default function MobileNavigation() {
           />
           <div className="relative w-72 max-w-[80vw] bg-navy text-white h-full flex flex-col">
             <div className="px-5 h-16 flex items-center justify-between border-b border-white/10">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-md bg-green flex items-center justify-center">
-                  <Sparkles className="w-4.5 h-4.5 text-navy-deep" />
-                </div>
-                <span className="font-display text-lg font-semibold">Propel</span>
-              </div>
+              <img
+                src="/Propel_Logo_2020_v4-3.png"
+                alt="Propel"
+                className="h-7 w-auto"
+                style={{ filter: 'brightness(0) invert(1)' }}
+              />
               <button
                 onClick={() => setOpen(false)}
                 className="p-1.5 rounded-sm text-white/70 hover:text-white hover:bg-white/10"

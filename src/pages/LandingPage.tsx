@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { ArrowRight, FileText, Link2, ClipboardList, Sparkles } from 'lucide-react';
+import { ArrowRight, FileText, Link2, ClipboardList } from 'lucide-react';
 import PublicHeader from '../components/layout/PublicHeader';
 
 const steps = [
@@ -79,8 +79,8 @@ export default function LandingPage() {
       <footer className="bg-navy-deep py-8">
         <div className="max-w-6xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2 text-white/60 text-sm">
-            <Sparkles className="w-4 h-4 text-green" />
-            <span>Propel Well-being Opportunity Index</span>
+            <img src="/Propel_Logo_2020_v4-3.png" alt="Propel" className="h-5 w-auto" style={{ filter: 'brightness(0) invert(1)' }} />
+            <span>Well-being Opportunity Index</span>
           </div>
           <p className="text-white/40 text-xs">Application shell · Sample data for demonstration</p>
         </div>

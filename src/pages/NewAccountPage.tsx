@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, ArrowRight, User, AlertTriangle, Loader2 } from 'lucide-react';
+import { ArrowRight, User, AlertTriangle, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { completeAccountSetup } from '../services/profiles';
 import type { AverageClientSize } from '../lib/database.types';
@@ -53,12 +53,9 @@ export default function NewAccountPage() {
       <div className="flex-1 flex items-center justify-center px-6 py-12">
         <div className="w-full max-w-lg">
           <div className="flex items-center gap-2.5 mb-8">
-            <div className="w-10 h-10 rounded-md bg-green flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-navy-deep" />
-            </div>
+            <img src="/Propel_Logo_2020_v4-3.png" alt="Propel" className="h-8 w-auto" style={{ filter: 'brightness(0) invert(1)' }} />
             <div>
-              <span className="font-display text-xl font-semibold text-white block leading-none">Propel</span>
-              <span className="text-xs text-white/50">Broker portal</span>
+              <span className="text-xs text-white/50 block leading-none mt-1">Broker portal</span>
             </div>
           </div>
 

@@ -5,7 +5,6 @@ import {
   ClipboardList,
   FileText,
   Settings,
-  Sparkles,
   Shield,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -40,11 +39,13 @@ export default function BrokerSidebar() {
 
   return (
     <aside className="hidden lg:flex flex-col w-60 bg-navy text-white h-screen sticky top-0 shrink-0">
-      <div className="px-5 h-16 flex items-center gap-2.5 border-b border-white/10">
-        <div className="w-8 h-8 rounded-md bg-green flex items-center justify-center">
-          <Sparkles className="w-4.5 h-4.5 text-navy-deep" />
-        </div>
-        <span className="font-display text-lg font-semibold">Propel</span>
+      <div className="px-5 h-16 flex items-center border-b border-white/10">
+        <img
+          src="/Propel_Logo_2020_v4-3.png"
+          alt="Propel"
+          className="h-7 w-auto"
+          style={{ filter: 'brightness(0) invert(1)' }}
+        />
       </div>
 
       <nav className="flex-1 px-3 py-4 space-y-1">

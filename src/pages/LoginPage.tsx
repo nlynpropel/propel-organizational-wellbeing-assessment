@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, CheckCircle2, Mail, AlertTriangle, Lock, Sparkles } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CheckCircle2, Mail, AlertTriangle, Lock } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { isEmailDomainApproved } from '../services/domains';
 
@@ -60,12 +60,9 @@ export default function LoginPage() {
           </Link>
 
           <div className="flex items-center gap-2.5 mb-8">
-            <div className="w-10 h-10 rounded-md bg-green flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-navy-deep" />
-            </div>
+            <img src="/Propel_Logo_2020_v4-3.png" alt="Propel" className="h-8 w-auto" style={{ filter: 'brightness(0) invert(1)' }} />
             <div>
-              <span className="font-display text-xl font-semibold text-white block leading-none">Propel</span>
-              <span className="text-xs text-white/50">Broker portal</span>
+              <span className="text-xs text-white/50 block leading-none mt-1">Broker portal</span>
             </div>
           </div>
 

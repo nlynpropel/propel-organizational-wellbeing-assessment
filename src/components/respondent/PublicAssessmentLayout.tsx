@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react';
-import { Sparkles } from 'lucide-react';
 
 export default function PublicAssessmentLayout({
   children,
@@ -12,10 +11,7 @@ export default function PublicAssessmentLayout({
     <div className="min-h-screen bg-neutral-bg flex flex-col">
       <header className="bg-white border-b border-neutral-border sticky top-0 z-10">
         <div className="max-w-2xl mx-auto px-6 h-16 flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-md bg-green flex items-center justify-center">
-            <Sparkles className="w-4 h-4 text-navy-deep" />
-          </div>
-          <span className="font-display text-lg font-semibold text-navy">Propel</span>
+          <img src="/Propel_Logo_2020_v4-3.png" alt="Propel" className="h-7 w-auto" />
           {organizationName && (
             <span className="text-sm text-neutral-muted ml-auto hidden sm:inline">
               for {organizationName}
