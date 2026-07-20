@@ -409,3 +409,14 @@ export function canShowRecommendations(
 
 export const CUSTOM_ASSESSMENT_DISCLAIMER =
   'Custom assessment reporting summarizes responses and scores. Automated Propel recommendations are not included.';
+
+export const CUSTOM_SCORING_DISCLAIMER =
+  'Scores reflect the weighting and answer values configured by the assessment creator. They are descriptive and have not been independently validated or benchmarked by Propel.';
+
+export function shouldShowScoreBand(
+  ownerType: 'propel' | 'broker',
+  customBandsConfigured: boolean
+): boolean {
+  if (ownerType === 'propel') return true;
+  return customBandsConfigured;
+}

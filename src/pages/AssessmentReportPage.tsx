@@ -15,7 +15,7 @@ import { useAuth } from '../context/AuthContext';
 import { fetchInstanceById, fetchResponsesForInstance, fetchSectionScoresForInstance, fetchResultForInstance } from '../services/assessmentBuilder';
 import { fetchSectionsWithQuestions, fetchVersionById, fetchTemplateById, fetchScoreBandsForVersion } from '../services/assessmentBuilder';
 import { fetchOrganizationById } from '../services/organizations';
-import { getScoreBand, roundForDisplay, CUSTOM_ASSESSMENT_DISCLAIMER, canShowRecommendations } from '../lib/assessmentScoring';
+import { getScoreBand, roundForDisplay, CUSTOM_ASSESSMENT_DISCLAIMER, CUSTOM_SCORING_DISCLAIMER, canShowRecommendations, shouldShowScoreBand } from '../lib/assessmentScoring';
 import type {
   AssessmentInstanceRow,
   AssessmentResponseRow,
@@ -106,6 +106,7 @@ export default function AssessmentReportPage() {
 
   const isCompleted = instance.status === 'submitted' || instance.status === 'report_ready';
   const showRecommendations = template ? canShowRecommendations(template.owner_type, template.recommendations_enabled) : false;
+  const showBand = template ? shouldShowScoreBand(template.owner_type, scoreBands.length > 0) : false;
 
   const responseMap = new Map(responses.map((r) => [r.question_id, r]));
   const sectionScoreMap = new Map(sectionScores.map((s) => [s.section_id, s]));
@@ -169,7 +170,7 @@ export default function AssessmentReportPage() {
             </div>
             <div className="flex-1">
               <ScoreBar score={overallScore} size="lg" />
-              {scoreBand && (
+              {scoreBand && showBand && (
               <div className="mt-2">
                 <Badge variant="success" dot>{scoreBand}</Badge>
               </div>
@@ -275,9 +276,17 @@ export default function AssessmentReportPage() {
 
       {/* Custom assessment disclaimer */}
       {template?.owner_type === 'broker' && (
-        <div className="rounded-md border border-blue/20 bg-blue-tint px-4 py-3 flex items-start gap-2.5">
-          <Info className="w-5 h-5 text-blue shrink-0 mt-0.5" />
-          <p className="text-sm text-blue/80">{CUSTOM_ASSESSMENT_DISCLAIMER}</p>
+        <div className="space-y-3">
+          <div className="rounded-md border border-blue/20 bg-blue-tint px-4 py-3 flex items-start gap-2.5">
+            <Info className="w-5 h-5 text-blue shrink-0 mt-0.5" />
+            <p className="text-sm text-blue/80">{CUSTOM_ASSESSMENT_DISCLAIMER}</p>
+          </div>
+          {template.scoring_enabled && (
+            <div className="rounded-md border border-neutral-border bg-neutral-bg/30 px-4 py-3 flex items-start gap-2.5">
+              <Info className="w-5 h-5 text-neutral-muted shrink-0 mt-0.5" />
+              <p className="text-sm text-neutral-secondary">{CUSTOM_SCORING_DISCLAIMER}</p>
+            </div>
+          )}
         </div>
       )}
     </BrokerLayout>

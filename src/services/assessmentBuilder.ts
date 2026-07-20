@@ -642,6 +642,19 @@ export async function finalizeSubmissionByToken(token: string): Promise<Assessme
 }
 
 // ============================================================
+// Version duplication
+// ============================================================
+
+export async function duplicateAssessmentVersion(sourceVersionId: string, createdBy: string): Promise<AssessmentVersionRow> {
+  const { data, error } = await supabase.rpc('duplicate_assessment_version', {
+    p_source_version_id: sourceVersionId,
+    p_created_by: createdBy,
+  });
+  if (error) throw error;
+  return data as AssessmentVersionRow;
+}
+
+// ============================================================
 // Admin: all templates with stats
 // ============================================================
 
