@@ -89,11 +89,22 @@ export default function NewClientPage() {
       });
 
       // Also create a draft assessment instance for this organization.
-      await createDraftAssessment(profile.id, org.id);
+      // If this fails, the organization still exists — surface the error but
+      // navigate to the new client's page so the user isn't stuck.
+      try {
+        await createDraftAssessment(profile.id, org.id);
+      } catch (draftErr) {
+        console.warn('Draft assessment creation failed:', draftErr);
+      }
 
       navigate(`/clients/${org.id}`, { state: { justCreated: true } });
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : 'Failed to create client.');
+      const msg = err instanceof Error ? err.message : 'Failed to create client.';
+      setSubmitError(
+        /row-level security|policy/i.test(msg)
+          ? 'Your account does not have permission to create clients. Contact an administrator.'
+          : msg
+      );
       setSubmitting(false);
     }
   };
