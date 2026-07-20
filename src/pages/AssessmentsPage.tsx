@@ -13,7 +13,7 @@ import AssessmentOwnerBadge from '../components/builder/AssessmentOwnerBadge';
 import AssessmentVersionBadge from '../components/builder/AssessmentVersionBadge';
 import RecommendationEligibilityBadge from '../components/builder/RecommendationEligibilityBadge';
 import { useAuth } from '../context/AuthContext';
-import { fetchTemplatesForBroker, archiveTemplate, fetchQuestionCountForVersion } from '../services/assessmentBuilder';
+import { fetchTemplatesForBroker, archiveTemplate, retireAssessmentVersion, fetchQuestionCountForVersion } from '../services/assessmentBuilder';
 import { CUSTOM_ASSESSMENT_DISCLAIMER } from '../lib/assessmentScoring';
 import type { AssessmentTemplateWithVersion } from '../lib/database.types';
 
@@ -71,6 +71,15 @@ export default function AssessmentsPage() {
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to archive assessment.');
+    }
+  };
+
+  const handleRetire = async (versionId: string) => {
+    try {
+      await retireAssessmentVersion(versionId);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to retire version.');
     }
   };
 
@@ -194,6 +203,11 @@ export default function AssessmentsPage() {
                 {t.owner_type === 'broker' && t.status === 'draft' && (
                   <Button variant="ghost" size="sm" to={`/assessments/builder/${t.id}`}>
                     <Edit className="w-3.5 h-3.5" /> Edit
+                  </Button>
+                )}
+                {t.owner_type === 'broker' && t.status !== 'archived' && t.latest_version?.status === 'published' && (
+                  <Button variant="ghost" size="sm" onClick={() => handleRetire(t.latest_version!.id)}>
+                    <Ban className="w-3.5 h-3.5" /> Retire
                   </Button>
                 )}
                 {t.owner_type === 'broker' && t.status !== 'archived' && (

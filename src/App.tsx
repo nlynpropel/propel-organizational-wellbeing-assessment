@@ -16,7 +16,7 @@ import AdminAssessmentsPage from './pages/AdminAssessmentsPage';
 import AssessmentReportPage from './pages/AssessmentReportPage';
 import ReportsPage from './pages/ReportsPage';
 import SettingsPage from './pages/SettingsPage';
-import AssessmentPlaceholderPage from './pages/AssessmentPlaceholderPage';
+import AssessmentPage from './pages/AssessmentPage';
 import AdminPage from './pages/AdminPage';
 import NewAccountPage from './pages/NewAccountPage';
 
@@ -164,8 +164,8 @@ function AppRoutes() {
       <Route path="/admin" element={<ProtectedRoute adminOnly><AdminPage /></ProtectedRoute>} />
       <Route path="/admin/assessments" element={<ProtectedRoute adminOnly><AdminAssessmentsPage /></ProtectedRoute>} />
 
-      {/* Placeholder client assessment */}
-      <Route path="/assessment/:token" element={<AssessmentPlaceholderPage />} />
+      {/* Public respondent assessment (no auth required) */}
+      <Route path="/assessment/:token" element={<AssessmentPage />} />
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

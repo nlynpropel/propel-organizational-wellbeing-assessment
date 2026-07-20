@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Eye, Archive, FileText, Shield, Check } from 'lucide-react';
+import { Plus, Eye, Archive, FileText, Shield, Check, Ban } from 'lucide-react';
 import BrokerLayout from '../components/layout/BrokerLayout';
 import PageHeader from '../components/layout/PageHeader';
 import Card from '../components/ui/Card';
@@ -11,7 +11,7 @@ import EmptyState from '../components/ui/EmptyState';
 import AssessmentOwnerBadge from '../components/builder/AssessmentOwnerBadge';
 import AssessmentVersionBadge from '../components/builder/AssessmentVersionBadge';
 import RecommendationEligibilityBadge from '../components/builder/RecommendationEligibilityBadge';
-import { fetchAllTemplatesAdmin, archiveTemplate, fetchInstanceCountForTemplate, fetchCompletedCountForTemplate, fetchQuestionCountForVersion } from '../services/assessmentBuilder';
+import { fetchAllTemplatesAdmin, archiveTemplate, retireAssessmentVersion, fetchInstanceCountForTemplate, fetchCompletedCountForTemplate, fetchQuestionCountForVersion } from '../services/assessmentBuilder';
 import type { AssessmentTemplateWithVersion } from '../lib/database.types';
 
 type TemplateWithStats = AssessmentTemplateWithVersion & {
@@ -56,6 +56,15 @@ export default function AdminAssessmentsPage() {
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to archive assessment.');
+    }
+  };
+
+  const handleRetire = async (versionId: string) => {
+    try {
+      await retireAssessmentVersion(versionId);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to retire version.');
     }
   };
 
@@ -137,6 +146,15 @@ export default function AdminAssessmentsPage() {
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-1">
                         <button className="p-1.5 text-neutral-muted hover:text-navy" aria-label="Preview"><Eye className="w-4 h-4" /></button>
+                        {t.latest_version?.status === 'published' && (
+                          <button
+                            onClick={() => handleRetire(t.latest_version!.id)}
+                            className="p-1.5 text-neutral-muted hover:text-orange"
+                            aria-label="Retire version"
+                          >
+                            <Ban className="w-4 h-4" />
+                          </button>
+                        )}
                         {t.status !== 'archived' && (
                           <button
                             onClick={() => handleArchive(t.id)}

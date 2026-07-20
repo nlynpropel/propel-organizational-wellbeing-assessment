@@ -103,6 +103,10 @@ export type AssessmentVersionRow = {
   show_overall_score: boolean;
   recommendation_framework_id: string | null;
   published_at: string | null;
+  respondent_results_enabled: boolean;
+  respondent_score_enabled: boolean;
+  respondent_section_scores_enabled: boolean;
+  respondent_recommendations_enabled: boolean;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -264,6 +268,14 @@ export type AssessmentQuestionWithOptions = AssessmentQuestionRow & {
   options: AssessmentQuestionOptionRow[];
 };
 
+export type SavedResponse = {
+  question_id: string;
+  selected_option_id: string | null;
+  text_value: string | null;
+  numeric_value: number | null;
+  boolean_value: boolean | null;
+};
+
 export type ResolvedAssessment = {
   instance: {
     id: string;
@@ -272,6 +284,8 @@ export type ResolvedAssessment = {
     respondent_email: string | null;
     expires_at: string | null;
     broker_message: string | null;
+    organization_name: string | null;
+    broker_name: string | null;
   };
   template: {
     name: string;
@@ -290,6 +304,10 @@ export type ResolvedAssessment = {
     completion_message: string | null;
     scoring_method: AssessmentScoringMethod;
     show_overall_score: boolean;
+    respondent_results_enabled: boolean;
+    respondent_score_enabled: boolean;
+    respondent_section_scores_enabled: boolean;
+    respondent_recommendations_enabled: boolean;
   };
   sections: Array<{
     id: string;
@@ -315,4 +333,5 @@ export type ResolvedAssessment = {
       }>;
     }>;
   }>;
+  responses: SavedResponse[];
 };

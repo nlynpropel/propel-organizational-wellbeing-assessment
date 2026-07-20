@@ -654,6 +654,14 @@ export async function duplicateAssessmentVersion(sourceVersionId: string, create
   return data as AssessmentVersionRow;
 }
 
+export async function retireAssessmentVersion(versionId: string): Promise<AssessmentVersionRow> {
+  const { data, error } = await supabase.rpc('retire_assessment_version', {
+    p_version_id: versionId,
+  });
+  if (error) throw error;
+  return data as AssessmentVersionRow;
+}
+
 // ============================================================
 // Admin: all templates with stats
 // ============================================================
