@@ -41,11 +41,30 @@ export async function createDraftAssessment(
   brokerId: string,
   organizationId: string
 ): Promise<AssessmentInstanceRow> {
+  const { data: tmpl, error: tmplErr } = await supabase
+    .from('assessment_templates')
+    .select('id, latest_version:assessment_versions!inner(id)')
+    .eq('owner_type', 'propel')
+    .eq('status', 'published')
+    .eq('latest_version.status', 'published')
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .single();
+
+  const versionId = tmpl?.latest_version?.id;
+  const templateId = tmpl?.id;
+
+  if (tmplErr || !versionId || !templateId) {
+    throw new Error('No published Propel assessment template found. Publish an assessment before creating clients.');
+  }
+
   const { data, error } = await supabase
     .from('assessment_instances')
     .insert({
       broker_id: brokerId,
       organization_id: organizationId,
+      assessment_template_id: templateId,
+      assessment_version_id: versionId,
       status: 'draft',
     })
     .select()
