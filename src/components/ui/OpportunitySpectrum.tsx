@@ -1,57 +1,62 @@
-import { maturityClass, maturityBadgeVariant, MATURITY_BANDS } from '../../lib/scores';
-import Badge from './Badge';
+import { MATURITY_BANDS, maturityColor } from '../../lib/scores';
+import type { AssessmentScoreBandRow } from '../../lib/database.types';
 
-export default function OpportunitySpectrum({ score }: { score: number }) {
-  const cls = maturityClass(score);
-  const variant = maturityBadgeVariant(cls);
+type Props = {
+  score: number;
+  scoreBandLabel: string;
+  bands: AssessmentScoreBandRow[];
+};
 
-  // Band boundaries for markers (as percentages)
-  const bands = MATURITY_BANDS;
+export default function OpportunitySpectrum({ score, scoreBandLabel, bands }: Props) {
+  const zoneColors = MATURITY_BANDS.map((b) => maturityColor(b.label));
   const markerPct = Math.max(0, Math.min(100, score));
+
+  const bandLabels = bands.length > 0
+    ? bands.map((b) => b.band_name)
+    : MATURITY_BANDS.map((b) => b.label);
 
   return (
     <div>
-      <div className="flex items-baseline justify-between mb-3">
-        <div>
-          <span className="eyebrow block mb-1">Overall Opportunity Index</span>
-          <div className="flex items-baseline gap-3">
-            <span className="font-mono font-bold text-5xl text-navy tabular-nums">{score}</span>
-            <span className="text-neutral-muted text-sm font-medium">/ 100</span>
-          </div>
-        </div>
-        <Badge variant={variant} className="text-sm px-3 py-1">
-          {cls}
+      <div className="flex items-baseline justify-between mb-1">
+        <span className="text-sm font-medium text-white/80">Overall Opportunity Index</span>
+        <Badge variant="custom" className="text-sm px-3 py-1 bg-white/10 text-white border-white/20">
+          {scoreBandLabel}
         </Badge>
       </div>
+      <div className="flex items-baseline gap-2 mb-4">
+        <span className="font-display font-bold text-5xl text-white tabular-nums">{Math.round(score)}</span>
+        <span className="text-white/50 text-sm font-medium">/ 100</span>
+      </div>
 
-      <div className="relative h-3 rounded-full overflow-hidden bg-neutral-bg mt-4">
+      <div className="relative h-3 rounded-full overflow-hidden mt-4">
+        <div className="absolute inset-0 flex">
+          {zoneColors.map((color, i) => (
+            <div
+              key={i}
+              className="flex-1"
+              style={{ backgroundColor: color }}
+            />
+          ))}
+        </div>
         <div
-          className="absolute inset-0 flex"
-          style={{
-            background:
-              'linear-gradient(90deg, #c23b2f 0%, #c23b2f 39%, #a9cd76 40%, #8bc64e 75%, #6ea83c 100%)',
-          }}
-        />
-        {/* Band dividers */}
-        {bands.slice(0, -1).map((b) => (
-          <div
-            key={b.label}
-            className="absolute top-0 bottom-0 w-px bg-white/70"
-            style={{ left: `${b.max}%` }}
-          />
-        ))}
-        {/* Score marker */}
-        <div
-          className="absolute -top-1 -bottom-1 w-1 bg-navy-deep rounded-full shadow-md ring-2 ring-white"
+          className="absolute -top-1 -bottom-1 w-1 bg-white rounded-full shadow-md ring-2 ring-navy-deep"
           style={{ left: `calc(${markerPct}% - 2px)` }}
         />
       </div>
 
-      <div className="flex justify-between mt-2 text-[10px] font-semibold text-neutral-muted">
-        {bands.map((b) => (
-          <span key={b.label}>{b.label}</span>
+      <div className="flex justify-between mt-2 text-[10px] font-semibold text-white/60">
+        {bandLabels.map((label, i) => (
+          <span key={i} className="text-center flex-1">{label}</span>
         ))}
       </div>
     </div>
+  );
+}
+
+function Badge({ children, className = '' }: { children: React.ReactNode; variant?: string; className?: string }) {
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-xs font-semibold tracking-wide ${className}`}>
+      {children}
+    </span>
   );
 }

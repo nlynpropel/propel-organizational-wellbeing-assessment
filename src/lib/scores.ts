@@ -31,10 +31,31 @@ export function maturityBadgeVariant(
 }
 
 export function scoreColor(score: number): string {
+  if (score >= 90) return '#3d7a1f';
   if (score >= 75) return '#6ea83c';
-  if (score >= 60) return '#8bc64e';
-  if (score >= 40) return '#a9cd76';
-  return '#c23b2f';
+  if (score >= 60) return '#e89149';
+  if (score >= 40) return '#5a6b8a';
+  return '#3d4a5e';
+}
+
+export function maturityColor(label: number | string): string {
+  const l = typeof label === 'number' ? String(label) : label;
+  switch (l) {
+    case 'Reactive': return '#3d4a5e';
+    case 'Developing': return '#5a6b8a';
+    case 'Established': return '#e89149';
+    case 'Strategic': return '#6ea83c';
+    case 'Leading': return '#3d7a1f';
+    default: return '#6ea83c';
+  }
+}
+
+export function behavioralColor(score: number | string): string {
+  const s = typeof score === 'number' ? score : Number(score);
+  if (s >= 80) return '#3d7a1f';
+  if (s >= 65) return '#6ea83c';
+  if (s >= 50) return '#e89149';
+  return '#5a6b8a';
 }
 
 export function scorePositionPercent(score: number): number {

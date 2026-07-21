@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { ArrowRight, CheckCircle2, Mail, AlertTriangle, Lock } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { isEmailDomainApproved } from '../services/domains';
@@ -146,7 +146,6 @@ export default function LoginPage() {
 }
 
 function SentState({ email, onReset }: { email: string; onReset: () => void }) {
-  const navigate = useNavigate();
   return (
     <div className="bg-white rounded-lg shadow-xl p-8 text-center">
       <div className="w-14 h-14 rounded-full bg-green-tint flex items-center justify-center mx-auto mb-5">

@@ -16,7 +16,9 @@ export default {
         },
         orange: {
           DEFAULT: '#ff6600',
+          mid: '#e89149',
           tint: '#fff1e6',
+          dark: '#cc4f00',
         },
         neutral: {
           bg: '#f5f6f9',

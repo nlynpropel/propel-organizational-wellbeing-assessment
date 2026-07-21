@@ -2,21 +2,20 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Calendar, Building2, User, Mail, CheckCircle2, AlertCircle, Star, Target, Zap, Flag, MessageCircleQuestion } from 'lucide-react';
 import BrokerLayout from '../components/layout/BrokerLayout';
-import PageHeader from '../components/layout/PageHeader';
 import Card from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
 import LoadingState from '../components/ui/LoadingState';
 import ErrorState from '../components/ui/ErrorState';
-import ScoreBar from '../components/ui/ScoreBar';
+import OpportunitySpectrum from '../components/ui/OpportunitySpectrum';
 import AssessmentOwnerBadge from '../components/builder/AssessmentOwnerBadge';
 import RecommendationEligibilityBadge from '../components/builder/RecommendationEligibilityBadge';
 import { useAuth } from '../context/AuthContext';
-import { fetchReportData, getBehavioralInterpretation, DRIVER_LABELS } from '../services/reportData';
-import type { ReportData, BehavioralReadiness } from '../services/reportData';
+import { fetchReportData, getBehavioralInterpretation, DRIVER_LABELS, type ReportData, type BehavioralReadiness } from '../services/reportData';
 import { getDimensionLabel, getDriverLabel, getEffortLabel, getImpactLabel, type SelectedRecommendation } from '../services/recommendations';
-import { roundForDisplay, CUSTOM_ASSESSMENT_DISCLAIMER, CUSTOM_SCORING_DISCLAIMER } from '../lib/assessmentScoring';
+import { roundForDisplay, CUSTOM_ASSESSMENT_DISCLAIMER, CUSTOM_SCORING_DISCLAIMER, getScoreBand } from '../lib/assessmentScoring';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
+import { maturityColor, behavioralColor } from '../lib/scores';
 
 export default function AssessmentReportPage() {
   const { instanceId } = useParams();
@@ -45,196 +44,187 @@ export default function AssessmentReportPage() {
     }
   }, [instanceId, profile]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  useEffect(() => { load(); }, [load]);
 
-  if (loading) {
-    return (
-      <BrokerLayout title="Assessment Report">
-        <LoadingState label="Loading report…" />
-      </BrokerLayout>
-    );
-  }
+  if (loading) return <BrokerLayout title="Assessment Report"><LoadingState label="Loading report…" /></BrokerLayout>;
+  if (error || !report) return <BrokerLayout title="Assessment Report"><ErrorState message={error ?? 'Report not found.'} onRetry={() => navigate('/reports')} /></BrokerLayout>;
 
-  if (error || !report) {
-    return (
-      <BrokerLayout title="Assessment Report">
-        <ErrorState message={error ?? 'Report not found.'} onRetry={() => navigate('/reports')} />
-      </BrokerLayout>
-    );
-  }
-
-  const { instance, template, version, organization, sections, sectionScores, overallScore, scoreBand, behavioralReadiness, contextualAnswers, showBand, recommendations } = report;
-
+  const { instance, template, version, organization, sections, sectionScores, overallScore, scoreBand, behavioralReadiness, contextualAnswers, recommendations, scoreBands } = report;
   const isCompleted = instance.status === 'submitted' || instance.status === 'report_ready';
   const sectionScoreMap = new Map(sectionScores.map((s) => [s.section_id, s]));
+  const scoredSections = sections.filter((s) => s.is_scored);
+  const hasStrengths = (recommendations?.strengths.length ?? 0) > 0;
+  const hasPriorities = (recommendations?.priorityOpportunities.length ?? 0) > 0;
+  const hasQuickWins = (recommendations?.quickWins.length ?? 0) > 0;
+  const hasHighImpact = (recommendations?.highImpactMoves.length ?? 0) > 0;
+  const hasMeetingQs = (recommendations?.meetingQuestions.length ?? 0) > 0;
+
+  const completedDate = instance.submitted_at
+    ? new Date(instance.submitted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    : null;
 
   return (
     <BrokerLayout title="Assessment Report">
-      <PageHeader
-        title={template?.name ?? 'Assessment Report'}
-        subtitle={organization ? `Client: ${organization.organization_name}` : undefined}
-        breadcrumbs={[{ label: 'Reports', to: '/reports' }, { label: template?.name ?? 'Report' }]}
-        actions={<Button variant="ghost" size="sm" to="/reports"><ArrowLeft className="w-4 h-4" /> Back</Button>}
-      />
-
-      {/* Assessment summary */}
+      {/* Consolidated report header */}
       <Card className="mb-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2 mb-3">
               {template && <AssessmentOwnerBadge ownerType={template.owner_type} />}
               {version && <Badge variant="neutral">v{version.version_number}</Badge>}
               <Badge variant={isCompleted ? 'success' : 'warning'} dot>{instance.status}</Badge>
+              {recommendations && <RecommendationEligibilityBadge ownerType={template?.owner_type ?? 'propel'} recommendationsEnabled={template?.recommendations_enabled ?? false} />}
             </div>
-            <h2 className="font-display text-xl font-semibold text-navy">{template?.name ?? 'Untitled Assessment'}</h2>
-            {template?.short_description && <p className="text-sm text-neutral-secondary mt-1">{template.short_description}</p>}
+            <h1 className="font-display text-2xl font-bold text-navy">{template?.name ?? 'Untitled Assessment'}</h1>
           </div>
-          <div className="flex items-center gap-2">
-            {template && <RecommendationEligibilityBadge ownerType={template.owner_type} recommendationsEnabled={template.recommendations_enabled} />}
-          </div>
+          <Button variant="ghost" size="sm" to="/reports"><ArrowLeft className="w-4 h-4" /> Back to Reports</Button>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4 pt-4 border-t border-neutral-border-soft">
-          <InfoRow icon={Building2} label="Client" value={organization?.organization_name ?? '—'} />
-          <InfoRow icon={User} label="Respondent" value={instance.respondent_name ?? '—'} />
-          <InfoRow icon={Mail} label="Email" value={instance.respondent_email ?? '—'} />
-          <InfoRow icon={Calendar} label="Completed" value={instance.submitted_at ? new Date(instance.submitted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Not completed'} />
+        <div className="flex flex-wrap gap-x-8 gap-y-2 mt-4 pt-4 border-t border-neutral-border-soft">
+          {organization && <MetaItem icon={Building2} label="Client" value={organization.organization_name} />}
+          {completedDate && <MetaItem icon={Calendar} label="Completed" value={completedDate} />}
+          {instance.respondent_name && <MetaItem icon={User} label="Respondent" value={instance.respondent_name} />}
+          {instance.respondent_email && <MetaItem icon={Mail} label="Email" value={instance.respondent_email} />}
         </div>
       </Card>
 
-      {/* Overall Opportunity Index */}
+      {/* Overall score hero — dark navy */}
       {overallScore !== null && version?.show_overall_score && (
-        <Card className="mb-6">
-          <h3 className="font-display text-base font-semibold text-navy mb-4">Overall Opportunity Index</h3>
-          <div className="flex items-center gap-6">
-            <div className="text-center">
-              <div className="font-display text-4xl font-bold text-navy">{roundForDisplay(overallScore)}</div>
-              <div className="text-sm text-neutral-muted mt-1">out of 100</div>
-            </div>
-            <div className="flex-1">
-              <ScoreBar score={overallScore} size="lg" />
-              {scoreBand && showBand && <div className="mt-2"><Badge variant="success" dot>{scoreBand}</Badge></div>}
-            </div>
-          </div>
-        </Card>
+        <div className="rounded-lg bg-navy-deep shadow-md mb-6 p-6">
+          <OpportunitySpectrum
+            score={overallScore}
+            scoreBandLabel={scoreBand ?? '—'}
+            bands={scoreBands}
+          />
+        </div>
       )}
 
-      {/* Strategy dimensions */}
-      {sectionScores.length > 0 && (
+      {/* Strengths & Priority Opportunities — side by side */}
+      {recommendations && (hasStrengths || hasPriorities) && (
+        <div className={`grid gap-6 mb-6 ${hasStrengths && hasPriorities ? 'md:grid-cols-2' : 'grid-cols-1'}`}>
+          {hasStrengths && (
+            <StrengthsCard recommendations={recommendations.strengths} />
+          )}
+          {hasPriorities && (
+            <PriorityOpportunitiesCard recommendations={recommendations.priorityOpportunities} />
+          )}
+        </div>
+      )}
+
+      {/* Strategy dimensions — two-column grid */}
+      {scoredSections.length > 0 && (
         <Card className="mb-6">
-          <h3 className="font-display text-base font-semibold text-navy mb-4">Strategy dimensions</h3>
-          <div className="space-y-4">
-            {sections.filter((s) => s.is_scored).map((section) => {
+          <h2 className="font-display text-lg font-semibold text-navy mb-4">Strategy Dimensions</h2>
+          <div className="grid gap-x-8 gap-y-5 md:grid-cols-2">
+            {scoredSections.map((section) => {
               const score = sectionScoreMap.get(section.id);
               const normScore = score ? Number(score.normalized_score) : null;
+              const bandLabel = normScore !== null ? getScoreBand(normScore, scoreBands) : null;
               return (
-                <div key={section.id}>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-medium text-navy">{section.title}</span>
-                    <span className="text-sm text-neutral-muted">{normScore !== null ? `${roundForDisplay(normScore)} / 100` : 'Not scored'}</span>
-                  </div>
-                  {normScore !== null && <ScoreBar score={normScore} size="md" />}
-                </div>
+                <ScoreRow
+                  key={section.id}
+                  label={section.title}
+                  score={normScore}
+                  interpretation={bandLabel}
+                  colorFn={maturityColor}
+                />
               );
             })}
           </div>
         </Card>
       )}
 
-      {/* Behavioral readiness */}
+      {/* Behavioral readiness — two-column grid */}
       {behavioralReadiness && (
         <Card className="mb-6">
-          <h3 className="font-display text-base font-semibold text-navy mb-1">Behavioral readiness</h3>
+          <h2 className="font-display text-lg font-semibold text-navy mb-1">Behavioral Readiness</h2>
           <p className="text-xs text-neutral-muted mb-4">Higher scores indicate stronger behavioral support for well-being participation.</p>
-          <div className="space-y-4">
-            {(Object.keys(DRIVER_LABELS) as Array<keyof BehavioralReadiness>).map((key) => {
-              const score = behavioralReadiness[key];
-              return (
-                <div key={key}>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-medium text-navy">{DRIVER_LABELS[key]}</span>
-                    <span className="text-sm text-neutral-muted">{roundForDisplay(score)} / 100 · {getBehavioralInterpretation(score)}</span>
-                  </div>
-                  <ScoreBar score={score} size="md" />
-                </div>
-              );
-            })}
-          </div>
-        </Card>
-      )}
-
-      {/* Recommendations */}
-      {recommendations && (
-        <>
-          {recommendations.strengths.length > 0 && (
-            <RecommendationSection
-              title="Strengths"
-              icon={Star}
-              iconColor="text-green-dark"
-              iconBg="bg-green-tint"
-              recommendations={recommendations.strengths}
-            />
-          )}
-          {recommendations.priorityOpportunities.length > 0 && (
-            <RecommendationSection
-              title="Priority opportunities"
-              icon={Target}
-              iconColor="text-navy"
-              iconBg="bg-blue-tint"
-              recommendations={recommendations.priorityOpportunities}
-            />
-          )}
-          {recommendations.quickWins.length > 0 && (
-            <RecommendationSection
-              title="Quick wins"
-              icon={Zap}
-              iconColor="text-amber-dark"
-              iconBg="bg-amber-tint"
-              recommendations={recommendations.quickWins}
-            />
-          )}
-          {recommendations.highImpactMoves.length > 0 && (
-            <RecommendationSection
-              title="High-impact moves"
-              icon={Flag}
-              iconColor="text-blue-dark"
-              iconBg="bg-blue-tint"
-              recommendations={recommendations.highImpactMoves}
-            />
-          )}
-          {recommendations.meetingQuestions.length > 0 && (
-            <RecommendationSection
-              title="Client meeting questions"
-              icon={MessageCircleQuestion}
-              iconColor="text-navy"
-              iconBg="bg-neutral-bg"
-              recommendations={recommendations.meetingQuestions}
-            />
-          )}
-        </>
-      )}
-
-      {/* Response Details */}
-      {contextualAnswers.length > 0 && (
-        <Card className="mb-6">
-          <h3 className="font-display text-base font-semibold text-navy mb-4">Response Details</h3>
-          <div className="space-y-6">
-            {contextualAnswers.map((answer, i) => (
-              <div key={i} className="rounded-md border border-neutral-border-soft p-3">
-                <p className="text-sm font-medium text-navy mb-2">{answer.question_text}</p>
-                {answer.selectedOptionLabels.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {answer.selectedOptionLabels.map((label: string, j: number) => (
-                      <Badge key={j} variant="neutral">{label}</Badge>
-                    ))}
-                  </div>
-                )}
-                {answer.text_value && <p className="text-sm text-navy bg-neutral-bg/30 rounded p-2 mt-2">{answer.text_value}</p>}
-              </div>
+          <div className="grid gap-x-8 gap-y-5 md:grid-cols-2">
+            {(Object.keys(DRIVER_LABELS) as Array<keyof BehavioralReadiness>).map((key) => (
+              <ScoreRow
+                key={key}
+                label={DRIVER_LABELS[key]}
+                score={behavioralReadiness[key]}
+                interpretation={getBehavioralInterpretation(behavioralReadiness[key])}
+                colorFn={behavioralColor}
+              />
             ))}
           </div>
         </Card>
+      )}
+
+      {/* Quick Wins & High-Impact Moves — side by side */}
+      {recommendations && (hasQuickWins || hasHighImpact) && (
+        <div className={`grid gap-6 mb-6 ${hasQuickWins && hasHighImpact ? 'md:grid-cols-2' : 'grid-cols-1'}`}>
+          {hasQuickWins && (
+            <RecommendationGroupCard
+              title="Quick Wins"
+              icon={Zap}
+              iconColor="text-green-dark"
+              iconBg="bg-green-tint"
+              accentBorder="border-l-green"
+              recommendations={recommendations.quickWins}
+            />
+          )}
+          {hasHighImpact && (
+            <RecommendationGroupCard
+              title="High-Impact Moves"
+              icon={Flag}
+              iconColor="text-navy"
+              iconBg="bg-blue-tint"
+              accentBorder="border-l-navy"
+              recommendations={recommendations.highImpactMoves}
+            />
+          )}
+        </div>
+      )}
+
+      {/* Client meeting questions — dark navy */}
+      {recommendations && hasMeetingQs && (
+        <div className="rounded-lg bg-navy-deep shadow-md mb-6 p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
+              <MessageCircleQuestion className="w-4 h-4 text-white" />
+            </div>
+            <h2 className="font-display text-lg font-semibold text-white">Client Meeting Questions</h2>
+          </div>
+          <div className="space-y-3">
+            {recommendations.meetingQuestions.map((rec) => (
+              <div key={rec.id} className="rounded-md bg-white/5 border border-white/10 p-4">
+                <p className="text-sm text-white leading-relaxed">{rec.title}</p>
+                {(rec.dimension_key || rec.driver_key) && (
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {rec.dimension_key && <DarkPill>{getDimensionLabel(rec.dimension_key)}</DarkPill>}
+                    {rec.driver_key && <DarkPill>{getDriverLabel(rec.driver_key)}</DarkPill>}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Appendix — Response Detail */}
+      {contextualAnswers.length > 0 && (
+        <div className="mb-6">
+          <h2 className="font-display text-sm font-semibold text-neutral-muted uppercase tracking-wide mb-3">Appendix — Response Detail</h2>
+          <div className="rounded-lg border border-dashed border-neutral-border bg-transparent p-4 space-y-4">
+            {contextualAnswers.map((answer, i) => (
+              <div key={i} className="border-b border-neutral-border-soft pb-3 last:border-0 last:pb-0">
+                <p className="text-xs font-medium text-neutral-secondary mb-1.5">{answer.question_text}</p>
+                {answer.selectedOptionLabels.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {answer.selectedOptionLabels.map((label, j) => (
+                      <span key={j} className="inline-block text-xs text-navy bg-neutral-bg px-2 py-0.5 rounded-full">{label}</span>
+                    ))}
+                  </div>
+                )}
+                {answer.text_value && (
+                  <p className="text-xs text-neutral-secondary italic border-l-2 border-neutral-border pl-3 mt-1.5">{answer.text_value}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
       {/* Custom assessment disclaimer */}
@@ -263,56 +253,193 @@ export default function AssessmentReportPage() {
   );
 }
 
-function RecommendationSection({
-  title,
-  icon: Icon,
-  iconColor,
-  iconBg,
-  recommendations,
+// ============================================================
+// Score Row — single score display, zone-colored bar, label under bar
+// ============================================================
+function ScoreRow({
+  label,
+  score,
+  interpretation,
+  colorFn,
 }: {
-  title: string;
-  icon: typeof Star;
-  iconColor: string;
-  iconBg: string;
-  recommendations: SelectedRecommendation[];
+  label: string;
+  score: number | null;
+  interpretation: string | null;
+  colorFn: (scoreOrLabel: number | string) => string;
 }) {
-  return (
-    <Card className="mb-6">
-      <div className="flex items-center gap-2 mb-4">
-        <div className={`w-8 h-8 rounded-full ${iconBg} flex items-center justify-center`}>
-          <Icon className={`w-4 h-4 ${iconColor}`} />
+  void colorFn;
+  if (score === null) {
+    return (
+      <div>
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-sm font-medium text-navy">{label}</span>
+          <span className="text-sm text-neutral-muted">Not scored</span>
         </div>
-        <h3 className="font-display text-base font-semibold text-navy">{title}</h3>
       </div>
-      <div className="space-y-4">
+    );
+  }
+
+  const color = colorFn(interpretation ?? score);
+  const pct = Math.max(0, Math.min(100, score));
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-sm font-medium text-navy">{label}</span>
+        <span className="text-sm font-semibold text-navy tabular-nums">{roundForDisplay(score)} <span className="text-neutral-muted font-normal text-xs">/ 100</span></span>
+      </div>
+      <div className="w-full bg-neutral-bg rounded-full overflow-hidden h-2">
+        <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: color }} />
+      </div>
+      {interpretation && (
+        <p className="text-xs text-neutral-muted mt-1.5">{interpretation}</p>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// Strengths card — green top border
+// ============================================================
+function StrengthsCard({ recommendations }: { recommendations: SelectedRecommendation[] }) {
+  return (
+    <Card className="border-t-4 border-t-green">
+      <div className="flex items-center gap-2 mb-4">
+        <div className="w-8 h-8 rounded-full bg-green-tint flex items-center justify-center">
+          <Star className="w-4 h-4 text-green-dark" />
+        </div>
+        <h2 className="font-display text-lg font-semibold text-navy">Strengths</h2>
+      </div>
+      <div className="space-y-3">
         {recommendations.map((rec) => (
-          <div key={rec.id} className="rounded-md border border-neutral-border-soft p-4">
-            <h4 className="text-sm font-semibold text-navy mb-1">{rec.title}</h4>
-            <p className="text-sm text-neutral-secondary mb-3">{rec.description}</p>
-            <div className="flex flex-wrap items-center gap-2 mb-2">
-              {rec.dimension_key && <Badge variant="neutral">{getDimensionLabel(rec.dimension_key)}</Badge>}
-              {rec.driver_key && <Badge variant="neutral">{getDriverLabel(rec.driver_key)}</Badge>}
-              {rec.effort_level && <Badge variant="neutral">{getEffortLabel(rec.effort_level)}</Badge>}
-              {rec.impact_level && <Badge variant="neutral">{getImpactLabel(rec.impact_level)}</Badge>}
-            </div>
-            {rec.rationale && (
-              <p className="text-xs text-neutral-muted italic">{rec.rationale}</p>
-            )}
-          </div>
+          <RecommendationCardInner key={rec.id} rec={rec} accent="green" />
         ))}
       </div>
     </Card>
   );
 }
 
-function InfoRow({ icon: Icon, label, value }: { icon: typeof User; label: string; value: string }) {
+// ============================================================
+// Priority Opportunities card — orange top border
+// ============================================================
+function PriorityOpportunitiesCard({ recommendations }: { recommendations: SelectedRecommendation[] }) {
   return (
-    <div>
-      <div className="flex items-center gap-1.5 text-xs text-neutral-muted uppercase tracking-wide mb-1">
-        <Icon className="w-3.5 h-3.5" />
-        {label}
+    <Card className="border-t-4 border-t-orange">
+      <div className="flex items-center gap-2 mb-4">
+        <div className="w-8 h-8 rounded-full bg-orange-tint flex items-center justify-center">
+          <Target className="w-4 h-4 text-orange" />
+        </div>
+        <h2 className="font-display text-lg font-semibold text-navy">Priority Opportunities</h2>
       </div>
-      <p className="text-sm text-navy font-medium">{value}</p>
+      <div className="space-y-3">
+        {recommendations.map((rec) => (
+          <RecommendationCardInner key={rec.id} rec={rec} accent="orange" />
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+// ============================================================
+// Recommendation group card — Quick Wins / High-Impact Moves
+// ============================================================
+function RecommendationGroupCard({
+  title,
+  icon: Icon,
+  iconColor,
+  iconBg,
+  accentBorder,
+  recommendations,
+}: {
+  title: string;
+  icon: typeof Star;
+  iconColor: string;
+  iconBg: string;
+  accentBorder: string;
+  recommendations: SelectedRecommendation[];
+}) {
+  const accent = title === 'Quick Wins' ? 'green' : 'navy';
+  return (
+    <Card className={`${accentBorder} border-l-4`}>
+      <div className="flex items-center gap-2 mb-4">
+        <div className={`w-8 h-8 rounded-full ${iconBg} flex items-center justify-center`}>
+          <Icon className={`w-4 h-4 ${iconColor}`} />
+        </div>
+        <h2 className="font-display text-lg font-semibold text-navy">{title}</h2>
+      </div>
+      <div className="space-y-3">
+        {recommendations.map((rec) => (
+          <RecommendationCardInner key={rec.id} rec={rec} accent={accent} />
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+// ============================================================
+// Recommendation card inner — distinct styling by type
+// ============================================================
+function RecommendationCardInner({ rec, accent }: { rec: SelectedRecommendation; accent: 'green' | 'orange' | 'navy' }) {
+  const accentClasses: Record<string, string> = {
+    green: 'border-l-green bg-white',
+    orange: 'border-l-orange bg-gradient-to-r from-orange-tint/40 to-white',
+    navy: 'border-l-navy bg-white',
+  };
+  const accentClass = accentClasses[accent] ?? accentClasses.navy;
+
+  return (
+    <div className={`rounded-md border border-neutral-border-soft border-l-4 p-4 ${accentClass}`}>
+      <h4 className="text-sm font-semibold text-navy mb-1">{rec.title}</h4>
+      <p className="text-sm text-neutral-secondary mb-3 leading-relaxed">{rec.description}</p>
+      <div className="flex flex-wrap items-center gap-1.5">
+        {rec.dimension_key && <DimensionTag label={getDimensionLabel(rec.dimension_key) ?? ''} />}
+        {rec.driver_key && <DriverTag label={getDriverLabel(rec.driver_key) ?? ''} />}
+        {rec.effort_level && <EffortTag label={getEffortLabel(rec.effort_level) ?? ''} />}
+        {rec.impact_level && <ImpactTag level={rec.impact_level} label={getImpactLabel(rec.impact_level) ?? ''} />}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// Distinct tag styles
+// ============================================================
+function DimensionTag({ label }: { label: string }) {
+  return <span className="inline-block text-xs text-neutral-secondary border border-neutral-border px-2 py-0.5 rounded-full">{label}</span>;
+}
+
+function DriverTag({ label }: { label: string }) {
+  return <span className="inline-block text-xs text-navy border border-navy/25 bg-navy/[0.03] px-2 py-0.5 rounded-full">{label}</span>;
+}
+
+function EffortTag({ label }: { label: string }) {
+  return <span className="inline-block text-xs text-neutral-secondary bg-neutral-bg px-2 py-0.5 rounded-full font-medium">{label}</span>;
+}
+
+function ImpactTag({ level, label }: { level: string; label: string }) {
+  const cls = level === 'high'
+    ? 'text-orange-dark bg-orange-tint'
+    : level === 'medium'
+    ? 'text-green-dark bg-green-tint'
+    : 'text-neutral-muted bg-neutral-bg';
+  return <span className={`inline-block text-xs px-2 py-0.5 rounded-full font-medium ${cls}`}>{label}</span>;
+}
+
+function DarkPill({ children }: { children: React.ReactNode }) {
+  return <span className="inline-block text-xs text-white/80 bg-white/10 border border-white/15 px-2 py-0.5 rounded-full">{children}</span>;
+}
+
+// ============================================================
+// Metadata item — only renders when value is present
+// ============================================================
+function MetaItem({ icon: Icon, label, value }: { icon: typeof User; label: string; value: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <Icon className="w-4 h-4 text-neutral-muted shrink-0" />
+      <div>
+        <span className="text-xs text-neutral-muted uppercase tracking-wide mr-1.5">{label}</span>
+        <span className="text-sm text-navy font-medium">{value}</span>
+      </div>
     </div>
   );
 }
