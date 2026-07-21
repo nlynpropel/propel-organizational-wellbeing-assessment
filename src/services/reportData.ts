@@ -157,6 +157,39 @@ function extractBehavioralReadiness(snapshot: Record<string, unknown> | null): B
   };
 }
 
+function resolveOptionLabels(question: AssessmentSectionWithQuestions['questions'][number], response: AssessmentResponseRow): string[] {
+  const labels: string[] = [];
+
+  if (question.question_type === 'multi_select') {
+    const raw = response.text_value;
+    if (!raw) return labels;
+    let ids: string[] = [];
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        ids = parsed.filter((v): v is string => typeof v === 'string' && v.length > 0);
+      }
+    } catch {
+      ids = raw.split(',').map((s) => s.trim()).filter((s) => s.length > 0);
+    }
+    for (const id of ids) {
+      const option = question.options.find((o) => o.id === id);
+      if (option) labels.push(option.option_label);
+    }
+    return labels;
+  }
+
+  if (response.selected_option_id) {
+    const option = question.options.find((o) => o.id === response.selected_option_id);
+    if (option) labels.push(option.option_label);
+  }
+  return labels;
+}
+
+function isTextOnlyQuestion(question: AssessmentSectionWithQuestions['questions'][number]): boolean {
+  return ['short_text', 'long_text', 'date', 'numeric_input', 'information'].includes(question.question_type);
+}
+
 function extractContextualAnswers(
   sections: AssessmentSectionWithQuestions[],
   responses: AssessmentResponseRow[]
@@ -170,23 +203,35 @@ function extractContextualAnswers(
       const response = responseMap.get(question.id);
       if (!response) continue;
 
-      const selectedOptionLabels: string[] = [];
-      if (response.selected_option_id) {
-        const option = question.options.find((o) => o.id === response.selected_option_id);
-        if (option) selectedOptionLabels.push(option.option_label);
-      }
-      if (response.text_value) {
+      const labels = resolveOptionLabels(question, response);
+      const hasText = isTextOnlyQuestion(question) && response.text_value;
+
+      if (labels.length > 0) {
+        answers.push({
+          question_text: question.question_text,
+          section_title: section.title,
+          selectedOptionLabels: labels,
+          text_value: null,
+        });
+      } else if (hasText) {
         answers.push({
           question_text: question.question_text,
           section_title: section.title,
           selectedOptionLabels: [],
           text_value: response.text_value,
         });
-      } else if (selectedOptionLabels.length > 0) {
+      } else if (question.question_type === 'yes_no' && response.boolean_value !== null) {
         answers.push({
           question_text: question.question_text,
           section_title: section.title,
-          selectedOptionLabels,
+          selectedOptionLabels: [response.boolean_value ? 'Yes' : 'No'],
+          text_value: null,
+        });
+      } else if (question.question_type === 'numeric_rating' && response.numeric_value !== null) {
+        answers.push({
+          question_text: question.question_text,
+          section_title: section.title,
+          selectedOptionLabels: [String(response.numeric_value)],
           text_value: null,
         });
       }

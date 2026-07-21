@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Check, Loader2, Plus, AlertTriangle } from 'lucide-react';
 import BrokerLayout from '../components/layout/BrokerLayout';
@@ -14,6 +14,7 @@ import AssessmentPreview from '../components/builder/AssessmentPreview';
 import AssessmentReadinessChecklist from '../components/builder/AssessmentReadinessChecklist';
 import RecommendationEligibilityBadge from '../components/builder/RecommendationEligibilityBadge';
 import { useAuth } from '../context/AuthContext';
+import type { AssessmentOwnerType } from '../lib/database.types';
 import {
   createTemplate,
   updateTemplate,
@@ -62,7 +63,13 @@ export default function AssessmentBuilderPage() {
   const [templateId, setTemplateId] = useState<string | null>(assessmentId ?? null);
   const [versionId, setVersionId] = useState<string | null>(null);
 
-  // Step 1: basics
+  // Step 0.5: owner type (admin only)
+  const [ownerType, setOwnerType] = useState<AssessmentOwnerType>('broker');
+  const tempIdCounter = useRef(0);
+  const newSectionTempId = () => {
+    tempIdCounter.current += 1;
+    return `temp-section-${Date.now()}-${tempIdCounter.current}`;
+  };
   const [name, setName] = useState('');
   const [shortDescription, setShortDescription] = useState('');
   const [category, setCategory] = useState('');
@@ -191,7 +198,7 @@ export default function AssessmentBuilderPage() {
           name,
           short_description: shortDescription || undefined,
           full_description: fullDescription || undefined,
-          owner_type: 'broker',
+          owner_type: profile.role === 'admin' ? ownerType : 'broker',
           category: category || undefined,
           estimated_minutes: typeof estimatedMinutes === 'number' ? estimatedMinutes : undefined,
           scoring_enabled: scoringEnabled,
@@ -542,6 +549,30 @@ export default function AssessmentBuilderPage() {
               <span className="text-sm text-navy">Enable scoring for this assessment</span>
             </label>
           </div>
+          {profile?.role === 'admin' && (
+            <div className="pt-2 border-t border-neutral-border-soft">
+              <label className="block text-sm font-medium text-navy mb-2">Owner type (admin only)</label>
+              <div className="flex gap-3">
+                {(['propel', 'broker'] as const).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setOwnerType(t)}
+                    className={`px-3 py-1.5 rounded-md border text-sm capitalize transition ${
+                      ownerType === t
+                        ? 'border-navy bg-navy text-white'
+                        : 'border-neutral-border bg-white text-navy hover:border-navy/30'
+                    }`}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-neutral-muted mt-1">
+                Propel-owned assessments are available to all brokers. Broker-owned are private to your account.
+              </p>
+            </div>
+          )}
           <div className="pt-2">
             <RecommendationEligibilityBadge ownerType="broker" recommendationsEnabled={false} />
             <p className="text-xs text-neutral-muted mt-1">
@@ -595,7 +626,7 @@ export default function AssessmentBuilderPage() {
           <SectionEditor
             sections={sections}
             onChange={setSections}
-            onAdd={() => setSections([...sections, { title: `Section ${sections.length + 1}`, description: '', display_order: sections.length, weight: 100 / (sections.length + 1), is_scored: true }])}
+            onAdd={() => setSections([...sections, { id: newSectionTempId(), title: `Section ${sections.length + 1}`, description: '', display_order: sections.length, weight: 100 / (sections.length + 1), is_scored: true }])}
           />
           {sections.length > 0 && (
             <Button variant="outline" size="sm" onClick={saveSections} disabled={saving}>
@@ -615,10 +646,10 @@ export default function AssessmentBuilderPage() {
               </p>
             </Card>
           ) : (
-            sections.map((section, si) => {
-              const sectionQuestions = questions.filter((q) => q.sectionId === section.id || (!q.sectionId && si === 0));
+            sections.map((section) => {
+              const sectionQuestions = questions.filter((q) => q.sectionId === section.id);
               return (
-                <Card key={si}>
+                <Card key={section.id}>
                   <div className="flex items-center justify-between mb-4">
                     <div>
                       <h3 className="font-display text-base font-semibold text-navy">{section.title}</h3>
@@ -629,6 +660,7 @@ export default function AssessmentBuilderPage() {
                       size="sm"
                       onClick={() => {
                         const newQ: DraftQuestion = {
+                          id: `temp-q-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
                           question_text: '',
                           help_text: '',
                           question_type: 'agreement5',
@@ -659,35 +691,37 @@ export default function AssessmentBuilderPage() {
                     {sectionQuestions.length === 0 ? (
                       <p className="text-sm text-neutral-muted italic">No questions yet.</p>
                     ) : (
-                      sectionQuestions.map((q, qi) => {
+                      sectionQuestions.map((q) => {
                         const globalIndex = questions.indexOf(q);
                         return (
                           <QuestionCard
-                            key={qi}
+                            key={q.id}
                             question={q}
                             sectionTitle={section.title}
                             onChange={(updated) => setQuestions(questions.map((qq, i) => i === globalIndex ? updated : qq))}
                             onDelete={() => setQuestions(questions.filter((_, i) => i !== globalIndex))}
                             onDuplicate={() => {
-                              const dup = { ...q, id: undefined, question_text: q.question_text + ' (copy)' };
+                              const dup = { ...q, id: `temp-q-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, question_text: q.question_text + ' (copy)' };
                               setQuestions([...questions, dup]);
                             }}
                             onMoveUp={() => {
+                              const qi = sectionQuestions.indexOf(q);
                               if (qi === 0) return;
                               const reordered = [...sectionQuestions];
                               [reordered[qi - 1], reordered[qi]] = [reordered[qi], reordered[qi - 1]];
-                              const others = questions.filter((qq) => qq.sectionId !== section.id && !(qq.sectionId === undefined && si === 0));
+                              const others = questions.filter((qq) => qq.sectionId !== section.id);
                               setQuestions([...others, ...reordered]);
                             }}
                             onMoveDown={() => {
+                              const qi = sectionQuestions.indexOf(q);
                               if (qi === sectionQuestions.length - 1) return;
                               const reordered = [...sectionQuestions];
                               [reordered[qi], reordered[qi + 1]] = [reordered[qi + 1], reordered[qi]];
-                              const others = questions.filter((qq) => qq.sectionId !== section.id && !(qq.sectionId === undefined && si === 0));
+                              const others = questions.filter((qq) => qq.sectionId !== section.id);
                               setQuestions([...others, ...reordered]);
                             }}
-                            canMoveUp={qi > 0}
-                            canMoveDown={qi < sectionQuestions.length - 1}
+                            canMoveUp={sectionQuestions.indexOf(q) > 0}
+                            canMoveDown={sectionQuestions.indexOf(q) < sectionQuestions.length - 1}
                           />
                         );
                       })

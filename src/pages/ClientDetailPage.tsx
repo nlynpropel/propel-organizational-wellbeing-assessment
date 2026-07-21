@@ -2,15 +2,15 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
 import {
   ArrowLeft,
-  Download,
   RefreshCw,
   Archive,
   FileText,
   LayoutGrid,
   ClipboardList,
-  Lightbulb,
   StickyNote,
-  TrendingUp,
+  Plus,
+  Copy,
+  ExternalLink,
   CheckCircle2,
 } from 'lucide-react';
 import BrokerLayout from '../components/layout/BrokerLayout';
@@ -18,52 +18,53 @@ import Button from '../components/ui/Button';
 import StatusBadge from '../components/ui/StatusBadge';
 import Badge from '../components/ui/Badge';
 import Card from '../components/ui/Card';
-import OpportunitySpectrum from '../components/ui/OpportunitySpectrum';
-import ClientLinkPanel from '../components/ClientLinkPanel';
 import BrokerNotesPanel from '../components/BrokerNotesPanel';
 import ConfirmationModal from '../components/ui/ConfirmationModal';
 import EmptyState from '../components/ui/EmptyState';
 import LoadingState from '../components/ui/LoadingState';
 import ErrorState from '../components/ui/ErrorState';
 import { useAuth } from '../context/AuthContext';
-import { fetchOrganizationById, archiveOrganization, unarchiveOrganization } from '../services/organizations';
-import type { OrganizationWithAssessment } from '../services/organizations';
 import {
-  getFundingTypeLabel,
-  getMonthLabel,
-} from '../lib/sampleData';
-import { maturityClass } from '../lib/scores';
+  fetchOrganizationById,
+  archiveOrganization,
+  unarchiveOrganization,
+  fetchInstancesForOrganization,
+} from '../services/organizations';
+import type { OrganizationWithAssessment, InstanceWithTemplate } from '../services/organizations';
+import { getFundingTypeLabel, getMonthLabel } from '../lib/sampleData';
 
-type TabKey = 'overview' | 'assessment' | 'recommendations' | 'reports' | 'notes';
+type TabKey = 'overview' | 'assessments' | 'notes';
 
 const tabs: { key: TabKey; label: string; icon: typeof LayoutGrid }[] = [
   { key: 'overview', label: 'Overview', icon: LayoutGrid },
-  { key: 'assessment', label: 'Assessment', icon: ClipboardList },
-  { key: 'recommendations', label: 'Recommendations', icon: Lightbulb },
-  { key: 'reports', label: 'Reports', icon: FileText },
+  { key: 'assessments', label: 'Assessments', icon: ClipboardList },
   { key: 'notes', label: 'Notes', icon: StickyNote },
 ];
-
-// Recommendation engine is a future phase. No placeholder recommendations are shown.
 
 export default function ClientDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { profile } = useAuth();
   const location = useLocation();
   const [org, setOrg] = useState<OrganizationWithAssessment | null>(null);
+  const [instances, setInstances] = useState<InstanceWithTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [regenTarget, setRegenTarget] = useState<InstanceWithTemplate | null>(null);
 
   const load = useCallback(async () => {
     if (!profile || !id) return;
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchOrganizationById(profile.id, id);
+      const [data, instData] = await Promise.all([
+        fetchOrganizationById(profile.id, id),
+        fetchInstancesForOrganization(profile.id, id),
+      ]);
       setOrg(data);
+      setInstances(instData);
       if (!data) setError('Organization not found or you do not have access.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load client.');
@@ -98,6 +99,11 @@ export default function ClientDetailPage() {
     }
   };
 
+  const copyLink = (token: string) => {
+    const url = `${window.location.origin}/assessment/${token}`;
+    navigator.clipboard.writeText(url);
+  };
+
   if (loading) {
     return (
       <BrokerLayout title="Loading…">
@@ -109,16 +115,10 @@ export default function ClientDetailPage() {
   if (error || !org) {
     return (
       <BrokerLayout title="Client not found">
-        <ErrorState
-          message={error ?? 'Organization not found or you do not have access.'}
-          onRetry={load}
-        />
+        <ErrorState message={error ?? 'Organization not found or you do not have access.'} onRetry={load} />
       </BrokerLayout>
     );
   }
-
-  const assessment = org.latest_assessment;
-  const hasScore = assessment?.overall_score !== null && assessment?.overall_score !== undefined;
 
   return (
     <BrokerLayout title={org.organization_name}>
@@ -132,9 +132,7 @@ export default function ClientDetailPage() {
       {showSuccess && (
         <div className="mb-4 rounded-md border border-green/30 bg-green-tint px-4 py-3 flex items-center gap-2.5">
           <CheckCircle2 className="w-5 h-5 text-green-dark" />
-          <p className="text-sm text-green-dark font-medium">
-            Client created. A draft assessment instance was also created.
-          </p>
+          <p className="text-sm text-green-dark font-medium">Client created. A draft assessment instance was also created.</p>
         </div>
       )}
 
@@ -142,11 +140,6 @@ export default function ClientDetailPage() {
         <div>
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="font-display text-2xl font-semibold text-navy">{org.organization_name}</h1>
-            {assessment ? (
-              <StatusBadge status={assessment.status} />
-            ) : (
-              <Badge variant="neutral" dot>Draft</Badge>
-            )}
             {org.archived_at && <Badge variant="neutral">Archived</Badge>}
           </div>
           <p className="text-sm text-neutral-secondary mt-1">
@@ -156,13 +149,10 @@ export default function ClientDetailPage() {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <Button variant="outline" size="sm" className="text-neutral-muted">
-            <Download className="w-4 h-4" />
-            <span className="hidden sm:inline">Download PDF</span>
-          </Button>
-          <Button variant="outline" size="sm" className="text-neutral-muted">
-            <RefreshCw className="w-4 h-4" />
-            <span className="hidden sm:inline">Regenerate Report</span>
+          <Button variant="primary" size="sm" to={`/assessments/send?org=${org.id}`}>
+            <Plus className="w-4 h-4" />
+            <span className="hidden sm:inline">Send another assessment</span>
+            <span className="sm:hidden">New</span>
           </Button>
           <Button variant="ghost" size="sm" onClick={() => setArchiveOpen(true)}>
             <Archive className="w-4 h-4" />
@@ -171,7 +161,6 @@ export default function ClientDetailPage() {
         </div>
       </div>
 
-      {/* Tabs */}
       <div className="border-b border-neutral-border mb-6">
         <nav className="flex gap-1 -mb-px overflow-x-auto scrollbar-thin">
           {tabs.map((tab) => (
@@ -191,10 +180,16 @@ export default function ClientDetailPage() {
         </nav>
       </div>
 
-      {activeTab === 'overview' && <OverviewTab org={org} assessment={assessment} hasScore={hasScore} />}
-      {activeTab === 'assessment' && <AssessmentTab org={org} assessment={assessment} />}
-      {activeTab === 'recommendations' && <RecommendationsTab hasScore={hasScore} />}
-      {activeTab === 'reports' && <ReportsTab org={org} hasScore={hasScore} />}
+      {activeTab === 'overview' && <OverviewTab org={org} instances={instances} />}
+      {activeTab === 'assessments' && (
+        <AssessmentsTab
+          org={org}
+          instances={instances}
+          onCopyLink={copyLink}
+          onRegenerate={(inst) => setRegenTarget(inst)}
+          onReload={load}
+        />
+      )}
       {activeTab === 'notes' && (
         <Card>
           <BrokerNotesPanel organizationId={org.id} />
@@ -214,22 +209,39 @@ export default function ClientDetailPage() {
         onCancel={() => setArchiveOpen(false)}
         onConfirm={handleArchiveToggle}
       />
+
+      <ConfirmationModal
+        open={!!regenTarget}
+        title="Regenerate assessment link?"
+        message={
+          <>
+            This will create a new secure link for <strong>{regenTarget?.template?.name ?? 'this assessment'}</strong>. The old link will no longer work.
+          </>
+        }
+        confirmLabel="Regenerate"
+        variant="primary"
+        onCancel={() => setRegenTarget(null)}
+        onConfirm={async () => {
+          if (!regenTarget) return;
+          try {
+            const { regenerateAssessmentToken } = await import('../services/assessmentBuilder');
+            await regenerateAssessmentToken(regenTarget.id);
+            setRegenTarget(null);
+            load();
+          } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to regenerate link.');
+            setRegenTarget(null);
+          }
+        }}
+      />
     </BrokerLayout>
   );
 }
 
-function OverviewTab({
-  org,
-  assessment,
-  hasScore,
-}: {
-  org: OrganizationWithAssessment;
-  assessment: OrganizationWithAssessment['latest_assessment'];
-  hasScore: boolean;
-}) {
+function OverviewTab({ org, instances }: { org: OrganizationWithAssessment; instances: InstanceWithTemplate[] }) {
+  const completedCount = instances.filter((i) => i.status === 'submitted' || i.status === 'report_ready').length;
   return (
     <div className="space-y-5">
-      {/* Profile + status */}
       <div className="grid lg:grid-cols-3 gap-5">
         <Card className="lg:col-span-1">
           <span className="eyebrow">Organization profile</span>
@@ -245,68 +257,20 @@ function OverviewTab({
         </Card>
 
         <Card className="lg:col-span-2">
-          <span className="eyebrow">Assessment status</span>
+          <span className="eyebrow">Assessments</span>
           <div className="grid sm:grid-cols-2 gap-x-6 gap-y-3 mt-3 text-sm">
-            <div className="flex justify-between items-center">
-              <dt className="text-neutral-muted">Status</dt>
-              <dd>{assessment ? <StatusBadge status={assessment.status} /> : <Badge variant="neutral" dot>Draft</Badge>}</dd>
-            </div>
-            <div className="flex justify-between items-center">
-              <dt className="text-neutral-muted">Overall score</dt>
-              <dd className="font-mono font-bold text-navy">
-                {hasScore ? Math.round(assessment!.overall_score!) : '—'}
-                {hasScore && <span className="text-neutral-muted font-normal text-xs">/100</span>}
-              </dd>
-            </div>
-            <div className="flex justify-between"><dt className="text-neutral-muted">Date sent</dt><dd className="text-navy">{assessment?.sent_at ? new Date(assessment.sent_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}</dd></div>
-            <div className="flex justify-between"><dt className="text-neutral-muted">Date opened</dt><dd className="text-navy">{assessment?.opened_at ? new Date(assessment.opened_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}</dd></div>
-            <div className="flex justify-between"><dt className="text-neutral-muted">Date completed</dt><dd className="text-navy">{assessment?.submitted_at ? new Date(assessment.submitted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}</dd></div>
-            {hasScore && (
-              <div className="flex justify-between items-center"><dt className="text-neutral-muted">Classification</dt><dd><Badge variant="neutral">{maturityClass(assessment!.overall_score!)}</Badge></dd></div>
-            )}
+            <div className="flex justify-between"><dt className="text-neutral-muted">Total assessments</dt><dd className="text-navy font-medium">{instances.length}</dd></div>
+            <div className="flex justify-between"><dt className="text-neutral-muted">Completed</dt><dd className="text-navy font-medium">{completedCount}</dd></div>
+            <div className="flex justify-between"><dt className="text-neutral-muted">In progress</dt><dd className="text-navy font-medium">{instances.filter((i) => i.status === 'in_progress').length}</dd></div>
+            <div className="flex justify-between"><dt className="text-neutral-muted">Draft / link created</dt><dd className="text-navy font-medium">{instances.filter((i) => i.status === 'draft' || i.status === 'sent').length}</dd></div>
           </div>
-          {assessment && (
-            <div className="mt-4 pt-4 border-t border-neutral-border-soft">
-              <ClientLinkPanel
-                token={assessment.secure_token}
-                organization={org.organization_name}
-                instanceId={assessment.id}
-                respondentEmail={assessment.respondent_email}
-                dateSent={assessment.sent_at}
-                dateOpened={assessment.opened_at}
-              />
-            </div>
-          )}
+          <div className="mt-4 pt-4 border-t border-neutral-border-soft">
+            <Button to={`/clients/${org.id}`} variant="outline" size="sm">
+              <ClipboardList className="w-4 h-4" /> View all assessments
+            </Button>
+          </div>
         </Card>
       </div>
-
-      {hasScore ? (
-        <>
-          <Card>
-            <OpportunitySpectrum score={Math.round(assessment!.overall_score!)} />
-          </Card>
-          <Card>
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h3 className="font-display text-base font-semibold text-navy">Assessment report</h3>
-                <p className="text-sm text-neutral-secondary mt-1">View the full report with scores and behavioral readiness.</p>
-              </div>
-              <Button to={`/reports/${assessment!.id}`} size="sm">
-                <FileText className="w-4 h-4" />
-                View full report
-              </Button>
-            </div>
-          </Card>
-        </>
-      ) : (
-        <Card>
-          <EmptyState
-            icon={TrendingUp}
-            title="No results yet"
-            description="Once the client completes the assessment, scores and recommendations will appear here."
-          />
-        </Card>
-      )}
 
       <Card>
         <BrokerNotesPanel organizationId={org.id} />
@@ -315,135 +279,151 @@ function OverviewTab({
   );
 }
 
-function AssessmentTab({
+function AssessmentsTab({
   org,
-  assessment,
+  instances,
+  onCopyLink,
+  onRegenerate,
+  onReload,
 }: {
   org: OrganizationWithAssessment;
-  assessment: OrganizationWithAssessment['latest_assessment'];
+  instances: InstanceWithTemplate[];
+  onCopyLink: (token: string) => void;
+  onRegenerate: (inst: InstanceWithTemplate) => void;
+  onReload: () => void;
 }) {
-  return (
-    <div className="space-y-5">
-      <Card>
-        {assessment ? (
-          <ClientLinkPanel
-            token={assessment.secure_token}
-            organization={org.organization_name}
-            instanceId={assessment.id}
-            respondentEmail={assessment.respondent_email}
-            dateSent={assessment.sent_at}
-            dateOpened={assessment.opened_at}
-          />
-        ) : (
-          <EmptyState
-            icon={ClipboardList}
-            title="No assessment instance"
-            description="A draft assessment was created with this client. It will appear here once loaded."
-          />
-        )}
-      </Card>
-      {assessment && (
-        <Card>
-          <span className="eyebrow">Assessment timeline</span>
-          <div className="mt-4 space-y-3">
-            {[
-              { label: 'Assessment created', date: assessment.created_at, done: true },
-              { label: 'Assessment link created', date: assessment.sent_at, done: !!assessment.sent_at },
-              { label: 'Client opened assessment', date: assessment.opened_at, done: !!assessment.opened_at },
-              { label: 'Assessment submitted', date: assessment.submitted_at, done: !!assessment.submitted_at },
-              { label: 'Report generated', date: assessment.status === 'report_ready' ? assessment.submitted_at : null, done: assessment.status === 'report_ready' },
-            ].map((step, i) => (
-              <div key={i} className="flex items-center gap-3">
-                <div className={`w-2 h-2 rounded-full ${step.done ? 'bg-green' : 'bg-neutral-border'}`} />
-                <span className={`text-sm flex-1 ${step.done ? 'text-navy' : 'text-neutral-muted'}`}>{step.label}</span>
-                <span className="text-xs text-neutral-muted">
-                  {step.date ? new Date(step.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Pending'}
-                </span>
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
-      <p className="text-xs text-neutral-muted px-1">
-        The full assessment questionnaire will be built in a later phase.
-      </p>
-    </div>
-  );
-}
-
-function RecommendationsTab({ hasScore }: { hasScore: boolean }) {
-  if (!hasScore) {
+  void onReload;
+  if (instances.length === 0) {
     return (
       <Card>
         <EmptyState
-          icon={Lightbulb}
-          title="No recommendations yet"
-          description="Recommendations are generated after the client completes the assessment."
+          icon={ClipboardList}
+          title="No assessments yet"
+          description="Send the first assessment to this client to get started."
+          action={<Button to={`/assessments/send?org=${org.id}`} size="sm"><Plus className="w-4 h-4" /> Send assessment</Button>}
         />
       </Card>
     );
   }
+
   return (
-    <Card>
-      <EmptyState
-        icon={Lightbulb}
-        title="Recommendations coming soon"
-        description="The recommendation engine is not yet implemented. Recommendations will appear here in a future phase."
-      />
-    </Card>
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <Button to={`/assessments/send?org=${org.id}`} size="sm">
+          <Plus className="w-4 h-4" /> Send another assessment
+        </Button>
+      </div>
+      {instances.map((inst) => (
+        <AssessmentInstanceCard key={inst.id} inst={inst} onCopyLink={onCopyLink} onRegenerate={onRegenerate} />
+      ))}
+    </div>
   );
 }
 
-function ReportsTab({ org, hasScore }: { org: OrganizationWithAssessment; hasScore: boolean }) {
-  return (
-    <div className="space-y-5">
-      <Card>
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <span className="eyebrow">Client-ready report</span>
-            <h3 className="font-display text-lg font-semibold text-navy mt-1">Propel Well-being Opportunity Report</h3>
-            <p className="text-sm text-neutral-secondary mt-1.5 max-w-md">
-              A polished, client-shareable report with maturity scoring, priority opportunities, and recommendations.
-            </p>
-          </div>
-          {hasScore && (
-            <Button to={`/clients/${org.id}/results`} size="sm">
-              <FileText className="w-4 h-4" />
-              View results
-            </Button>
-          )}
-        </div>
-      </Card>
+function AssessmentInstanceCard({
+  inst,
+  onCopyLink,
+  onRegenerate,
+}: {
+  inst: InstanceWithTemplate;
+  onCopyLink: (token: string) => void;
+  onRegenerate: (inst: InstanceWithTemplate) => void;
+}) {
+  const templateName = inst.template?.name ?? 'Assessment';
+  const versionLabel = inst.version ? `v${inst.version.version_number}` : '';
+  const hasScore = inst.overall_score !== null && inst.overall_score !== undefined;
+  const isDraft = inst.status === 'draft';
+  const isLinkCreated = inst.status === 'sent' || inst.status === 'not_opened';
+  const isInProgress = inst.status === 'in_progress' || inst.status === 'opened';
+  const isSubmitted = inst.status === 'submitted' || inst.status === 'report_ready';
+  const isExpiredOrRevoked = inst.status === 'expired' || inst.status === 'revoked';
 
-      <Card padding={false}>
-        <div className="p-5 border-b border-neutral-border-soft">
-          <h3 className="font-display text-base font-semibold text-navy">Report versions</h3>
-        </div>
-        {hasScore ? (
-          <div className="divide-y divide-neutral-border-soft">
-            <div className="flex items-center justify-between px-5 py-3.5">
-              <div>
-                <p className="text-sm font-medium text-navy">Version 1.0</p>
-                <p className="text-xs text-neutral-muted">
-                  Generated {org.latest_assessment?.submitted_at
-                    ? new Date(org.latest_assessment.submitted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-                    : '—'}
-                </p>
-              </div>
-              <Button variant="outline" size="sm" className="text-neutral-muted">
-                <Download className="w-4 h-4" />
-                Download
-              </Button>
+  return (
+    <Card>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
+            <h3 className="font-display text-base font-semibold text-navy">{templateName}</h3>
+            {versionLabel && <Badge variant="neutral">{versionLabel}</Badge>}
+            <StatusBadge status={inst.status} />
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-2 text-sm mt-3">
+            <div>
+              <span className="text-xs text-neutral-muted uppercase tracking-wide">Respondent</span>
+              <p className="text-navy font-medium">{inst.respondent_name ?? '—'}</p>
+            </div>
+            <div>
+              <span className="text-xs text-neutral-muted uppercase tracking-wide">Created</span>
+              <p className="text-navy font-medium">{new Date(inst.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+            </div>
+            <div>
+              <span className="text-xs text-neutral-muted uppercase tracking-wide">Due date</span>
+              <p className="text-navy font-medium">{inst.expires_at ? new Date(inst.expires_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}</p>
+            </div>
+            <div>
+              <span className="text-xs text-neutral-muted uppercase tracking-wide">Completed</span>
+              <p className="text-navy font-medium">{inst.submitted_at ? new Date(inst.submitted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}</p>
             </div>
           </div>
-        ) : (
-          <EmptyState icon={FileText} title="No reports yet" description="Reports become available once the assessment is complete." />
-        )}
-      </Card>
-
-      <p className="text-xs text-neutral-muted px-1">
-        PDF generation will be implemented in a later phase.
-      </p>
-    </div>
+          {hasScore && (
+            <div className="flex items-center gap-3 mt-3 pt-3 border-t border-neutral-border-soft">
+              <div>
+                <span className="text-xs text-neutral-muted uppercase tracking-wide">Overall score</span>
+                <p className="font-display text-lg font-bold text-navy">{Math.round(inst.overall_score!)}<span className="text-sm font-normal text-neutral-muted">/100</span></p>
+              </div>
+              {inst.primary_opportunity && (
+                <div>
+                  <span className="text-xs text-neutral-muted uppercase tracking-wide">Classification</span>
+                  <p className="text-navy font-medium">{inst.primary_opportunity}</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        <div className="flex flex-col gap-2 shrink-0">
+          {(isDraft || isLinkCreated) && (
+            <>
+              <Button variant="outline" size="sm" onClick={() => onCopyLink(inst.secure_token)}>
+                <Copy className="w-3.5 h-3.5" /> Copy link
+              </Button>
+              <Button variant="ghost" size="sm" to={`/assessment/${inst.secure_token}`}>
+                <ExternalLink className="w-3.5 h-3.5" /> Open
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => onRegenerate(inst)}>
+                <RefreshCw className="w-3.5 h-3.5" /> Regenerate
+              </Button>
+            </>
+          )}
+          {isInProgress && (
+            <>
+              <Button variant="outline" size="sm" onClick={() => onCopyLink(inst.secure_token)}>
+                <Copy className="w-3.5 h-3.5" /> Copy link
+              </Button>
+              <Button variant="ghost" size="sm" to={`/assessment/${inst.secure_token}`}>
+                <ExternalLink className="w-3.5 h-3.5" /> Open
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => onRegenerate(inst)}>
+                <RefreshCw className="w-3.5 h-3.5" /> Regenerate
+              </Button>
+            </>
+          )}
+          {isSubmitted && (
+            <Button variant="primary" size="sm" to={`/reports/${inst.id}`}>
+              <FileText className="w-3.5 h-3.5" /> View report
+            </Button>
+          )}
+          {isExpiredOrRevoked && (
+            <>
+              <Button variant="ghost" size="sm" to={`/reports/${inst.id}`}>
+                <FileText className="w-3.5 h-3.5" /> View details
+              </Button>
+              <Button variant="outline" size="sm" to={`/assessments/send?org=${inst.organization_id}`}>
+                <Plus className="w-3.5 h-3.5" /> New assessment
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+    </Card>
   );
 }

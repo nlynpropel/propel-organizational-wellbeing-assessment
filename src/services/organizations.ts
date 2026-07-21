@@ -1,9 +1,15 @@
 import { supabase } from '../lib/supabase';
 import type { OrganizationRow, FundingTypeDb } from '../lib/database.types';
-import type { AssessmentInstanceRow } from '../lib/database.types';
+import type { AssessmentInstanceRow, AssessmentTemplateRow, AssessmentVersionRow } from '../lib/database.types';
 
 export type OrganizationWithAssessment = OrganizationRow & {
   latest_assessment: AssessmentInstanceRow | null;
+  assessment_instances: AssessmentInstanceRow[];
+};
+
+export type InstanceWithTemplate = AssessmentInstanceRow & {
+  template: AssessmentTemplateRow | null;
+  version: AssessmentVersionRow | null;
 };
 
 export type CreateOrganizationInput = {
@@ -47,12 +53,11 @@ export async function fetchOrganizations(
   // Reduce nested assessment_instances array to the most recent one.
   return (data ?? []).map((org) => {
     const instances = (org.assessment_instances ?? []) as AssessmentInstanceRow[];
-    const latest = instances.length > 0
-      ? instances.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
-      : null;
+    const sorted = instances.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    const latest = sorted.length > 0 ? sorted[0] : null;
     const { assessment_instances, ...orgFields } = org;
     void assessment_instances;
-    return { ...orgFields, latest_assessment: latest } as OrganizationWithAssessment;
+    return { ...orgFields, latest_assessment: latest, assessment_instances: sorted } as OrganizationWithAssessment;
   });
 }
 
@@ -70,12 +75,11 @@ export async function fetchOrganizationById(
   if (!data) return null;
 
   const instances = (data.assessment_instances ?? []) as AssessmentInstanceRow[];
-  const latest = instances.length > 0
-    ? instances.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
-    : null;
+  const sorted = instances.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  const latest = sorted.length > 0 ? sorted[0] : null;
   const { assessment_instances, ...orgFields } = data;
   void assessment_instances;
-  return { ...orgFields, latest_assessment: latest } as OrganizationWithAssessment;
+  return { ...orgFields, latest_assessment: latest, assessment_instances: sorted } as OrganizationWithAssessment;
 }
 
 export async function createOrganization(
@@ -89,6 +93,16 @@ export async function createOrganization(
     .single();
   if (error) throw error;
   return data;
+}
+
+export async function fetchInstancesForOrganization(_brokerId: string, orgId: string): Promise<InstanceWithTemplate[]> {
+  const { data, error } = await supabase
+    .from('assessment_instances')
+    .select('*, template:assessment_templates(*), version:assessment_versions(*)')
+    .eq('organization_id', orgId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as unknown as InstanceWithTemplate[];
 }
 
 export async function archiveOrganization(brokerId: string, orgId: string): Promise<void> {
