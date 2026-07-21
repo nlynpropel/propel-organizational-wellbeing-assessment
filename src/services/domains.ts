@@ -4,18 +4,19 @@ import type { ApprovedDomainRow } from '../lib/database.types';
 export async function fetchApprovedDomains(): Promise<ApprovedDomainRow[]> {
   const { data, error } = await supabase
     .from('approved_domains')
-    .select('id, domain, created_by, created_at')
+    .select('id, domain, organization_name, created_by, created_at')
     .order('domain');
   if (error) throw error;
   return data ?? [];
 }
 
-export async function addApprovedDomain(domain: string): Promise<ApprovedDomainRow> {
+export async function addApprovedDomain(domain: string, organizationName?: string): Promise<ApprovedDomainRow> {
   const normalized = normalizeDomain(domain);
   if (!normalized) throw new Error('Invalid domain');
+  const trimmedOrg = organizationName?.trim();
   const { data, error } = await supabase
     .from('approved_domains')
-    .insert({ domain: normalized })
+    .insert({ domain: normalized, organization_name: trimmedOrg || null })
     .select()
     .single();
   if (error) throw error;

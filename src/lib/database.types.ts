@@ -24,6 +24,7 @@ export type ProfileRow = {
 export type ApprovedDomainRow = {
   id: string;
   domain: string;
+  organization_name: string | null;
   created_by: string | null;
   created_at: string;
 };

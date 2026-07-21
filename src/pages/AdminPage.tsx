@@ -30,6 +30,7 @@ export default function AdminPage() {
   const [domainsLoading, setDomainsLoading] = useState(true);
   const [domainsError, setDomainsError] = useState<string | null>(null);
   const [newDomain, setNewDomain] = useState('');
+  const [newOrgName, setNewOrgName] = useState('');
   const [addingDomain, setAddingDomain] = useState(false);
   const [domainToDelete, setDomainToDelete] = useState<ApprovedDomainRow | null>(null);
 
@@ -85,8 +86,9 @@ export default function AdminPage() {
     setAddingDomain(true);
     setDomainsError(null);
     try {
-      await addApprovedDomain(normalized);
+      await addApprovedDomain(normalized, newOrgName);
       setNewDomain('');
+      setNewOrgName('');
       await loadDomains();
     } catch (err) {
       setDomainsError(err instanceof Error ? err.message : 'Failed to add domain.');
@@ -147,22 +149,32 @@ export default function AdminPage() {
               </div>
             </div>
 
-            <form onSubmit={handleAddDomain} className="flex gap-2 mb-5">
-              <div className="flex-1 relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-muted text-sm font-medium">@</span>
-                <input
-                  type="text"
-                  value={newDomain}
-                  onChange={(e) => setNewDomain(e.target.value)}
-                  placeholder="example.com"
-                  className="w-full pl-8 pr-3 py-2 rounded-sm border border-neutral-border bg-white text-navy placeholder-neutral-muted focus:outline-none focus:border-green focus:ring-2 focus:ring-green/20 transition text-sm"
-                  disabled={addingDomain}
-                />
+            <form onSubmit={handleAddDomain} className="space-y-3 mb-5">
+              <div className="flex gap-2">
+                <div className="flex-1 relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-muted text-sm font-medium">@</span>
+                  <input
+                    type="text"
+                    value={newDomain}
+                    onChange={(e) => setNewDomain(e.target.value)}
+                    placeholder="example.com"
+                    className="w-full pl-8 pr-3 py-2 rounded-sm border border-neutral-border bg-white text-navy placeholder-neutral-muted focus:outline-none focus:border-green focus:ring-2 focus:ring-green/20 transition text-sm"
+                    disabled={addingDomain}
+                  />
+                </div>
+                <Button type="submit" size="md" disabled={addingDomain || !normalizeDomain(newDomain)}>
+                  {addingDomain ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                  {addingDomain ? 'Adding…' : 'Add domain'}
+                </Button>
               </div>
-              <Button type="submit" size="md" disabled={addingDomain || !normalizeDomain(newDomain)}>
-                {addingDomain ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                {addingDomain ? 'Adding…' : 'Add domain'}
-              </Button>
+              <input
+                type="text"
+                value={newOrgName}
+                onChange={(e) => setNewOrgName(e.target.value)}
+                placeholder="Organization name (optional)"
+                className="w-full px-3 py-2 rounded-sm border border-neutral-border bg-white text-navy placeholder-neutral-muted focus:outline-none focus:border-green focus:ring-2 focus:ring-green/20 transition text-sm"
+                disabled={addingDomain}
+              />
             </form>
 
             {domainsError && <ErrorState message={domainsError} onRetry={loadDomains} />}
@@ -185,6 +197,9 @@ export default function AdminPage() {
                       </div>
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-navy truncate">@{d.domain}</p>
+                        {d.organization_name && (
+                          <p className="text-xs text-navy/70 truncate">{d.organization_name}</p>
+                        )}
                         <p className="text-xs text-neutral-muted">Added {new Date(d.created_at).toLocaleDateString()}</p>
                       </div>
                     </div>

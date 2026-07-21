@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { User, Building2, Bell, Shield, LogOut } from 'lucide-react';
 import BrokerLayout from '../components/layout/BrokerLayout';
 import PageHeader from '../components/layout/PageHeader';
@@ -5,6 +6,8 @@ import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabase';
+import type { ApprovedDomainRow } from '../lib/database.types';
 
 function getInitials(profile: { first_name: string | null; last_name: string | null; email: string } | null) {
   if (!profile) return '?';
@@ -22,8 +25,43 @@ function getDisplayName(profile: { first_name: string | null; last_name: string 
   return profile.email;
 }
 
+function extractEmailDomain(email: string | null | undefined): string | null {
+  if (!email) return null;
+  const at = email.lastIndexOf('@');
+  if (at < 0 || at === email.length - 1) return null;
+  return email.slice(at + 1).toLowerCase();
+}
+
 export default function SettingsPage() {
   const { profile, signOut } = useAuth();
+  const [orgName, setOrgName] = useState<string | null>(null);
+  const [orgNameLoading, setOrgNameLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadOrgName() {
+      const domain = extractEmailDomain(profile?.email);
+      if (!domain) {
+        setOrgNameLoading(false);
+        return;
+      }
+      try {
+        const { data, error } = await supabase
+          .from('approved_domains')
+          .select('id, domain, organization_name, created_by, created_at')
+          .eq('domain', domain)
+          .maybeSingle();
+        if (error) throw error;
+        if (!cancelled) setOrgName((data as ApprovedDomainRow | null)?.organization_name ?? null);
+      } catch {
+        if (!cancelled) setOrgName(null);
+      } finally {
+        if (!cancelled) setOrgNameLoading(false);
+      }
+    }
+    loadOrgName();
+    return () => { cancelled = true; };
+  }, [profile?.email]);
 
   return (
     <BrokerLayout title="Settings">
@@ -63,6 +101,12 @@ export default function SettingsPage() {
             <div className="flex justify-between">
               <dt className="text-neutral-muted">Organization</dt>
               <dd className="text-navy font-medium">{profile?.brokerage_name ?? 'Not set'}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-neutral-muted">Organization name</dt>
+              <dd className="text-navy font-medium">
+                {orgNameLoading ? 'Loading…' : (orgName ?? 'Not set')}
+              </dd>
             </div>
             <div className="flex justify-between">
               <dt className="text-neutral-muted">Role</dt>
