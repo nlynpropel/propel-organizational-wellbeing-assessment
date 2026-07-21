@@ -55,9 +55,9 @@ export default function LoginPage() {
       <div className="flex-1 flex items-center justify-center px-6 py-12">
         <div className="w-full max-w-md">
           <div className="flex items-center gap-2.5 mb-8">
-            <img src="/Propel_Logo_2020_v4-3.png" alt="Propel" className="h-8 w-auto" style={{ filter: 'brightness(0) invert(1)' }} />
+            <img src="/Propel_Logo_2020_v4-3 copy.png" alt="Propel" className="h-10 w-auto" />
             <div>
-              <span className="text-xs text-white/50 block leading-none mt-1">Broker portal</span>
+              <span className="text-xs text-white/50 block leading-none mt-1">Assessment Engine</span>
             </div>
           </div>
 
@@ -67,7 +67,7 @@ export default function LoginPage() {
             <div className="bg-white rounded-lg shadow-xl p-8">
               <h1 className="font-display text-2xl font-semibold text-navy">Sign in</h1>
               <p className="text-sm text-neutral-secondary mt-1.5">
-                Enter your broker email and we'll send a secure magic link.
+                Enter your email and we'll send a secure magic link.
               </p>
 
               {state === 'restricted' && (
@@ -113,7 +113,7 @@ export default function LoginPage() {
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="you@brokerage.com"
+                      placeholder="you@workemail.com"
                       className="w-full pl-10 pr-3 py-2.5 rounded-sm border border-neutral-border bg-white text-navy placeholder-neutral-muted focus:outline-none focus:border-green focus:ring-2 focus:ring-green/20 transition"
                       autoFocus
                     />
@@ -137,7 +137,7 @@ export default function LoginPage() {
           )}
 
           <p className="text-center text-xs text-white/40 mt-8">
-            Access is limited to approved employee-benefits brokers.
+            Access is approved to approved organizations.
           </p>
         </div>
       </div>
@@ -155,15 +155,9 @@ function SentState({ email, onReset }: { email: string; onReset: () => void }) {
       <h1 className="font-display text-2xl font-semibold text-navy">Check your email</h1>
       <p className="text-sm text-neutral-secondary mt-2">
         We sent a secure sign-in link to <span className="font-medium text-navy">{email}</span>.
-        Click it to enter the broker portal.
+        Click it to sign in.
       </p>
       <div className="mt-6 space-y-2">
-        <button
-          onClick={() => navigate('/dashboard')}
-          className="w-full bg-navy hover:bg-navy-mid text-white font-medium py-2.5 rounded-sm transition text-sm"
-        >
-          Continue to dashboard (demo)
-        </button>
         <button
           onClick={onReset}
           className="w-full text-sm text-neutral-secondary hover:text-navy transition py-2"
