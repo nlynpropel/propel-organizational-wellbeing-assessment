@@ -174,7 +174,7 @@ export default function AssessmentPage() {
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to submit assessment';
       setError(msg);
-      setPhase('review');
+      setPhase('error');
       track({ type: 'assessment_error', errorCode: 'submit_failed' });
     }
   };
