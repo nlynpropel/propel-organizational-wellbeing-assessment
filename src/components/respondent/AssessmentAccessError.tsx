@@ -23,7 +23,7 @@ export default function AssessmentAccessError({
       <div className="w-16 h-16 rounded-full bg-neutral-bg flex items-center justify-center mx-auto">
         {icon}
       </div>
-      <h1 className="font-display text-xl font-semibold text-navy mt-5">{title}</h1>
+      <h1 className="text-xl font-semibold text-navy mt-5">{title}</h1>
       <p className="text-sm text-neutral-secondary mt-3 leading-relaxed max-w-md mx-auto">
         {message}
       </p>

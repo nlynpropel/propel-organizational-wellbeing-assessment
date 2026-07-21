@@ -138,7 +138,7 @@ export default function NewClientPage() {
 
       <form onSubmit={handleSubmit}>
         <Card className="max-w-2xl">
-          <h2 className="font-display text-lg font-semibold text-navy mb-1">Organization profile</h2>
+          <h2 className="text-lg font-semibold text-navy mb-1">Organization profile</h2>
           <p className="text-sm text-neutral-muted mb-6">
             Basic details about the employer client. Used to tailor the assessment and report.
           </p>
@@ -245,7 +245,7 @@ export default function NewClientPage() {
         </Card>
 
         <Card className="max-w-2xl mt-5">
-          <h2 className="font-display text-lg font-semibold text-navy mb-1">Client contact</h2>
+          <h2 className="text-lg font-semibold text-navy mb-1">Client contact</h2>
           <p className="text-sm text-neutral-muted mb-6">
             The primary person who will receive the secure assessment link.
           </p>

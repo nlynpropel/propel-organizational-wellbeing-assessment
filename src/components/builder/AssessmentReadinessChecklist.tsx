@@ -25,7 +25,7 @@ export default function AssessmentReadinessChecklist({
           ) : (
             <Circle className="w-5 h-5 text-neutral-muted" />
           )}
-          <h4 className="font-display text-sm font-semibold text-navy">
+          <h4 className="text-sm font-semibold text-navy">
             {allDone ? 'Ready to publish' : 'Assessment not ready'}
           </h4>
         </div>

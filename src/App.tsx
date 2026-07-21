@@ -36,7 +36,7 @@ function AccessPendingScreen() {
         <div className="w-14 h-14 rounded-full bg-orange-tint flex items-center justify-center mx-auto mb-4">
           <Clock className="w-7 h-7 text-orange" />
         </div>
-        <h1 className="font-display text-xl font-semibold text-navy">Access pending</h1>
+        <h1 className="text-xl font-semibold text-navy">Access pending</h1>
         <p className="text-sm text-neutral-secondary mt-2">
           Your account has been created, but a Propel administrator still needs to activate it
           before you can access the broker portal.
@@ -63,7 +63,7 @@ function AccessRestrictedScreen() {
         <div className="w-14 h-14 rounded-full bg-red-tint flex items-center justify-center mx-auto mb-4">
           <ShieldAlert className="w-7 h-7 text-red" />
         </div>
-        <h1 className="font-display text-xl font-semibold text-navy">Access restricted</h1>
+        <h1 className="text-xl font-semibold text-navy">Access restricted</h1>
         <p className="text-sm text-neutral-secondary mt-2">
           Your account has been suspended or archived. Contact your Propel administrator if you
           believe this is an error.
@@ -87,7 +87,7 @@ function NoProfileScreen() {
         <div className="w-14 h-14 rounded-full bg-neutral-bg flex items-center justify-center mx-auto mb-4">
           <Sparkles className="w-7 h-7 text-navy/40" />
         </div>
-        <h1 className="font-display text-xl font-semibold text-navy">No broker profile</h1>
+        <h1 className="text-xl font-semibold text-navy">No broker profile</h1>
         <p className="text-sm text-neutral-secondary mt-2">
           You're signed in, but no Propel broker profile is linked to your account. An
           administrator must create and activate your profile.

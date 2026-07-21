@@ -24,7 +24,7 @@ export default function OpportunitySpectrum({ score, scoreBandLabel, bands }: Pr
         </Badge>
       </div>
       <div className="flex items-baseline gap-2 mb-4">
-        <span className="font-display font-bold text-5xl text-white tabular-nums">{Math.round(score)}</span>
+        <span className="font-mono font-semibold text-5xl text-white tabular-nums">{Math.round(score)}</span>
         <span className="text-white/50 text-sm font-medium">/ 100</span>
       </div>
 

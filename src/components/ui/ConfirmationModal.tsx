@@ -34,7 +34,7 @@ export default function ConfirmationModal({
               </div>
             )}
             <div>
-              <h3 className="font-display text-lg font-semibold text-navy">{title}</h3>
+              <h3 className="text-lg font-semibold text-navy">{title}</h3>
               <div className="text-sm text-neutral-secondary mt-1.5">{message}</div>
             </div>
           </div>

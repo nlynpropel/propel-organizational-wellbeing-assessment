@@ -42,9 +42,9 @@ export default {
         },
       },
       fontFamily: {
-        display: ['Fraunces', 'serif'],
-        body: ['Inter', 'sans-serif'],
-        mono: ['JetBrains Mono', 'monospace'],
+        display: ['Newsreader', 'Georgia', 'serif'],
+        body: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'sans-serif'],
+        mono: ['"JetBrains Mono"', '"SFMono-Regular"', 'Consolas', 'monospace'],
       },
       borderRadius: {
         sm: '6px',

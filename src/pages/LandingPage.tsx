@@ -67,7 +67,7 @@ export default function LandingPage() {
                   </div>
                   <step.icon className="w-5 h-5 text-green-dark" />
                 </div>
-                <h3 className="font-display text-lg font-semibold text-navy">{step.title}</h3>
+                <h3 className="text-lg font-semibold text-navy">{step.title}</h3>
                 <p className="text-sm text-neutral-secondary mt-2 leading-relaxed">{step.description}</p>
               </div>
             ))}

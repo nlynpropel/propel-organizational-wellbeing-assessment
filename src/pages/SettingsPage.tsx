@@ -34,7 +34,7 @@ export default function SettingsPage() {
         <Card>
           <div className="flex items-center gap-2 mb-4">
             <User className="w-4 h-4 text-navy" />
-            <h2 className="font-display text-base font-semibold text-navy">Profile</h2>
+            <h2 className="text-base font-semibold text-navy">Profile</h2>
           </div>
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-full bg-navy/10 flex items-center justify-center text-navy font-semibold">
@@ -57,7 +57,7 @@ export default function SettingsPage() {
         <Card>
           <div className="flex items-center gap-2 mb-4">
             <User className="w-4 h-4 text-navy" />
-            <h2 className="font-display text-base font-semibold text-navy">Brokerage</h2>
+            <h2 className="text-base font-semibold text-navy">Brokerage</h2>
           </div>
           <dl className="space-y-2 text-sm">
             <div className="flex justify-between">
@@ -75,7 +75,7 @@ export default function SettingsPage() {
         <Card>
           <div className="flex items-center gap-2 mb-4">
             <Bell className="w-4 h-4 text-navy" />
-            <h2 className="font-display text-base font-semibold text-navy">Notifications</h2>
+            <h2 className="text-base font-semibold text-navy">Notifications</h2>
           </div>
           <div className="space-y-3">
             {[
@@ -98,7 +98,7 @@ export default function SettingsPage() {
         <Card>
           <div className="flex items-center gap-2 mb-4">
             <Shield className="w-4 h-4 text-navy" />
-            <h2 className="font-display text-base font-semibold text-navy">Security</h2>
+            <h2 className="text-base font-semibold text-navy">Security</h2>
           </div>
           <p className="text-sm text-neutral-secondary">
             You sign in with a secure magic link sent to your email. No password required.

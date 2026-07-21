@@ -343,7 +343,7 @@ function AssessmentInstanceCard({
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <h3 className="font-display text-base font-semibold text-navy">{templateName}</h3>
+            <h3 className="text-base font-semibold text-navy">{templateName}</h3>
             {versionLabel && <Badge variant="neutral">{versionLabel}</Badge>}
             <StatusBadge status={inst.status} />
           </div>
@@ -369,7 +369,7 @@ function AssessmentInstanceCard({
             <div className="flex items-center gap-3 mt-3 pt-3 border-t border-neutral-border-soft">
               <div>
                 <span className="text-xs text-neutral-muted uppercase tracking-wide">Overall score</span>
-                <p className="font-display text-lg font-bold text-navy">{Math.round(inst.overall_score!)}<span className="text-sm font-normal text-neutral-muted">/100</span></p>
+                <p className="font-mono text-lg font-bold text-navy tabular-nums">{Math.round(inst.overall_score!)}<span className="text-sm font-normal text-neutral-muted">/100</span></p>
               </div>
               {inst.primary_opportunity && (
                 <div>

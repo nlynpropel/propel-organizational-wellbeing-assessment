@@ -16,7 +16,7 @@ export default function AssessmentSection({
 }) {
   return (
     <div>
-      <h2 className="font-display text-xl font-semibold text-navy">{section.title}</h2>
+      <h2 className="text-xl font-semibold text-navy">{section.title}</h2>
       {section.description && (
         <p className="text-sm text-neutral-secondary mt-2 leading-relaxed">{section.description}</p>
       )}

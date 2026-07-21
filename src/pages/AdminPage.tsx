@@ -142,7 +142,7 @@ export default function AdminPage() {
                 <Globe className="w-4.5 h-4.5 text-navy" />
               </div>
               <div>
-                <h3 className="font-display text-base font-semibold text-navy">Approved email domains</h3>
+                <h3 className="text-base font-semibold text-navy">Approved email domains</h3>
                 <p className="text-sm text-neutral-secondary mt-1">
                   Only users with an email address from an approved domain can self-register via the magic-link flow.
                 </p>
@@ -232,7 +232,7 @@ export default function AdminPage() {
           <Card padding={false}>
             <div className="px-5 py-4 border-b border-neutral-border-soft flex items-center gap-3">
               <Users className="w-5 h-5 text-navy" />
-              <h3 className="font-display text-base font-semibold text-navy">All Registered Users</h3>
+              <h3 className="text-base font-semibold text-navy">All Registered Users</h3>
             </div>
 
             {usersError && <div className="p-5"><ErrorState message={usersError} onRetry={loadUsers} /></div>}
@@ -359,7 +359,7 @@ function SummaryCard({ label, value, icon: Icon }: { label: string; value: strin
         <Icon className="w-4 h-4" />
         <span className="text-xs font-medium uppercase tracking-wide">{label}</span>
       </div>
-      <p className="font-display text-2xl font-semibold text-navy">{value}</p>
+      <p className="font-mono text-2xl font-semibold text-navy tabular-nums">{value}</p>
     </div>
   );
 }

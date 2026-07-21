@@ -164,7 +164,7 @@ export default function SendAssessmentPage() {
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="font-display text-base font-semibold text-navy">{propelAssessment.template.name}</h3>
+                <h3 className="text-base font-semibold text-navy">{propelAssessment.template.name}</h3>
                 <AssessmentOwnerBadge ownerType="propel" />
                 <Badge variant="neutral">v{propelAssessment.version.version_number}</Badge>
               </div>
@@ -181,7 +181,7 @@ export default function SendAssessmentPage() {
         <div className="space-y-4">
           <Card>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-display text-base font-semibold text-navy">Select client</h3>
+              <h3 className="text-base font-semibold text-navy">Select client</h3>
               <Button variant="outline" size="sm" onClick={() => setShowNewOrg(!showNewOrg)}>
                 {showNewOrg ? 'Cancel' : '+ New client'}
               </Button>
@@ -251,7 +251,7 @@ export default function SendAssessmentPage() {
       {/* Step 1: Configure invitation */}
       {step === 1 && (
         <Card className="space-y-4 max-w-2xl">
-          <h3 className="font-display text-base font-semibold text-navy">Configure invitation</h3>
+          <h3 className="text-base font-semibold text-navy">Configure invitation</h3>
           <div>
             <label className="block text-sm font-medium text-navy mb-1.5">Respondent name *</label>
             <input
@@ -297,7 +297,7 @@ export default function SendAssessmentPage() {
       {/* Step 2: Review */}
       {step === 2 && (
         <Card className="space-y-4 max-w-2xl">
-          <h3 className="font-display text-base font-semibold text-navy">Review</h3>
+          <h3 className="text-base font-semibold text-navy">Review</h3>
           <dl className="space-y-3 text-sm">
             <ReviewRow icon={Users} label="Client" value={organizations.find((o) => o.id === selectedOrgId)?.organization_name ?? '—'} />
             <ReviewRow icon={ClipboardList} label="Assessment" value={propelAssessment?.template.name ?? '—'} />
@@ -322,7 +322,7 @@ export default function SendAssessmentPage() {
               <Check className="w-5 h-5 text-green-dark" />
             </div>
             <div>
-              <h3 className="font-display text-base font-semibold text-navy">Assessment link created</h3>
+              <h3 className="text-base font-semibold text-navy">Assessment link created</h3>
               <p className="text-sm text-neutral-secondary">Share this secure link with your respondent.</p>
             </div>
           </div>

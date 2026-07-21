@@ -124,7 +124,7 @@ export default function AssessmentsPage() {
           {assessments.map((a) => (
             <Card key={a.template.id} className="flex flex-col">
               <div className="flex items-start justify-between gap-2 mb-2">
-                <h3 className="font-display text-base font-semibold text-navy">{a.template.name}</h3>
+                <h3 className="text-base font-semibold text-navy">{a.template.name}</h3>
                 <Badge variant="progress">Propel</Badge>
               </div>
               {a.template.short_description && (

@@ -37,7 +37,7 @@ export default function AuthCallbackPage() {
         {status === 'verifying' && (
           <>
             <Loader2 className="w-8 h-8 text-green animate-spin mx-auto mb-4" />
-            <h1 className="font-display text-xl font-semibold text-navy">Verifying…</h1>
+            <h1 className="text-xl font-semibold text-navy">Verifying…</h1>
           </>
         )}
         {status === 'success' && (
@@ -45,7 +45,7 @@ export default function AuthCallbackPage() {
             <div className="w-14 h-14 rounded-full bg-green-tint flex items-center justify-center mx-auto mb-4">
               <CheckCircle2 className="w-7 h-7 text-green-dark" />
             </div>
-            <h1 className="font-display text-xl font-semibold text-navy">Welcome back</h1>
+            <h1 className="text-xl font-semibold text-navy">Welcome back</h1>
           </>
         )}
         {status === 'error' && (
@@ -53,7 +53,7 @@ export default function AuthCallbackPage() {
             <div className="w-14 h-14 rounded-full bg-red-tint flex items-center justify-center mx-auto mb-4">
               <AlertTriangle className="w-7 h-7 text-red" />
             </div>
-            <h1 className="font-display text-xl font-semibold text-navy">Link expired</h1>
+            <h1 className="text-xl font-semibold text-navy">Link expired</h1>
             <button
               onClick={() => navigate('/login?error=expired')}
               className="mt-5 inline-flex items-center bg-navy hover:bg-navy-mid text-white text-sm font-medium px-4 py-2 rounded-sm transition"

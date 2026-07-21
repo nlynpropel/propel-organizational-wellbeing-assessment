@@ -16,14 +16,14 @@ export default function AssessmentPreview({
     <div className="rounded-md border border-neutral-border bg-neutral-bg/20 p-6 max-w-2xl mx-auto">
       <div className="bg-white rounded-lg shadow-sm p-6 space-y-6">
         <div>
-          <h3 className="font-display text-xl font-semibold text-navy">{templateName}</h3>
+          <h3 className="text-xl font-semibold text-navy">{templateName}</h3>
           {introductionText && <p className="text-sm text-neutral-secondary mt-2">{introductionText}</p>}
         </div>
 
         {sections.map((section, si) => (
           <div key={section.id || si} className="space-y-4">
             <div className="border-b border-neutral-border-soft pb-2">
-              <h4 className="font-display text-base font-semibold text-navy">
+              <h4 className="text-base font-semibold text-navy">
                 {si + 1}. {section.title}
               </h4>
               {section.description && (

@@ -37,7 +37,7 @@ export default function AssessmentReview({
 
   return (
     <div>
-      <h2 className="font-display text-xl font-semibold text-navy">Review your answers</h2>
+      <h2 className="text-xl font-semibold text-navy">Review your answers</h2>
       <p className="text-sm text-neutral-secondary mt-2 leading-relaxed">
         Please review your responses before submitting. You can go back to change any answer.
       </p>

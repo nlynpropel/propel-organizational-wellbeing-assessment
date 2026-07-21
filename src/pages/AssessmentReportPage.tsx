@@ -114,7 +114,7 @@ export default function AssessmentReportPage() {
       {/* Strategy dimensions — two-column grid */}
       {scoredSections.length > 0 && (
         <Card className="mb-6">
-          <h2 className="font-display text-lg font-semibold text-navy mb-4">Strategy Dimensions</h2>
+          <h2 className="text-lg font-semibold text-navy mb-4">Strategy Dimensions</h2>
           <div className="grid gap-x-8 gap-y-5 md:grid-cols-2">
             {scoredSections.map((section) => {
               const score = sectionScoreMap.get(section.id);
@@ -137,7 +137,7 @@ export default function AssessmentReportPage() {
       {/* Behavioral readiness — with descriptions, two-column grid */}
       {behavioralReadiness && (
         <Card className="mb-6">
-          <h2 className="font-display text-lg font-semibold text-navy mb-1">Behavioral Readiness</h2>
+          <h2 className="text-lg font-semibold text-navy mb-1">Behavioral Readiness</h2>
           <p className="text-xs text-neutral-muted mb-4">Higher scores indicate stronger behavioral support for well-being participation.</p>
           <div className="grid gap-x-8 gap-y-5 md:grid-cols-2">
             {(Object.keys(DRIVER_LABELS) as Array<keyof BehavioralReadiness>).map((key) => (
@@ -184,7 +184,7 @@ export default function AssessmentReportPage() {
             <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
               <MessageCircleQuestion className="w-4 h-4 text-white" />
             </div>
-            <h2 className="font-display text-lg font-semibold text-white">Client Meeting Questions</h2>
+            <h2 className="text-lg font-semibold text-white">Client Meeting Questions</h2>
           </div>
           <div className="space-y-3">
             {recommendations.meetingQuestions.map((rec) => (
@@ -205,7 +205,7 @@ export default function AssessmentReportPage() {
       {/* Appendix — Response Detail (plain text, no pills) */}
       {contextualAnswers.length > 0 && (
         <div className="mb-6">
-          <h2 className="font-display text-sm font-semibold text-neutral-muted uppercase tracking-wide mb-3">Appendix — Response Detail</h2>
+          <h2 className="text-sm font-semibold text-neutral-muted uppercase tracking-wide mb-3">Appendix — Response Detail</h2>
           <div className="rounded-lg border border-dashed border-neutral-border bg-transparent p-4 space-y-4">
             {contextualAnswers.map((answer, i) => (
               <div key={i} className="border-b border-neutral-border-soft pb-3 last:border-0 last:pb-0">
@@ -281,7 +281,7 @@ function ScoreRow({
     <div>
       <div className="flex items-center justify-between mb-1">
         <span className="text-sm font-medium text-navy">{label}</span>
-        <span className="text-sm font-semibold text-navy tabular-nums">{roundForDisplay(score)} <span className="text-neutral-muted font-normal text-xs">/ 100</span></span>
+        <span className="font-mono text-sm font-semibold text-navy tabular-nums">{roundForDisplay(score)} <span className="text-neutral-muted font-normal text-xs">/ 100</span></span>
       </div>
       <div className="w-full bg-neutral-bg rounded-full overflow-hidden h-2">
         <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: color }} />
@@ -322,7 +322,7 @@ function BehavioralReadinessRow({
     <div>
       <div className="flex items-baseline justify-between gap-2 mb-0.5">
         <span className="text-sm font-medium text-navy">{DRIVER_LABELS[driverKey]}</span>
-        <span className="text-sm font-semibold text-navy tabular-nums">{roundForDisplay(score)} <span className="text-neutral-muted font-normal text-xs">/ 100</span></span>
+        <span className="font-mono text-sm font-semibold text-navy tabular-nums">{roundForDisplay(score)} <span className="text-neutral-muted font-normal text-xs">/ 100</span></span>
       </div>
       <p className="text-xs text-neutral-muted mb-1.5 leading-relaxed">{DRIVER_DESCRIPTIONS[driverKey]}</p>
       <div className="w-full bg-neutral-bg rounded-full overflow-hidden h-2">
@@ -343,7 +343,7 @@ function StrengthsCard({ recommendations }: { recommendations: SelectedRecommend
         <div className="w-8 h-8 rounded-full bg-green-tint flex items-center justify-center">
           <Star className="w-4 h-4 text-green-dark" />
         </div>
-        <h2 className="font-display text-lg font-semibold text-navy">Strengths</h2>
+        <h2 className="text-lg font-semibold text-navy">Strengths</h2>
       </div>
       <div className="space-y-3">
         {recommendations.map((rec) => (
@@ -367,7 +367,7 @@ function PriorityOpportunitiesCard({ recommendations }: { recommendations: Selec
         <div className="w-8 h-8 rounded-full bg-orange-tint flex items-center justify-center">
           <Target className="w-4 h-4 text-orange" />
         </div>
-        <h2 className="font-display text-lg font-semibold text-navy">Priority Opportunities</h2>
+        <h2 className="text-lg font-semibold text-navy">Priority Opportunities</h2>
       </div>
       <div className="space-y-3">
         {recommendations.map((rec) => (
@@ -406,7 +406,7 @@ function RecommendationGroupCard({
         <div className={`w-8 h-8 rounded-full ${iconBg} flex items-center justify-center`}>
           <Icon className={`w-4 h-4 ${iconColor}`} />
         </div>
-        <h2 className="font-display text-lg font-semibold text-navy">{title}</h2>
+        <h2 className="text-lg font-semibold text-navy">{title}</h2>
       </div>
       <div className="space-y-3">
         {recommendations.map((rec) => (

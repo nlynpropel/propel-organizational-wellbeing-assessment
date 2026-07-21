@@ -584,7 +584,7 @@ export default function AssessmentBuilderPage() {
 
       {step === 1 && (
         <Card className="space-y-4 max-w-2xl">
-          <h3 className="font-display text-base font-semibold text-navy">Reporting structure</h3>
+          <h3 className="text-base font-semibold text-navy">Reporting structure</h3>
           <p className="text-sm text-neutral-secondary">Choose how results should be reported.</p>
           <div className="space-y-3">
             {([
@@ -617,7 +617,7 @@ export default function AssessmentBuilderPage() {
       {step === 2 && (
         <Card className="space-y-4">
           <div>
-            <h3 className="font-display text-base font-semibold text-navy">Sections</h3>
+            <h3 className="text-base font-semibold text-navy">Sections</h3>
             <p className="text-sm text-neutral-secondary mt-1">
               Organize your assessment into sections. Each section can be scored or informational.
               {reportingType === 'overall_and_sections' && ' At least one section is required.'}
@@ -652,7 +652,7 @@ export default function AssessmentBuilderPage() {
                 <Card key={section.id}>
                   <div className="flex items-center justify-between mb-4">
                     <div>
-                      <h3 className="font-display text-base font-semibold text-navy">{section.title}</h3>
+                      <h3 className="text-base font-semibold text-navy">{section.title}</h3>
                       {section.description && <p className="text-sm text-neutral-secondary mt-0.5">{section.description}</p>}
                     </div>
                     <Button
@@ -741,7 +741,7 @@ export default function AssessmentBuilderPage() {
       {step === 4 && (
         <Card className="space-y-6 max-w-2xl">
           <div>
-            <h3 className="font-display text-base font-semibold text-navy">Scoring setup</h3>
+            <h3 className="text-base font-semibold text-navy">Scoring setup</h3>
             <p className="text-sm text-neutral-secondary mt-1">
               Review section weights, question weights, and score normalization.
               Scores are normalized from 0 to 100.
@@ -853,7 +853,7 @@ export default function AssessmentBuilderPage() {
       {step === 6 && (
         <div className="space-y-4 max-w-2xl">
           <Card>
-            <h3 className="font-display text-base font-semibold text-navy mb-4">Review & publish</h3>
+            <h3 className="text-base font-semibold text-navy mb-4">Review & publish</h3>
             <AssessmentReadinessChecklist items={readinessItems} warnings={allWarnings} />
           </Card>
           <Card>
