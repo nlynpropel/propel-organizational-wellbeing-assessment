@@ -10,7 +10,6 @@ import {
   ClipboardList,
   Lightbulb,
   StickyNote,
-  Target,
   TrendingUp,
   CheckCircle2,
 } from 'lucide-react';
@@ -20,9 +19,6 @@ import StatusBadge from '../components/ui/StatusBadge';
 import Badge from '../components/ui/Badge';
 import Card from '../components/ui/Card';
 import OpportunitySpectrum from '../components/ui/OpportunitySpectrum';
-import StrategyDimensionList from '../components/StrategyDimensionList';
-import BehavioralReadinessList from '../components/BehavioralReadinessList';
-import RecommendationCard from '../components/RecommendationCard';
 import ClientLinkPanel from '../components/ClientLinkPanel';
 import BrokerNotesPanel from '../components/BrokerNotesPanel';
 import ConfirmationModal from '../components/ui/ConfirmationModal';
@@ -35,8 +31,6 @@ import type { OrganizationWithAssessment } from '../services/organizations';
 import {
   getFundingTypeLabel,
   getMonthLabel,
-  PLACEHOLDER_STRATEGY_DIMENSIONS,
-  PLACEHOLDER_BEHAVIORAL_DRIVERS,
 } from '../lib/sampleData';
 import { maturityClass } from '../lib/scores';
 
@@ -50,36 +44,7 @@ const tabs: { key: TabKey; label: string; icon: typeof LayoutGrid }[] = [
   { key: 'notes', label: 'Notes', icon: StickyNote },
 ];
 
-// Placeholder recommendations — real recommendation engine is a future phase.
-const PLACEHOLDER_RECS = [
-  {
-    id: 'ph-qw-1',
-    title: 'Add a leadership video kickoff message to next open enrollment',
-    dimension: 'Strategy and Leadership',
-    tier: 'Quick Win' as const,
-    kind: 'flag' as const,
-    effort: 'Low effort' as const,
-    impact: 'High visibility' as const,
-  },
-  {
-    id: 'ph-qw-2',
-    title: 'Publish a simple one-page "where to start" guide for new hires',
-    dimension: 'Employee Relevance',
-    tier: 'Quick Win' as const,
-    kind: 'star' as const,
-    effort: 'Low effort' as const,
-    impact: 'Medium impact' as const,
-  },
-  {
-    id: 'ph-hi-1',
-    title: 'Build a 12-month measurement plan tied to 3 outcome metrics',
-    dimension: 'Measurement and Improvement',
-    tier: 'High-Impact Move' as const,
-    kind: 'target' as const,
-    effort: 'High effort' as const,
-    impact: 'High impact' as const,
-  },
-];
+// Recommendation engine is a future phase. No placeholder recommendations are shown.
 
 export default function ClientDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -320,30 +285,16 @@ function OverviewTab({
           <Card>
             <OpportunitySpectrum score={Math.round(assessment!.overall_score!)} />
           </Card>
-
-          <div className="grid lg:grid-cols-2 gap-5">
-            <Card>
-              <h3 className="font-display text-base font-semibold text-navy mb-1">Strategy dimensions</h3>
-              <p className="text-xs text-neutral-muted mb-4">Placeholder data — scoring engine not yet implemented</p>
-              <StrategyDimensionList dimensions={PLACEHOLDER_STRATEGY_DIMENSIONS} />
-            </Card>
-            <Card>
-              <h3 className="font-display text-base font-semibold text-navy mb-1">Behavioral readiness</h3>
-              <p className="text-xs text-neutral-muted mb-4">Placeholder data — scoring engine not yet implemented</p>
-              <BehavioralReadinessList drivers={PLACEHOLDER_BEHAVIORAL_DRIVERS} />
-            </Card>
-          </div>
-
           <Card>
-            <h3 className="font-display text-base font-semibold text-navy mb-1 flex items-center gap-2">
-              <Target className="w-4 h-4 text-orange" />
-              Priority recommendations
-            </h3>
-            <p className="text-xs text-neutral-muted mb-4">Placeholder data — recommendation engine not yet implemented</p>
-            <div className="grid sm:grid-cols-2 gap-3">
-              {PLACEHOLDER_RECS.map((rec) => (
-                <RecommendationCard key={rec.id} rec={rec} />
-              ))}
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="font-display text-base font-semibold text-navy">Assessment report</h3>
+                <p className="text-sm text-neutral-secondary mt-1">View the full report with scores and behavioral readiness.</p>
+              </div>
+              <Button to={`/reports/${assessment!.id}`} size="sm">
+                <FileText className="w-4 h-4" />
+                View full report
+              </Button>
             </div>
           </Card>
         </>
@@ -433,27 +384,13 @@ function RecommendationsTab({ hasScore }: { hasScore: boolean }) {
     );
   }
   return (
-    <div className="space-y-6">
-      <p className="text-xs text-neutral-muted px-1">
-        Placeholder data — recommendation engine not yet implemented.
-      </p>
-      <div>
-        <h3 className="font-display text-base font-semibold text-navy mb-3">Quick wins</h3>
-        <div className="grid sm:grid-cols-2 gap-3">
-          {PLACEHOLDER_RECS.filter((r) => r.tier === 'Quick Win').map((rec) => (
-            <RecommendationCard key={rec.id} rec={rec} />
-          ))}
-        </div>
-      </div>
-      <div>
-        <h3 className="font-display text-base font-semibold text-navy mb-3">High-impact moves</h3>
-        <div className="grid sm:grid-cols-2 gap-3">
-          {PLACEHOLDER_RECS.filter((r) => r.tier === 'High-Impact Move').map((rec) => (
-            <RecommendationCard key={rec.id} rec={rec} />
-          ))}
-        </div>
-      </div>
-    </div>
+    <Card>
+      <EmptyState
+        icon={Lightbulb}
+        title="Recommendations coming soon"
+        description="The recommendation engine is not yet implemented. Recommendations will appear here in a future phase."
+      />
+    </Card>
   );
 }
 
@@ -505,7 +442,7 @@ function ReportsTab({ org, hasScore }: { org: OrganizationWithAssessment; hasSco
       </Card>
 
       <p className="text-xs text-neutral-muted px-1">
-        PDF generation will be implemented in a later phase. Download is a placeholder.
+        PDF generation will be implemented in a later phase.
       </p>
     </div>
   );

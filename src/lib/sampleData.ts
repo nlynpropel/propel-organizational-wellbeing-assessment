@@ -1,5 +1,4 @@
 import type { AssessmentInstanceStatus } from '../lib/database.types';
-import type { StrategyDimension, BehavioralDriver } from '../types';
 
 export const INDUSTRIES = [
   'Manufacturing',
@@ -72,35 +71,7 @@ export const ASSESSMENT_STATUS_FILTERS: { value: AssessmentInstanceStatus | 'all
   { value: 'expired', label: 'Expired' },
 ];
 
-// Placeholder score data — used only where real scores don't exist yet.
-// Labeled clearly as placeholder content. The scoring engine is a future phase.
-export const PLACEHOLDER_STRATEGY_DIMENSIONS: StrategyDimension[] = [
-  { name: 'Strategy and Leadership', score: 56 },
-  { name: 'Employee Relevance', score: 44 },
-  { name: 'Engagement and Communication', score: 72 },
-  { name: 'Experience and Access', score: 62 },
-  { name: 'Culture and Social Support', score: 80 },
-  { name: 'Measurement and Improvement', score: 40 },
-];
 
-export const PLACEHOLDER_BEHAVIORAL_DRIVERS: BehavioralDriver[] = [
-  { name: 'Clarity of Value', score: 38 },
-  { name: 'Motivation and Overcoming Inertia', score: 64 },
-  { name: 'Trust and Social Proof', score: 85 },
-  { name: 'Structural and Environmental Friction', score: 34 },
-];
-
-export const PLACEHOLDER_STRENGTHS = [
-  'Strong peer trust and social proof around well-being programs',
-  'Culture visibly supports work-life balance and social connection',
-  'Communication channels reach most employee segments effectively',
-];
-
-export const PLACEHOLDER_OPPORTUNITIES = [
-  "Employees don't see how programs are personally relevant to them",
-  'No consistent way to measure program impact or ROI',
-  "Leadership isn't visibly modeling or championing participation",
-];
 
 export function getFundingTypeLabel(value: string | null): string {
   if (!value) return '—';

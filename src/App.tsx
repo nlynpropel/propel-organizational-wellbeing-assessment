@@ -1,7 +1,6 @@
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { Loader2, Clock, ShieldAlert, Sparkles } from 'lucide-react';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import AuthCallbackPage from './pages/AuthCallbackPage';
 import DashboardPage from './pages/DashboardPage';
@@ -103,6 +102,19 @@ function NoProfileScreen() {
   );
 }
 
+function RootRedirect() {
+  const { user, profile, status, loading } = useAuth();
+  if (loading) return <FullScreenLoader />;
+  if (!user) return <Navigate to="/login" replace />;
+  if (!profile) return <Navigate to="/new-account" replace />;
+  if (!profile.account_setup_complete && status === 'invited' && profile.role !== 'admin') {
+    return <Navigate to="/new-account" replace />;
+  }
+  if (status === 'active') return <Navigate to="/dashboard" replace />;
+  // Invited/suspended/archived users land on new-account or are handled by ProtectedRoute elsewhere.
+  return <Navigate to="/dashboard" replace />;
+}
+
 function ProtectedRoute({ children, adminOnly = false }: { children: React.ReactNode; adminOnly?: boolean }) {
   const { user, profile, status, loading } = useAuth();
   const location = useLocation();
@@ -141,7 +153,7 @@ function AppRoutes() {
   return (
     <Routes>
       {/* Public */}
-      <Route path="/" element={<LandingPage />} />
+      <Route path="/" element={<RootRedirect />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/auth/callback" element={<AuthCallbackPage />} />
 
