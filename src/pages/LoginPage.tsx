@@ -137,7 +137,7 @@ export default function LoginPage() {
           )}
 
           <p className="text-center text-xs text-white/40 mt-8">
-            Access is approved to approved organizations.
+            Access is limited to approved organizations.
           </p>
         </div>
       </div>
