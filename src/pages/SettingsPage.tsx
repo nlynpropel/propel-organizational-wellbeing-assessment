@@ -27,7 +27,7 @@ export default function SettingsPage() {
 
   return (
     <BrokerLayout title="Settings">
-      <PageHeader title="Settings" subtitle="Manage your broker profile and preferences" />
+      <PageHeader title="Settings" subtitle="Manage your profile and preferences" />
 
       <div className="max-w-2xl space-y-5">
         {/* Profile */}
