@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { logDbError } from '../lib/logger';
 import { getScoreBand } from '../lib/assessmentScoring';
+import { fetchRecommendationsForResult, hasAnyRecommendations, type GroupedRecommendations } from './recommendations';
 import type {
   AssessmentInstanceRow,
   AssessmentResponseRow,
@@ -43,6 +44,7 @@ export type ReportData = {
   contextualAnswers: ContextualAnswer[];
   showRecommendations: boolean;
   showBand: boolean;
+  recommendations: GroupedRecommendations | null;
 };
 
 export async function fetchReportData(
@@ -104,6 +106,18 @@ export async function fetchReportData(
 
   const showRecommendations = template ? (template.owner_type === 'propel' && template.recommendations_enabled) : false;
 
+  let recommendations: GroupedRecommendations | null = null;
+  if (showRecommendations && result) {
+    try {
+      recommendations = await fetchRecommendationsForResult(result.id);
+      if (!hasAnyRecommendations(recommendations)) {
+        recommendations = null;
+      }
+    } catch {
+      recommendations = null;
+    }
+  }
+
   return {
     instance: inst,
     template,
@@ -120,6 +134,7 @@ export async function fetchReportData(
     contextualAnswers,
     showRecommendations,
     showBand,
+    recommendations,
   };
 }
 

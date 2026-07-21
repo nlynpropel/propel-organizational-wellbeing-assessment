@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ArrowLeft, ArrowRight, Check, Loader2, Mail, Calendar, Users, ClipboardList } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Loader2, Mail, Calendar, Users, ClipboardList, Copy, ExternalLink } from 'lucide-react';
 import BrokerLayout from '../components/layout/BrokerLayout';
 import PageHeader from '../components/layout/PageHeader';
 import Card from '../components/ui/Card';
@@ -8,15 +8,20 @@ import Badge from '../components/ui/Badge';
 import ErrorState from '../components/ui/ErrorState';
 import LoadingState from '../components/ui/LoadingState';
 import AssessmentOwnerBadge from '../components/builder/AssessmentOwnerBadge';
-import RecommendationEligibilityBadge from '../components/builder/RecommendationEligibilityBadge';
 import { useAuth } from '../context/AuthContext';
-import { fetchTemplatesForBroker, fetchQuestionCountForVersion, createAssessmentInstance } from '../services/assessmentBuilder';
+import { createAssessmentInstance } from '../services/assessmentBuilder';
 import { fetchOrganizations, createOrganization, type CreateOrganizationInput } from '../services/organizations';
-import type { AssessmentTemplateWithVersion, OrganizationRow } from '../lib/database.types';
+import { supabase } from '../lib/supabase';
+import { FEATURE_FLAGS } from '../lib/featureFlags';
+import { logDbError } from '../lib/logger';
+import type { AssessmentTemplateRow, AssessmentVersionRow, OrganizationRow } from '../lib/database.types';
 
-type Step = 0 | 1 | 2 | 3 | 4;
+type Step = 0 | 1 | 2 | 3;
 
-const stepLabels = ['Select client', 'Select assessment', 'Configure invitation', 'Review', 'Create'];
+type PropelAssessment = {
+  template: AssessmentTemplateRow;
+  version: AssessmentVersionRow;
+};
 
 export default function SendAssessmentPage() {
   const { profile } = useAuth();
@@ -26,53 +31,42 @@ export default function SendAssessmentPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Step 0: select client
   const [organizations, setOrganizations] = useState<OrganizationRow[]>([]);
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
   const [showNewOrg, setShowNewOrg] = useState(false);
   const [newOrgName, setNewOrgName] = useState('');
   const [newOrgContact, setNewOrgContact] = useState('');
 
-  // Step 1: select assessment
-  const [templates, setTemplates] = useState<AssessmentTemplateWithVersion[]>([]);
-  const [selectedTemplate, setSelectedTemplate] = useState<AssessmentTemplateWithVersion | null>(null);
-  const [questionCounts, setQuestionCounts] = useState<Record<string, number>>({});
+  const [propelAssessment, setPropelAssessment] = useState<PropelAssessment | null>(null);
 
-  // Step 2: configure
   const [respondentName, setRespondentName] = useState('');
   const [respondentEmail, setRespondentEmail] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [brokerMessage, setBrokerMessage] = useState('');
 
-  // Step 4: result
   const [createdLink, setCreatedLink] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     if (!profile) return;
     setLoading(true);
     try {
-      const [orgs, tmpls] = await Promise.all([
+      const [orgs, assessment] = await Promise.all([
         fetchOrganizations(profile.id, { includeArchived: false }),
-        fetchTemplatesForBroker(profile.id),
+        fetchPropelAssessment(),
       ]);
       setOrganizations(orgs);
-      setTemplates(tmpls.filter((t) => t.status === 'published' && t.latest_version?.status === 'published'));
+      setPropelAssessment(assessment);
 
-      // Load question counts
-      const counts: Record<string, number> = {};
-      for (const t of tmpls) {
-        if (t.latest_version) {
-          counts[t.latest_version.id] = await fetchQuestionCountForVersion(t.latest_version.id);
-        }
+      if (assessment && selectedOrgId) {
+        setStep(1);
       }
-      setQuestionCounts(counts);
     } catch (err) {
-      console.error('[SendAssessmentPage.loadData] Failed:', err);
+      logDbError({ fn: 'SendAssessmentPage.loadData', error: err });
       setError(err instanceof Error ? err.message : 'Failed to load data.');
     } finally {
       setLoading(false);
     }
-  }, [profile]);
+  }, [profile, selectedOrgId]);
 
   useEffect(() => {
     loadData();
@@ -100,15 +94,15 @@ export default function SendAssessmentPage() {
   };
 
   const handleCreateInstance = async () => {
-    if (!profile || !selectedOrgId || !selectedTemplate?.latest_version) return;
+    if (!profile || !selectedOrgId || !propelAssessment) return;
     setSubmitting(true);
     setError(null);
     try {
       const instance = await createAssessmentInstance({
         organization_id: selectedOrgId,
         broker_id: profile.id,
-        assessment_template_id: selectedTemplate.id,
-        assessment_version_id: selectedTemplate.latest_version.id,
+        assessment_template_id: propelAssessment.template.id,
+        assessment_version_id: propelAssessment.version.id,
         respondent_name: respondentName,
         respondent_email: respondentEmail,
         expires_at: dueDate ? new Date(dueDate).toISOString() : null,
@@ -116,9 +110,8 @@ export default function SendAssessmentPage() {
       });
       const link = `${window.location.origin}/assessment/${instance.secure_token}`;
       setCreatedLink(link);
-      setStep(4);
+      setStep(3);
     } catch (err) {
-      console.error('[SendAssessmentPage.handleCreateInstance] Failed:', err);
       setError(err instanceof Error ? err.message : 'Failed to create assessment instance.');
     } finally {
       setSubmitting(false);
@@ -133,19 +126,17 @@ export default function SendAssessmentPage() {
     );
   }
 
-  const propelTemplates = templates.filter((t) => t.owner_type === 'propel');
-  const myTemplates = templates.filter((t) => t.owner_type === 'broker');
+  const stepLabels = ['Select client', 'Configure invitation', 'Review', 'Create'];
 
   return (
     <BrokerLayout title="Send Assessment">
       <PageHeader
-        title="Send Assessment"
-        subtitle="Select a client, choose an assessment, and generate a secure link to send."
+        title="Send Propel Assessment"
+        subtitle="Generate a secure link for the Propel Well-being Opportunity Index."
         breadcrumbs={[{ label: 'Assessments', to: '/assessments' }, { label: 'Send' }]}
         actions={<Button variant="ghost" size="sm" to="/assessments"><ArrowLeft className="w-4 h-4" /> Cancel</Button>}
       />
 
-      {/* Step indicator */}
       <div className="flex items-center gap-1 mb-8">
         {stepLabels.map((label, i) => (
           <div key={i} className="flex items-center gap-1">
@@ -163,6 +154,27 @@ export default function SendAssessmentPage() {
       </div>
 
       {error && <div className="mb-4"><ErrorState message={error} onRetry={() => setError(null)} /></div>}
+
+      {/* Assessment being sent (always shown — no selection step) */}
+      {propelAssessment && step < 3 && (
+        <Card className="mb-6 bg-green-tint/30 border-green/20">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-green-tint flex items-center justify-center shrink-0">
+              <ClipboardList className="w-5 h-5 text-green-dark" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="font-display text-base font-semibold text-navy">{propelAssessment.template.name}</h3>
+                <AssessmentOwnerBadge ownerType="propel" />
+                <Badge variant="neutral">v{propelAssessment.version.version_number}</Badge>
+              </div>
+              <p className="text-sm text-neutral-secondary mt-0.5">
+                Latest published version will be used automatically.
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Step 0: Select client */}
       {step === 0 && (
@@ -236,48 +248,8 @@ export default function SendAssessmentPage() {
         </div>
       )}
 
-      {/* Step 1: Select assessment */}
+      {/* Step 1: Configure invitation */}
       {step === 1 && (
-        <div className="space-y-6">
-          {propelTemplates.length > 0 && (
-            <div>
-              <h3 className="font-display text-sm font-semibold text-navy mb-3 eyebrow">Propel Assessments</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {propelTemplates.map((t) => (
-                  <AssessmentCard
-                    key={t.id}
-                    template={t}
-                    questionCount={t.latest_version ? questionCounts[t.latest_version.id] ?? 0 : 0}
-                    selected={selectedTemplate?.id === t.id}
-                    onSelect={() => setSelectedTemplate(t)}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-          <div>
-            <h3 className="font-display text-sm font-semibold text-navy mb-3 eyebrow">My Assessments</h3>
-            {myTemplates.length === 0 ? (
-              <Card><p className="text-sm text-neutral-muted text-center py-6">No custom assessments yet. Create one from the Assessments page.</p></Card>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {myTemplates.map((t) => (
-                  <AssessmentCard
-                    key={t.id}
-                    template={t}
-                    questionCount={t.latest_version ? questionCounts[t.latest_version.id] ?? 0 : 0}
-                    selected={selectedTemplate?.id === t.id}
-                    onSelect={() => setSelectedTemplate(t)}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Step 2: Configure invitation */}
-      {step === 2 && (
         <Card className="space-y-4 max-w-2xl">
           <h3 className="font-display text-base font-semibold text-navy">Configure invitation</h3>
           <div>
@@ -322,18 +294,18 @@ export default function SendAssessmentPage() {
         </Card>
       )}
 
-      {/* Step 3: Review */}
-      {step === 3 && (
+      {/* Step 2: Review */}
+      {step === 2 && (
         <Card className="space-y-4 max-w-2xl">
           <h3 className="font-display text-base font-semibold text-navy">Review</h3>
           <dl className="space-y-3 text-sm">
             <ReviewRow icon={Users} label="Client" value={organizations.find((o) => o.id === selectedOrgId)?.organization_name ?? '—'} />
-            <ReviewRow icon={ClipboardList} label="Assessment" value={selectedTemplate?.name ?? '—'} />
-            <ReviewRow icon={Check} label="Version" value={selectedTemplate?.latest_version ? `v${selectedTemplate.latest_version.version_number}` : '—'} />
+            <ReviewRow icon={ClipboardList} label="Assessment" value={propelAssessment?.template.name ?? '—'} />
+            <ReviewRow icon={Check} label="Version" value={propelAssessment ? `v${propelAssessment.version.version_number} (latest published)` : '—'} />
             <ReviewRow icon={Mail} label="Respondent" value={respondentName ? `${respondentName} (${respondentEmail})` : '—'} />
             <ReviewRow icon={Calendar} label="Due date" value={dueDate || 'No due date'} />
-            <ReviewRow icon={Check} label="Scoring" value={selectedTemplate?.scoring_enabled ? 'Included' : 'Not included'} />
-            <ReviewRow icon={Check} label="Recommendations" value={selectedTemplate?.recommendations_enabled ? 'Included' : 'Not included'} />
+            <ReviewRow icon={Check} label="Scoring" value={propelAssessment?.template.scoring_enabled ? 'Included' : 'Not included'} />
+            <ReviewRow icon={Check} label="Recommendations" value={propelAssessment?.template.recommendations_enabled ? 'Included' : 'Not included'} />
           </dl>
           <Button variant="primary" size="lg" onClick={handleCreateInstance} disabled={submitting}>
             {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
@@ -342,8 +314,8 @@ export default function SendAssessmentPage() {
         </Card>
       )}
 
-      {/* Step 4: Created */}
-      {step === 4 && createdLink && (
+      {/* Step 3: Created */}
+      {step === 3 && createdLink && (
         <Card className="space-y-4 max-w-2xl">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-green-tint flex items-center justify-center">
@@ -367,7 +339,7 @@ export default function SendAssessmentPage() {
                 size="sm"
                 onClick={() => navigator.clipboard.writeText(createdLink)}
               >
-                Copy Link
+                <Copy className="w-3.5 h-3.5" /> Copy Link
               </Button>
             </div>
           </div>
@@ -376,15 +348,15 @@ export default function SendAssessmentPage() {
               variant="outline"
               size="sm"
               onClick={() => {
-                const msg = `Hello,\n\nYou've been invited to complete an assessment for ${organizations.find((o) => o.id === selectedOrgId)?.organization_name ?? 'your organization'}.\n\nUse the secure link below to begin:\n${createdLink}\n\nThank you,\nPropel`;
+                const msg = `Hello,\n\nYou've been invited to complete the Propel Well-being Opportunity Index for ${organizations.find((o) => o.id === selectedOrgId)?.organization_name ?? 'your organization'}.\n\nUse the secure link below to begin:\n${createdLink}\n\nThank you,\nPropel`;
                 navigator.clipboard.writeText(msg);
               }}
             >
-              Copy Invitation Message
+              <Copy className="w-3.5 h-3.5" /> Copy Invitation Message
             </Button>
             <a href={createdLink} target="_blank" rel="noopener noreferrer">
               <Button variant="outline" size="sm">
-                Open Assessment
+                <ExternalLink className="w-3.5 h-3.5" /> Open Assessment
               </Button>
             </a>
           </div>
@@ -395,22 +367,24 @@ export default function SendAssessmentPage() {
           )}
           <div className="rounded-sm bg-orange-tint border border-orange/20 px-3 py-2">
             <p className="text-xs text-orange-dark">
-              Email delivery is not enabled. Copy and send this link to the client.
+              Email delivery is not enabled. Copy and send this assessment link to the client.
             </p>
           </div>
           <p className="text-xs text-neutral-muted">
-            The link is tied to the exact version of the assessment that was selected.
+            The link is tied to the exact published version of the assessment.
             Editing the assessment later will not affect this link.
           </p>
           <div className="flex gap-2">
-            <Button variant="primary" size="md" to="/assessments">Done</Button>
-            <Button variant="outline" size="md" to="/clients">View clients</Button>
+            <Button variant="primary" size="md" to={selectedOrgId ? `/clients/${selectedOrgId}` : '/clients'}>
+              Return to Client
+            </Button>
+            <Button variant="outline" size="md" to="/assessments">Done</Button>
           </div>
         </Card>
       )}
 
       {/* Navigation */}
-      {step < 4 && (
+      {step < 3 && (
         <div className="flex items-center justify-between mt-8">
           <Button variant="ghost" size="md" onClick={() => setStep((s) => Math.max(0, s - 1) as Step)} disabled={step === 0}>
             <ArrowLeft className="w-4 h-4" /> Back
@@ -418,61 +392,42 @@ export default function SendAssessmentPage() {
           <Button
             variant="primary"
             size="md"
-            onClick={() => setStep((s) => Math.min(4, s + 1) as Step)}
+            onClick={() => setStep((s) => Math.min(3, s + 1) as Step)}
             disabled={
               (step === 0 && !selectedOrgId) ||
-              (step === 1 && !selectedTemplate) ||
-              (step === 2 && (!respondentName.trim() || !respondentEmail.trim()))
+              (step === 1 && (!respondentName.trim() || !respondentEmail.trim()))
             }
           >
             Next <ArrowRight className="w-4 h-4" />
           </Button>
         </div>
       )}
+
+      {/* Custom assessment sending — hidden behind feature flag */}
+      {FEATURE_FLAGS.ENABLE_CUSTOM_ASSESSMENT_SENDING && null}
     </BrokerLayout>
   );
 }
 
-function AssessmentCard({
-  template,
-  questionCount,
-  selected,
-  onSelect,
-}: {
-  template: AssessmentTemplateWithVersion;
-  questionCount: number;
-  selected: boolean;
-  onSelect: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      className={`text-left rounded-lg border p-5 transition ${
-        selected
-          ? 'border-green bg-green-tint ring-2 ring-green/20'
-          : 'border-neutral-border bg-white hover:border-navy/20 hover:shadow-sm'
-      }`}
-    >
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <h4 className="font-display text-base font-semibold text-navy">{template.name}</h4>
-        {selected && <Check className="w-5 h-5 text-green-dark shrink-0" />}
-      </div>
-      {template.short_description && (
-        <p className="text-sm text-neutral-secondary mb-3">{template.short_description}</p>
-      )}
-      <div className="flex flex-wrap items-center gap-2 mb-3">
-        <AssessmentOwnerBadge ownerType={template.owner_type} />
-        {template.category && <Badge variant="neutral">{template.category}</Badge>}
-        {template.estimated_minutes && <Badge variant="neutral">{template.estimated_minutes} min</Badge>}
-        <Badge variant="neutral">{questionCount} questions</Badge>
-      </div>
-      <div className="flex items-center gap-2">
-        {template.scoring_enabled && <Badge variant="progress">Scoring</Badge>}
-        <RecommendationEligibilityBadge ownerType={template.owner_type} recommendationsEnabled={template.recommendations_enabled} />
-      </div>
-    </button>
-  );
+async function fetchPropelAssessment(): Promise<PropelAssessment | null> {
+  const { data, error } = await supabase
+    .from('assessment_templates')
+    .select('*, latest_version:assessment_versions!inner(id, version_number, status, recommendation_framework_id, show_overall_score)')
+    .eq('owner_type', 'propel')
+    .eq('latest_version.status', 'published')
+    .order('name')
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    logDbError({ fn: 'fetchPropelAssessment', error });
+    throw error;
+  }
+
+  if (!data) return null;
+
+  const t = data as unknown as AssessmentTemplateRow & { latest_version: AssessmentVersionRow };
+  return { template: t, version: t.latest_version };
 }
 
 function ReviewRow({ icon: Icon, label, value }: { icon: typeof Users; label: string; value: string }) {

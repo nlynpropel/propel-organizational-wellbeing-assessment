@@ -1,0 +1,831 @@
+PROPEL WELL-BEING OPPORTUNITY INDEX
+RECOMMENDATION BANK — PLAIN-TEXT IMPORT CONTENT
+
+PURPOSE
+This recommendation bank supports deterministic scoring, tailored client reports, broker guidance, and mapped Propel capability recommendations for the Propel Well-being Opportunity Index.
+
+IMPLEMENTATION RULES
+- Use the diagnosis, client-facing recommendation, recommended first step, and client meeting question in client-facing reports.
+- Broker-only views may also display behavioral principles, psychological signals, trigger logic, recommendation group, and Propel capabilities.
+- Low scored-question responses should create diagnostic-tag severity.
+- Rank eligible recommendations deterministically.
+- Suppress multiple selected recommendations from the same recommendation group.
+- Preserve the exact wording below.
+- Store this content in a versioned, immutable recommendation framework.
+- Snapshot selected recommendation content and rationale when a result is finalized.
+- Do not generate or rewrite recommendation text with AI.
+
+IMPORTANT QUESTION-MAPPING RULE
+Resolve each Q-number trigger against the final published Propel Well-being Opportunity Index question order. The recommendation bank was developed while the incentive-clarity question was being added. Validate every numeric trigger against the final question text before production activation; do not rely on question numbers alone when a mapped question ID or diagnostic tag can be used.
+
+RECOMMENDATIONS
+
+RECOMMENDATION ID: CLARITY-001
+TITLE: Create a Guided Starting Experience
+BANK CATEGORY: Clarity of Value
+STRATEGY DIMENSION: Experience and Access
+PRIMARY DRIVER: Clarity of Value
+SECONDARY DRIVER: Structural and Environmental Friction
+RECOMMENDATION GROUP: Onboarding
+PRIMARY TRIGGERS: Q13 score 1-3; client selects employees do not know where to begin; Q14 score 1-2
+DIAGNOSIS: Employees may be aware that resources exist but lack a clear entry point or next action.
+BEHAVIORAL PRINCIPLE: Cognitive-load reduction, processing fluency
+PSYCHOLOGICAL SIGNAL: “This is simple, and I know exactly what to do next.”
+CLIENT-FACING RECOMMENDATION: Create one highly visible starting experience that quickly explains what the well-being program offers and directs employees to one relevant first action.
+RECOMMENDED FIRST STEP: Ask a new or unfamiliar employee to locate the program and identify what to do first without assistance. Record where confusion occurs.
+CLIENT MEETING QUESTION: Could an employee who has never used the program determine their next step within 60 seconds?
+CLASSIFICATION: Quick win
+EFFORT / IMPACT: Low effort / High impact
+PROPEL CAPABILITIES: Custom Start Here experience; simplified platform hierarchy; segmented onboarding; guided next actions
+
+RECOMMENDATION ID: CLARITY-002
+TITLE: Define the Program’s Employee Value Proposition
+BANK CATEGORY: Clarity of Value
+STRATEGY DIMENSION: Strategy and Leadership
+PRIMARY DRIVER: Clarity of Value
+SECONDARY DRIVER: Motivation and Overcoming Inertia
+RECOMMENDATION GROUP: Value Proposition
+PRIMARY TRIGGERS: Q1 score 1-3; Q10 score 1-3; client selects employees do not understand the program
+DIAGNOSIS: The program may be described through features, tasks, or requirements without clearly communicating why participation matters to employees.
+BEHAVIORAL PRINCIPLE: Framing effects, personal relevance
+PSYCHOLOGICAL SIGNAL: “This has a meaningful benefit for me.”
+CLIENT-FACING RECOMMENDATION: Develop a concise employee-facing value proposition that explains what the program helps employees do, why it is useful now, and how participation fits into everyday life.
+RECOMMENDED FIRST STEP: Review the first paragraph of the three most frequently used employee communications. Compare how often they describe a task versus an employee benefit.
+CLIENT MEETING QUESTION: When employees hear the program’s name, what immediate personal benefit should they associate with it?
+CLASSIFICATION: Quick win
+EFFORT / IMPACT: Low effort / High impact
+PROPEL CAPABILITIES: Value-framing strategy; employee-centered messaging; customized campaign development; population-specific positioning
+
+RECOMMENDATION ID: CLARITY-003
+TITLE: Simplify Incentive Communication
+BANK CATEGORY: Clarity of Value
+STRATEGY DIMENSION: Engagement and Communication
+PRIMARY DRIVER: Clarity of Value
+SECONDARY DRIVER: Motivation and Overcoming Inertia
+RECOMMENDATION GROUP: Incentive Communication
+PRIMARY TRIGGERS: Accepted incentive-clarity question score 1-3; client selects incentives are confusing; Q10 score 1-3; Q13 score 1-3
+DIAGNOSIS: Employees may not clearly understand what actions qualify, how progress is calculated, when rewards are earned, or what to do next.
+BEHAVIORAL PRINCIPLE: Processing fluency, cognitive-load reduction, progress visibility
+PSYCHOLOGICAL SIGNAL: “I understand the requirements and can see my progress.”
+CLIENT-FACING RECOMMENDATION: Reformat incentive communication around a small number of clear actions, visible progress, important dates, and concrete examples of how an employee earns the reward.
+RECOMMENDED FIRST STEP: Convert the current incentive explanation into a one-page structure showing what to do, when to do it, what it is worth, how progress is verified, and what happens next.
+CLIENT MEETING QUESTION: Where do employees most often become confused about qualifying for the incentive?
+CLASSIFICATION: Quick win or high-impact move
+EFFORT / IMPACT: Low to high effort / High impact
+PROPEL CAPABILITIES: Incentive progress dashboards; incentive program design; simplified communications; milestone visibility
+
+RECOMMENDATION ID: CLARITY-004
+TITLE: Consolidate the Employee Resource Experience
+BANK CATEGORY: Clarity of Value
+STRATEGY DIMENSION: Experience and Access
+PRIMARY DRIVER: Clarity of Value
+SECONDARY DRIVER: Structural and Environmental Friction
+RECOMMENDATION GROUP: Resource Consolidation
+PRIMARY TRIGGERS: Q14 score 1-3; client selects resources are fragmented; Q13 score 1-3
+DIAGNOSIS: Employees may receive access to valuable benefits but experience them as unrelated websites, vendors, phone numbers, and communications.
+BEHAVIORAL PRINCIPLE: Choice overload, bounded rationality, simplification
+PSYCHOLOGICAL SIGNAL: “Everything I need is in one place.”
+CLIENT-FACING RECOMMENDATION: Create a centralized employee well-being experience that organizes available benefits by employee need rather than by vendor name.
+RECOMMENDED FIRST STEP: Inventory every well-being-related resource and group it under the questions employees are trying to solve, such as prevention, mental health, finances, chronic conditions, or physical activity.
+CLIENT MEETING QUESTION: Does the current experience require employees to know which vendor provides a service before they can find help?
+CLASSIFICATION: High-impact move
+EFFORT / IMPACT: Moderate to high effort / High impact
+PROPEL CAPABILITIES: Centralized benefits hub; custom navigation; vendor integration; need-based resource organization
+
+RECOMMENDATION ID: CLARITY-005
+TITLE: Replace Generic Communication With Population-Specific Relevance
+BANK CATEGORY: Clarity of Value
+STRATEGY DIMENSION: Employee Relevance
+PRIMARY DRIVER: Clarity of Value
+SECONDARY DRIVER: Trust and Social Proof
+RECOMMENDATION GROUP: Segmentation
+PRIMARY TRIGGERS: Q6 score 1-3; Q11 score 1-3; client selects programming feels generic
+DIAGNOSIS: Employees may not recognize the program as relevant to their role, work environment, life stage, location, or immediate needs.
+BEHAVIORAL PRINCIPLE: Similarity bias, identity, relevance framing
+PSYCHOLOGICAL SIGNAL: “This is intended for someone like me.”
+CLIENT-FACING RECOMMENDATION: Segment at least one major communication or campaign by meaningful employee characteristics such as work location, job environment, department, schedule, or demonstrated interest.
+RECOMMENDED FIRST STEP: Identify one population with lower engagement and revise the message using the language, barriers, and priorities specific to that group.
+CLIENT MEETING QUESTION: Which employee population is most likely to see the current program as not meant for them?
+CLASSIFICATION: Quick win that can develop into a larger strategy
+EFFORT / IMPACT: Low to moderate effort / High impact
+PROPEL CAPABILITIES: Segmented communications; population-specific content; department or location experiences; cultural customization
+
+RECOMMENDATION ID: CLARITY-006
+TITLE: Create a Year-Round Program Roadmap
+BANK CATEGORY: Clarity of Value
+STRATEGY DIMENSION: Strategy and Leadership
+PRIMARY DRIVER: Clarity of Value
+SECONDARY DRIVER: Motivation and Overcoming Inertia
+RECOMMENDATION GROUP: Program Roadmap
+PRIMARY TRIGGERS: Q1 score 1-3; Q9 score 1-3; Q12 score 1-3
+DIAGNOSIS: Programming may consist of unrelated events and communications without a visible sequence or consistent strategic direction.
+BEHAVIORAL PRINCIPLE: Mental models, environmental cueing, consistency
+PSYCHOLOGICAL SIGNAL: “I understand how these activities fit together.”
+CLIENT-FACING RECOMMENDATION: Create a year-round roadmap connecting organizational priorities, employee needs, communications, campaigns, incentives, benefits, and measurement.
+RECOMMENDED FIRST STEP: Map the next 12 months and assign each period a priority behavior, relevant benefit, employee message, participation opportunity, and success measure.
+CLIENT MEETING QUESTION: Could the organization explain how this month’s activity supports the larger well-being strategy?
+CLASSIFICATION: High-impact move
+EFFORT / IMPACT: Moderate effort / High impact
+PROPEL CAPABILITIES: Strategic programming calendar; rotating monthly themes; campaign planning; integrated content and communication
+
+RECOMMENDATION ID: CLARITY-007
+TITLE: Make the Next Action Explicit
+BANK CATEGORY: Clarity of Value
+STRATEGY DIMENSION: Engagement and Communication
+PRIMARY DRIVER: Clarity of Value
+SECONDARY DRIVER: Motivation and Overcoming Inertia
+RECOMMENDATION GROUP: Calls to Action
+PRIMARY TRIGGERS: Q9 score 1-3; Q10 score 1-3; Q13 score 1-3
+DIAGNOSIS: Communications may provide information without directing employees toward a specific, manageable behavior.
+BEHAVIORAL PRINCIPLE: Implementation intentions, simplification, action specificity
+PSYCHOLOGICAL SIGNAL: “I know what I can do right now.”
+CLIENT-FACING RECOMMENDATION: End every major well-being message with one specific next action rather than several competing links or general encouragement.
+RECOMMENDED FIRST STEP: Review recent calls to action and replace vague phrases such as learn more with a concrete action the employee can complete.
+CLIENT MEETING QUESTION: What single action should an employee take after reading the next communication?
+CLASSIFICATION: Quick win
+EFFORT / IMPACT: Low effort / High impact
+PROPEL CAPABILITIES: Behavioral communication design; personalized nudges; guided pathways; campaign calls to action
+
+RECOMMENDATION ID: CLARITY-008
+TITLE: Equip Leaders and Managers to Explain the Strategy
+BANK CATEGORY: Clarity of Value
+STRATEGY DIMENSION: Strategy and Leadership
+PRIMARY DRIVER: Clarity of Value
+SECONDARY DRIVER: Trust and Social Proof
+RECOMMENDATION GROUP: Leadership Communication
+PRIMARY TRIGGERS: Q3 score 1-3; Q17 score 1-3; Q1 score 1-3
+DIAGNOSIS: Leaders or managers may support well-being in principle but lack a consistent explanation of its purpose and relevance.
+BEHAVIORAL PRINCIPLE: Authority effects, social norms, message consistency
+PSYCHOLOGICAL SIGNAL: “Leadership understands and supports why this matters.”
+CLIENT-FACING RECOMMENDATION: Provide leaders and managers with a concise explanation of the strategy, the value for employees, and the specific role leaders are expected to play.
+RECOMMENDED FIRST STEP: Create a manager toolkit containing a 60-second explanation, three talking points, one team discussion prompt, a link to the employee starting point, and privacy guidance.
+CLIENT MEETING QUESTION: Could managers consistently explain why the organization invests in employee well-being?
+CLASSIFICATION: Quick win
+EFFORT / IMPACT: Low effort / High impact
+PROPEL CAPABILITIES: Leadership messaging; manager communication tools; culture-aligned campaign support; centralized resources
+
+RECOMMENDATION ID: MOTIVATION-001
+TITLE: Break Large Goals Into Immediate Micro-Actions
+BANK CATEGORY: Motivation and Overcoming Inertia
+STRATEGY DIMENSION: Engagement and Communication
+PRIMARY DRIVER: Motivation and Overcoming Inertia
+SECONDARY DRIVER: Clarity of Value
+RECOMMENDATION GROUP: Goal Design
+PRIMARY TRIGGERS: Q12 score 1-3; client selects participation declines after launch; Q7 score 1-3
+DIAGNOSIS: Employees may understand the desired outcome but delay action because the first step feels too large, distant, or demanding.
+BEHAVIORAL PRINCIPLE: Present bias, effort avoidance, implementation intentions
+PSYCHOLOGICAL SIGNAL: “This feels achievable right now.”
+CLIENT-FACING RECOMMENDATION: Translate broad goals into small actions that can be completed quickly and repeated over time.
+RECOMMENDED FIRST STEP: Choose one priority behavior and define the smallest useful action an employee can complete in less than five minutes.
+CLIENT MEETING QUESTION: What is the easiest meaningful action an employee could take today?
+CLASSIFICATION: Quick win
+EFFORT / IMPACT: Low effort / High impact
+PROPEL CAPABILITIES: Guided pathways; micro-goals; personalized nudges; behavior-based incentive design
+
+RECOMMENDATION ID: MOTIVATION-002
+TITLE: Make Progress Visible Early
+BANK CATEGORY: Motivation and Overcoming Inertia
+STRATEGY DIMENSION: Engagement and Communication
+PRIMARY DRIVER: Motivation and Overcoming Inertia
+SECONDARY DRIVER: Clarity of Value
+RECOMMENDATION GROUP: Progress Visibility
+PRIMARY TRIGGERS: Q12 score 1-3; Q10 score 1-3; low sustained engagement
+DIAGNOSIS: Employees may not receive enough early feedback to feel that their effort is producing progress.
+BEHAVIORAL PRINCIPLE: Goal-gradient effect, competence signals, feedback loops
+PSYCHOLOGICAL SIGNAL: “I can see that my effort is building toward something.”
+CLIENT-FACING RECOMMENDATION: Show employees visible progress after the first action and at meaningful milestones.
+RECOMMENDED FIRST STEP: Identify the first three actions in a typical participant journey and define the feedback employees receive after each one.
+CLIENT MEETING QUESTION: When does an employee first see evidence that participation is paying off?
+CLASSIFICATION: Quick win
+EFFORT / IMPACT: Medium effort / High impact
+PROPEL CAPABILITIES: Progress points; leveling; milestone dashboards; personalized feedback
+
+RECOMMENDATION ID: MOTIVATION-003
+TITLE: Replace One Long Program Year With Episodic Campaigns
+BANK CATEGORY: Motivation and Overcoming Inertia
+STRATEGY DIMENSION: Engagement and Communication
+PRIMARY DRIVER: Motivation and Overcoming Inertia
+SECONDARY DRIVER: Clarity of Value
+RECOMMENDATION GROUP: Program Cadence
+PRIMARY TRIGGERS: Q9 score 1-3; Q12 score 1-3; client selects participation declines after launch
+DIAGNOSIS: A single annual campaign may lose novelty and urgency as the year progresses.
+BEHAVIORAL PRINCIPLE: Novelty, temporal landmarks, episodic structure
+PSYCHOLOGICAL SIGNAL: “This matters now, and there is a clear beginning and end.”
+CLIENT-FACING RECOMMENDATION: Organize year-round engagement into shorter, distinct campaigns with specific themes, goals, and milestones.
+RECOMMENDED FIRST STEP: Convert one annual initiative into a four- to six-week campaign with a defined launch, midpoint, and finish.
+CLIENT MEETING QUESTION: Where does participation typically begin to decline during the program year?
+CLASSIFICATION: High-impact move
+EFFORT / IMPACT: Medium effort / High impact
+PROPEL CAPABILITIES: Rotating monthly themes; custom competitions; episodic challenge cycles; campaign calendars
+
+RECOMMENDATION ID: MOTIVATION-004
+TITLE: Increase Employee Choice and Ownership
+BANK CATEGORY: Motivation and Overcoming Inertia
+STRATEGY DIMENSION: Employee Relevance
+PRIMARY DRIVER: Motivation and Overcoming Inertia
+SECONDARY DRIVER: Clarity of Value
+RECOMMENDATION GROUP: Autonomy
+PRIMARY TRIGGERS: Q7 score 1-3; Q6 score 1-3; client selects programming feels generic
+DIAGNOSIS: Employees may disengage when participation feels prescribed or unrelated to their personal priorities.
+BEHAVIORAL PRINCIPLE: Autonomy, self-determination, identity
+PSYCHOLOGICAL SIGNAL: “I have ownership over how I participate.”
+CLIENT-FACING RECOMMENDATION: Offer guided choices that allow employees to select topics, activities, or goals that fit their interests and circumstances.
+RECOMMENDED FIRST STEP: Identify one required program element that could be replaced with two or three meaningful participation choices.
+CLIENT MEETING QUESTION: Where can the program provide choice without creating confusion?
+CLASSIFICATION: High-impact move
+EFFORT / IMPACT: Medium effort / High impact
+PROPEL CAPABILITIES: User-generated challenges; personalized pathways; choice-based incentives; segmented content
+
+RECOMMENDATION ID: MOTIVATION-005
+TITLE: Use Immediate Reinforcement Instead of Distant Rewards
+BANK CATEGORY: Motivation and Overcoming Inertia
+STRATEGY DIMENSION: Engagement and Communication
+PRIMARY DRIVER: Motivation and Overcoming Inertia
+SECONDARY DRIVER: Clarity of Value
+RECOMMENDATION GROUP: Reward Timing
+PRIMARY TRIGGERS: Incentive question score 1-3; Q12 score 1-3; client selects incentives are confusing
+DIAGNOSIS: Rewards may feel too distant to influence present behavior, especially when employees cannot see intermediate progress.
+BEHAVIORAL PRINCIPLE: Temporal discounting, immediate reinforcement, progress feedback
+PSYCHOLOGICAL SIGNAL: “My action matters now, not only months from now.”
+CLIENT-FACING RECOMMENDATION: Add immediate recognition, progress feedback, or small milestone rewards before the final incentive is earned.
+RECOMMENDED FIRST STEP: Map the time between the first qualifying action and final reward, then add one meaningful reinforcement point earlier in the journey.
+CLIENT MEETING QUESTION: How long must employees wait before receiving any positive feedback or recognition?
+CLASSIFICATION: High-impact move
+EFFORT / IMPACT: Medium effort / High impact
+PROPEL CAPABILITIES: Behavior-based incentive design; points; milestone progression; communication automation
+
+RECOMMENDATION ID: MOTIVATION-006
+TITLE: Match Challenge Difficulty to Participant Readiness
+BANK CATEGORY: Motivation and Overcoming Inertia
+STRATEGY DIMENSION: Employee Relevance
+PRIMARY DRIVER: Motivation and Overcoming Inertia
+SECONDARY DRIVER: Clarity of Value
+RECOMMENDATION GROUP: Challenge Design
+PRIMARY TRIGGERS: Q6 score 1-3; Q7 score 1-3; Q12 score 1-3
+DIAGNOSIS: Activities may be too difficult for beginners or too easy for experienced participants, reducing competence and interest.
+BEHAVIORAL PRINCIPLE: Self-efficacy, optimal challenge, mastery
+PSYCHOLOGICAL SIGNAL: “This is challenging, but I can succeed.”
+CLIENT-FACING RECOMMENDATION: Offer multiple entry levels or adaptive goals so employees can participate at an appropriate level of difficulty.
+RECOMMENDED FIRST STEP: Review one current challenge and create beginner, intermediate, and advanced participation paths.
+CLIENT MEETING QUESTION: Who is unintentionally excluded by the current definition of success?
+CLASSIFICATION: High-impact move
+EFFORT / IMPACT: Medium effort / High impact
+PROPEL CAPABILITIES: Tiered competitions; personal goals; adaptive pathways; activity normalization
+
+RECOMMENDATION ID: MOTIVATION-007
+TITLE: Connect Programming to Immediate Life Moments
+BANK CATEGORY: Motivation and Overcoming Inertia
+STRATEGY DIMENSION: Employee Relevance
+PRIMARY DRIVER: Motivation and Overcoming Inertia
+SECONDARY DRIVER: Clarity of Value
+RECOMMENDATION GROUP: Contextual Relevance
+PRIMARY TRIGGERS: Q5 score 1-3; Q6 score 1-3; Q10 score 1-3
+DIAGNOSIS: Programming may be relevant in general but disconnected from the moments when employees are most receptive to action.
+BEHAVIORAL PRINCIPLE: Salience, timing, contextual cues
+PSYCHOLOGICAL SIGNAL: “This matters to me right now.”
+CLIENT-FACING RECOMMENDATION: Align outreach and recommended actions with meaningful employee events, seasonal needs, and moments of elevated relevance.
+RECOMMENDED FIRST STEP: Select one priority benefit and identify three moments when an employee is especially likely to value it.
+CLIENT MEETING QUESTION: When is an employee most likely to care about this resource?
+CLASSIFICATION: High-impact move
+EFFORT / IMPACT: Medium effort / High impact
+PROPEL CAPABILITIES: Personalized nudges; targeted campaigns; pathways; segmented communication
+
+RECOMMENDATION ID: MOTIVATION-008
+TITLE: Refresh Repetitive Programming
+BANK CATEGORY: Motivation and Overcoming Inertia
+STRATEGY DIMENSION: Engagement and Communication
+PRIMARY DRIVER: Motivation and Overcoming Inertia
+SECONDARY DRIVER: Clarity of Value
+RECOMMENDATION GROUP: Novelty
+PRIMARY TRIGGERS: Q9 score 1-3; Q12 score 1-3; client selects programming feels generic
+DIAGNOSIS: Repeated formats and topics may reduce attention even when the underlying content remains valuable.
+BEHAVIORAL PRINCIPLE: Habituation, novelty, variable experiences
+PSYCHOLOGICAL SIGNAL: “There is something new and relevant to explore.”
+CLIENT-FACING RECOMMENDATION: Vary campaign formats, social structures, content types, and participation pathways while preserving strategic consistency.
+RECOMMENDED FIRST STEP: Audit the past 12 months and flag repeated topics, formats, and calls to action.
+CLIENT MEETING QUESTION: What parts of the program feel predictable to returning participants?
+CLASSIFICATION: Quick win
+EFFORT / IMPACT: Low effort / Medium impact
+PROPEL CAPABILITIES: Monthly content refresh; varied challenges; podcasts, articles, pathways, and social features
+
+RECOMMENDATION ID: TRUST-001
+TITLE: Make Privacy Protections Visible and Understandable
+BANK CATEGORY: Trust and Social Proof
+STRATEGY DIMENSION: Culture and Social Support
+PRIMARY DRIVER: Trust and Social Proof
+SECONDARY DRIVER: Clarity of Value
+RECOMMENDATION GROUP: Privacy
+PRIMARY TRIGGERS: Q19 score 1-3; client selects privacy concerns
+DIAGNOSIS: Employees may hesitate to participate when they do not understand who can see their information or how it will be used.
+BEHAVIORAL PRINCIPLE: Psychological safety, ambiguity aversion
+PSYCHOLOGICAL SIGNAL: “My data is safe, and I understand how it is used.”
+CLIENT-FACING RECOMMENDATION: Explain privacy protections in plain language at the moments when employees are asked to share information.
+RECOMMENDED FIRST STEP: Create a one-page privacy explainer answering who sees what, what the employer cannot see, and how data is protected.
+CLIENT MEETING QUESTION: What assumptions might employees be making about who can access their data?
+CLASSIFICATION: Quick win
+EFFORT / IMPACT: Low effort / High impact
+PROPEL CAPABILITIES: Privacy-forward messaging; HIPAA-aligned controls; FAQs; consent language
+
+RECOMMENDATION ID: TRUST-002
+TITLE: Increase Visible Leadership Participation
+BANK CATEGORY: Trust and Social Proof
+STRATEGY DIMENSION: Strategy and Leadership
+PRIMARY DRIVER: Trust and Social Proof
+SECONDARY DRIVER: Motivation and Overcoming Inertia
+RECOMMENDATION GROUP: Leadership Modeling
+PRIMARY TRIGGERS: Q3 score 1-3; Q17 score 1-3; client selects leadership not visibly involved
+DIAGNOSIS: Employees may interpret leader silence as a signal that well-being is optional, temporary, or not culturally important.
+BEHAVIORAL PRINCIPLE: Authority effects, social norms, modeling
+PSYCHOLOGICAL SIGNAL: “Leadership genuinely supports this.”
+CLIENT-FACING RECOMMENDATION: Ask leaders to demonstrate support through visible participation, personal stories, and consistent reinforcement.
+RECOMMENDED FIRST STEP: Select one leader to provide a brief message explaining why the strategy matters and one action they personally take.
+CLIENT MEETING QUESTION: What behavior do employees currently see leaders model?
+CLASSIFICATION: Quick win
+EFFORT / IMPACT: Low effort / High impact
+PROPEL CAPABILITIES: Leadership messages; executive spotlights; campaign participation; culture framing
+
+RECOMMENDATION ID: TRUST-003
+TITLE: Use Relatable Peer Stories
+BANK CATEGORY: Trust and Social Proof
+STRATEGY DIMENSION: Culture and Social Support
+PRIMARY DRIVER: Trust and Social Proof
+SECONDARY DRIVER: Motivation and Overcoming Inertia
+RECOMMENDATION GROUP: Social Proof
+PRIMARY TRIGGERS: Q18 score 1-3; client selects participation is invisible
+DIAGNOSIS: Employees may not see evidence that people like them participate or benefit.
+BEHAVIORAL PRINCIPLE: Social proof, similarity bias, in-group identity
+PSYCHOLOGICAL SIGNAL: “People like me do this.”
+CLIENT-FACING RECOMMENDATION: Share authentic stories and examples from employees across roles, locations, and levels of engagement.
+RECOMMENDED FIRST STEP: Collect three short employee stories representing different work environments or participation styles.
+CLIENT MEETING QUESTION: Whose story would make the program feel credible to an overlooked employee group?
+CLASSIFICATION: Quick win
+EFFORT / IMPACT: Low effort / High impact
+PROPEL CAPABILITIES: Healthy Selfie feed; peer recognition; success stories; community groups
+
+RECOMMENDATION ID: TRUST-004
+TITLE: Align Program Language With Workforce Culture
+BANK CATEGORY: Trust and Social Proof
+STRATEGY DIMENSION: Employee Relevance
+PRIMARY DRIVER: Trust and Social Proof
+SECONDARY DRIVER: Clarity of Value
+RECOMMENDATION GROUP: Cultural Alignment
+PRIMARY TRIGGERS: Q6 score 1-3; Q11 score 1-3; Q20 score 1-3
+DIAGNOSIS: Program language or imagery may feel disconnected from how employees see themselves and their work.
+BEHAVIORAL PRINCIPLE: Identity, similarity bias, cultural congruence
+PSYCHOLOGICAL SIGNAL: “This reflects people and work environments like mine.”
+CLIENT-FACING RECOMMENDATION: Adapt language, examples, visuals, and participation formats to the organization’s workforce and culture.
+RECOMMENDED FIRST STEP: Review one major campaign with representatives from two distinct employee groups and record what feels inauthentic or irrelevant.
+CLIENT MEETING QUESTION: Where does the current program sound like an outside wellness vendor rather than this organization?
+CLASSIFICATION: High-impact move
+EFFORT / IMPACT: Medium effort / High impact
+PROPEL CAPABILITIES: Custom branding; cultural customization; segmented pages; employer-specific messaging
+
+RECOMMENDATION ID: TRUST-005
+TITLE: Equip Managers to Reinforce Without Pressuring
+BANK CATEGORY: Trust and Social Proof
+STRATEGY DIMENSION: Culture and Social Support
+PRIMARY DRIVER: Trust and Social Proof
+SECONDARY DRIVER: Motivation and Overcoming Inertia
+RECOMMENDATION GROUP: Manager Support
+PRIMARY TRIGGERS: Q17 score 1-3; Q19 score 1-3
+DIAGNOSIS: Managers may either remain silent or promote participation in ways that feel coercive or inconsistent.
+BEHAVIORAL PRINCIPLE: Psychological safety, authority effects, subjective norms
+PSYCHOLOGICAL SIGNAL: “My manager supports participation without judging me.”
+CLIENT-FACING RECOMMENDATION: Provide managers with guidance on encouraging participation while respecting privacy and voluntariness.
+RECOMMENDED FIRST STEP: Create a manager guide with approved talking points, boundaries, and referral language.
+CLIENT MEETING QUESTION: Do managers know what they should and should not say about participation?
+CLASSIFICATION: Quick win
+EFFORT / IMPACT: Low effort / High impact
+PROPEL CAPABILITIES: Manager toolkits; leadership messaging; privacy guidance; communication templates
+
+RECOMMENDATION ID: TRUST-006
+TITLE: Acknowledge and Repair Past Program Frustrations
+BANK CATEGORY: Trust and Social Proof
+STRATEGY DIMENSION: Strategy and Leadership
+PRIMARY DRIVER: Trust and Social Proof
+SECONDARY DRIVER: Clarity of Value
+RECOMMENDATION GROUP: Trust Repair
+PRIMARY TRIGGERS: Open response indicates prior failed vendor or negative experience; low Q3/Q19
+DIAGNOSIS: Employees may carry skepticism from previous program failures, technical issues, or unmet promises.
+BEHAVIORAL PRINCIPLE: Trust repair, expectancy violation, reciprocity
+PSYCHOLOGICAL SIGNAL: “The organization understands what failed and has changed it.”
+CLIENT-FACING RECOMMENDATION: Acknowledge prior frustrations directly and explain what is different in the new approach.
+RECOMMENDED FIRST STEP: List the three most common historical complaints and pair each with a visible corrective action.
+CLIENT MEETING QUESTION: What past experience may be shaping employee expectations today?
+CLASSIFICATION: High-impact move
+EFFORT / IMPACT: Medium effort / High impact
+PROPEL CAPABILITIES: Strategic communication; improved user experience; white-glove support; implementation planning
+
+RECOMMENDATION ID: TRUST-007
+TITLE: Create Inclusive Social Participation Options
+BANK CATEGORY: Trust and Social Proof
+STRATEGY DIMENSION: Culture and Social Support
+PRIMARY DRIVER: Trust and Social Proof
+SECONDARY DRIVER: Motivation and Overcoming Inertia
+RECOMMENDATION GROUP: Inclusive Social Design
+PRIMARY TRIGGERS: Q18 score 1-3; Q20 score 1-3; employee population has remote/shift groups
+DIAGNOSIS: Social features may benefit highly connected employees while making others feel excluded or overly visible.
+BEHAVIORAL PRINCIPLE: Belonging, psychological safety, social proof
+PSYCHOLOGICAL SIGNAL: “I can participate in a way that feels comfortable and inclusive.”
+CLIENT-FACING RECOMMENDATION: Offer both visible social participation and lower-pressure individual or small-group options.
+RECOMMENDED FIRST STEP: Review one social challenge and add an individual path, private group path, and optional recognition choice.
+CLIENT MEETING QUESTION: Who might avoid participation because the social format feels uncomfortable or inaccessible?
+CLASSIFICATION: High-impact move
+EFFORT / IMPACT: Medium effort / Medium impact
+PROPEL CAPABILITIES: Private challenges; community groups; optional recognition; team and individual modes
+
+RECOMMENDATION ID: FRICTION-001
+TITLE: Create One Central Access Point
+BANK CATEGORY: Structural and Environmental Friction
+STRATEGY DIMENSION: Experience and Access
+PRIMARY DRIVER: Structural and Environmental Friction
+SECONDARY DRIVER: Clarity of Value
+RECOMMENDATION GROUP: Centralization
+PRIMARY TRIGGERS: Q14 score 1-3; client selects resources fragmented
+DIAGNOSIS: Employees may abandon the search for help when resources are distributed across multiple systems and vendors.
+BEHAVIORAL PRINCIPLE: Friction reduction, choice architecture, bounded rationality
+PSYCHOLOGICAL SIGNAL: “Everything I need is in one place.”
+CLIENT-FACING RECOMMENDATION: Create a centralized hub that organizes resources around employee needs and actions.
+RECOMMENDED FIRST STEP: Inventory all employee-facing entry points and identify which can be consolidated or redirected.
+CLIENT MEETING QUESTION: How many clicks, systems, and decisions separate an employee from the right resource?
+CLASSIFICATION: High-impact move
+EFFORT / IMPACT: High effort / High impact
+PROPEL CAPABILITIES: Centralized well-being hub; vendor integrations; custom navigation; SSO
+
+RECOMMENDATION ID: FRICTION-002
+TITLE: Reduce Login and Authentication Barriers
+BANK CATEGORY: Structural and Environmental Friction
+STRATEGY DIMENSION: Experience and Access
+PRIMARY DRIVER: Structural and Environmental Friction
+SECONDARY DRIVER: Clarity of Value
+RECOMMENDATION GROUP: Authentication
+PRIMARY TRIGGERS: Q13/Q14 score 1-3; open response mentions multiple logins or access problems
+DIAGNOSIS: Repeated authentication steps and forgotten credentials may stop otherwise motivated employees.
+BEHAVIORAL PRINCIPLE: Friction costs, default pathways
+PSYCHOLOGICAL SIGNAL: “I can get there without remembering another password.”
+CLIENT-FACING RECOMMENDATION: Reduce login steps through SSO, deep links, and clearer authentication guidance.
+RECOMMENDED FIRST STEP: Map the login journey for a first-time and returning employee, including every credential and verification step.
+CLIENT MEETING QUESTION: Where do employees most often abandon the access process?
+CLASSIFICATION: High-impact move
+EFFORT / IMPACT: High effort / High impact
+PROPEL CAPABILITIES: SSO; vendor integrations; deep links; guided access
+
+RECOMMENDATION ID: FRICTION-003
+TITLE: Design for Frontline and Deskless Access
+BANK CATEGORY: Structural and Environmental Friction
+STRATEGY DIMENSION: Experience and Access
+PRIMARY DRIVER: Structural and Environmental Friction
+SECONDARY DRIVER: Trust and Social Proof
+RECOMMENDATION GROUP: Frontline Access
+PRIMARY TRIGGERS: Q16 score 1-3; client selects mobile/frontline access difficult
+DIAGNOSIS: Participation opportunities may be designed around desk-based work patterns and communication channels.
+BEHAVIORAL PRINCIPLE: Environmental fit, access equity, friction reduction
+PSYCHOLOGICAL SIGNAL: “This works within the realities of my job.”
+CLIENT-FACING RECOMMENDATION: Adapt access, communication, and activities for shift, field, manufacturing, remote, and deskless populations.
+RECOMMENDED FIRST STEP: Choose one frontline role and document when, where, and how that employee could realistically participate.
+CLIENT MEETING QUESTION: What part of the current experience assumes employees sit at a computer?
+CLASSIFICATION: High-impact move
+EFFORT / IMPACT: Medium effort / High impact
+PROPEL CAPABILITIES: Mobile-first design; segmented communication; QR access; shift-friendly challenges
+
+RECOMMENDATION ID: FRICTION-004
+TITLE: Improve the Mobile Participation Journey
+BANK CATEGORY: Structural and Environmental Friction
+STRATEGY DIMENSION: Experience and Access
+PRIMARY DRIVER: Structural and Environmental Friction
+SECONDARY DRIVER: Motivation and Overcoming Inertia
+RECOMMENDATION GROUP: Mobile Experience
+PRIMARY TRIGGERS: Q15 score 1-3; client selects mobile access difficult
+DIAGNOSIS: Mobile users may encounter layouts, workflows, or device connections that require unnecessary effort.
+BEHAVIORAL PRINCIPLE: Friction reduction, usability, processing fluency
+PSYCHOLOGICAL SIGNAL: “I can do this quickly on my phone.”
+CLIENT-FACING RECOMMENDATION: Optimize the most common employee actions for fast, intuitive mobile completion.
+RECOMMENDED FIRST STEP: Identify the five most common mobile tasks and test each on both iOS and Android.
+CLIENT MEETING QUESTION: Which employee actions are technically available on mobile but still inconvenient?
+CLASSIFICATION: High-impact move
+EFFORT / IMPACT: Medium effort / High impact
+PROPEL CAPABILITIES: Responsive portal; native tracker app; streamlined device connections; mobile challenges
+
+RECOMMENDATION ID: FRICTION-005
+TITLE: Reduce Communication Noise
+BANK CATEGORY: Structural and Environmental Friction
+STRATEGY DIMENSION: Engagement and Communication
+PRIMARY DRIVER: Structural and Environmental Friction
+SECONDARY DRIVER: Clarity of Value
+RECOMMENDATION GROUP: Communication Load
+PRIMARY TRIGGERS: Q9 score 1-3; Q11 score 1-3; open response mentions too much communication
+DIAGNOSIS: Employees may overlook well-being messages because they compete with excessive or poorly coordinated communication.
+BEHAVIORAL PRINCIPLE: Attention scarcity, cognitive load, salience
+PSYCHOLOGICAL SIGNAL: “This message is relevant and worth my attention.”
+CLIENT-FACING RECOMMENDATION: Coordinate communication frequency, channel, timing, and audience to reduce noise and increase salience.
+RECOMMENDED FIRST STEP: Audit one month of employee communication and identify duplicated topics, competing calls to action, and low-value messages.
+CLIENT MEETING QUESTION: What would employees stop receiving if communication were designed around value rather than volume?
+CLASSIFICATION: Quick win
+EFFORT / IMPACT: Low effort / High impact
+PROPEL CAPABILITIES: Segmented automation; campaign calendars; targeted nudges; consolidated messaging
+
+RECOMMENDATION ID: FRICTION-006
+TITLE: Remove Administrative Burden From Program Operations
+BANK CATEGORY: Structural and Environmental Friction
+STRATEGY DIMENSION: Measurement and Improvement
+PRIMARY DRIVER: Structural and Environmental Friction
+SECONDARY DRIVER: Clarity of Value
+RECOMMENDATION GROUP: Administration
+PRIMARY TRIGGERS: Client selects administration takes too much time; Q4 score 1-3; Q24 score 1-3
+DIAGNOSIS: Manual file handling, reporting, content updates, and communication tasks may limit strategic improvement.
+BEHAVIORAL PRINCIPLE: Operational friction, opportunity cost
+PSYCHOLOGICAL SIGNAL: “The program can operate reliably without constant manual intervention.”
+CLIENT-FACING RECOMMENDATION: Automate repetitive administrative work and clarify ownership for remaining tasks.
+RECOMMENDED FIRST STEP: List recurring monthly tasks, time required, failure risk, and whether each can be automated, delegated, or eliminated.
+CLIENT MEETING QUESTION: Which administrative task consumes time without improving the employee experience?
+CLASSIFICATION: High-impact move
+EFFORT / IMPACT: Medium effort / High impact
+PROPEL CAPABILITIES: Eligibility feed management; automated communications; CMS support; reporting dashboards
+
+RECOMMENDATION ID: FRICTION-007
+TITLE: Stabilize Eligibility and Data Feeds
+BANK CATEGORY: Structural and Environmental Friction
+STRATEGY DIMENSION: Measurement and Improvement
+PRIMARY DRIVER: Structural and Environmental Friction
+SECONDARY DRIVER: Trust and Social Proof
+RECOMMENDATION GROUP: Data Reliability
+PRIMARY TRIGGERS: Open response mentions eligibility or feed issues; Q21-Q24 score 1-3
+DIAGNOSIS: Missing or inaccurate eligibility and activity data can create access failures, reporting gaps, and loss of trust.
+BEHAVIORAL PRINCIPLE: System reliability, expectancy, friction reduction
+PSYCHOLOGICAL SIGNAL: “The system works when I need it.”
+CLIENT-FACING RECOMMENDATION: Establish clear feed ownership, validation, exception handling, and monitoring.
+RECOMMENDED FIRST STEP: Document the current file process from source system to user access and identify where errors are detected.
+CLIENT MEETING QUESTION: How quickly does the team know when a file or integration fails?
+CLASSIFICATION: High-impact move
+EFFORT / IMPACT: High effort / High impact
+PROPEL CAPABILITIES: Reliable eligibility management; integration monitoring; reporting; white-glove support
+
+RECOMMENDATION ID: FRICTION-008
+TITLE: Simplify Navigation and Choice Architecture
+BANK CATEGORY: Structural and Environmental Friction
+STRATEGY DIMENSION: Experience and Access
+PRIMARY DRIVER: Structural and Environmental Friction
+SECONDARY DRIVER: Clarity of Value
+RECOMMENDATION GROUP: Navigation
+PRIMARY TRIGGERS: Q13 score 1-3; Q14 score 1-3
+DIAGNOSIS: Too many menu items, pathways, or vendor categories may increase decision effort and reduce action.
+BEHAVIORAL PRINCIPLE: Choice overload, processing fluency, defaults
+PSYCHOLOGICAL SIGNAL: “The best next option is easy to find.”
+CLIENT-FACING RECOMMENDATION: Organize navigation around common employee needs and feature a small number of recommended next actions.
+RECOMMENDED FIRST STEP: Conduct a card-sort or five-second test using current navigation labels.
+CLIENT MEETING QUESTION: Which choices can be hidden, grouped, or deferred until they become relevant?
+CLASSIFICATION: Quick win
+EFFORT / IMPACT: Low effort / High impact
+PROPEL CAPABILITIES: Custom navigation; Start Here pages; need-based pathways; centralized resources
+
+RECOMMENDATION ID: STRATEGY-001
+TITLE: Define Measurable Well-being Objectives
+BANK CATEGORY: Strategy and Leadership
+STRATEGY DIMENSION: Strategy and Leadership
+PRIMARY DRIVER: Clarity of Value
+SECONDARY DRIVER: Trust and Social Proof
+RECOMMENDATION GROUP: Strategy Definition
+PRIMARY TRIGGERS: Q1 score 1-3; Q21 score 1-3
+DIAGNOSIS: The organization may be investing in activities without agreement on the outcomes they are intended to influence.
+BEHAVIORAL PRINCIPLE: Goal clarity, alignment, feedback loops
+PSYCHOLOGICAL SIGNAL: “There is a clear reason for this strategy.”
+CLIENT-FACING RECOMMENDATION: Define a small set of measurable objectives connected to employee and organizational priorities.
+RECOMMENDED FIRST STEP: Draft three objective statements using the format: improve X behavior or outcome for Y population by Z timeframe.
+CLIENT MEETING QUESTION: What decision should these objectives help the organization make?
+CLASSIFICATION: High-impact move
+EFFORT / IMPACT: Medium effort / High impact
+PROPEL CAPABILITIES: Strategy consulting; KPI design; program roadmap; measurement framework
+
+RECOMMENDATION ID: STRATEGY-002
+TITLE: Connect Well-being to Workforce Priorities
+BANK CATEGORY: Strategy and Leadership
+STRATEGY DIMENSION: Strategy and Leadership
+PRIMARY DRIVER: Clarity of Value
+SECONDARY DRIVER: Trust and Social Proof
+RECOMMENDATION GROUP: Business Alignment
+PRIMARY TRIGGERS: Q2 score 1-3; Q1 score 1-3
+DIAGNOSIS: Well-being may be treated as a separate initiative rather than part of the broader workforce strategy.
+BEHAVIORAL PRINCIPLE: Strategic alignment, relevance framing
+PSYCHOLOGICAL SIGNAL: “This investment supports priorities the organization already values.”
+CLIENT-FACING RECOMMENDATION: Explicitly connect well-being initiatives to workforce goals such as prevention, retention, culture, safety, or benefits utilization.
+RECOMMENDED FIRST STEP: Select the top two workforce priorities and document how current well-being activities support each one.
+CLIENT MEETING QUESTION: Which organizational priority would be harder to achieve without a healthy and engaged workforce?
+CLASSIFICATION: High-impact move
+EFFORT / IMPACT: Medium effort / High impact
+PROPEL CAPABILITIES: Strategic consulting; culture integration; targeted programming; outcomes reporting
+
+RECOMMENDATION ID: STRATEGY-003
+TITLE: Clarify Governance and Decision Rights
+BANK CATEGORY: Strategy and Leadership
+STRATEGY DIMENSION: Strategy and Leadership
+PRIMARY DRIVER: Structural and Environmental Friction
+SECONDARY DRIVER: Clarity of Value
+RECOMMENDATION GROUP: Governance
+PRIMARY TRIGGERS: Q4 score 1-3; Q24 score 1-3
+DIAGNOSIS: Unclear ownership may delay decisions, fragment execution, and make accountability difficult.
+BEHAVIORAL PRINCIPLE: Role clarity, coordination, operational friction
+PSYCHOLOGICAL SIGNAL: “The right people know what they own and how decisions are made.”
+CLIENT-FACING RECOMMENDATION: Define strategy ownership, operational responsibilities, decision rights, and review cadence.
+RECOMMENDED FIRST STEP: Create a one-page RACI for strategy, communications, incentives, data, vendor management, and reporting.
+CLIENT MEETING QUESTION: Who has authority to make a program change when data shows it is needed?
+CLASSIFICATION: High-impact move
+EFFORT / IMPACT: Medium effort / High impact
+PROPEL CAPABILITIES: White-glove strategy support; governance facilitation; implementation planning
+
+RECOMMENDATION ID: STRATEGY-004
+TITLE: Establish a Leadership Reinforcement Cadence
+BANK CATEGORY: Strategy and Leadership
+STRATEGY DIMENSION: Strategy and Leadership
+PRIMARY DRIVER: Trust and Social Proof
+SECONDARY DRIVER: Motivation and Overcoming Inertia
+RECOMMENDATION GROUP: Leadership Cadence
+PRIMARY TRIGGERS: Q3 score 1-3; Q17 score 1-3
+DIAGNOSIS: Leadership support may appear only at launch, causing the strategy to lose visibility and credibility.
+BEHAVIORAL PRINCIPLE: Authority effects, repetition, social norms
+PSYCHOLOGICAL SIGNAL: “Leadership support is consistent, not ceremonial.”
+CLIENT-FACING RECOMMENDATION: Create a recurring cadence for leaders to reinforce priorities, recognize progress, and connect well-being to organizational goals.
+RECOMMENDED FIRST STEP: Schedule four leadership touchpoints across the year, each tied to a priority action or campaign.
+CLIENT MEETING QUESTION: How often do employees hear leaders connect well-being to the organization’s values?
+CLASSIFICATION: Quick win
+EFFORT / IMPACT: Low effort / High impact
+PROPEL CAPABILITIES: Leadership messages; campaign calendar; recognition; culture framing
+
+RECOMMENDATION ID: STRATEGY-005
+TITLE: Build the Strategy Around Priority Populations
+BANK CATEGORY: Strategy and Leadership
+STRATEGY DIMENSION: Employee Relevance
+PRIMARY DRIVER: Clarity of Value
+SECONDARY DRIVER: Trust and Social Proof
+RECOMMENDATION GROUP: Population Strategy
+PRIMARY TRIGGERS: Q5/Q6 score 1-3; Q23 score 1-3
+DIAGNOSIS: Organization-wide averages may obscure populations with different needs, barriers, and engagement patterns.
+BEHAVIORAL PRINCIPLE: Segmentation, similarity, contextual relevance
+PSYCHOLOGICAL SIGNAL: “The strategy accounts for the realities of my population.”
+CLIENT-FACING RECOMMENDATION: Identify priority populations and define differentiated objectives, barriers, and engagement approaches for each.
+RECOMMENDED FIRST STEP: Select two populations with meaningfully different work experiences and create a one-page profile for each.
+CLIENT MEETING QUESTION: Which employee group is most likely to be missed by an organization-wide approach?
+CLASSIFICATION: High-impact move
+EFFORT / IMPACT: Medium effort / High impact
+PROPEL CAPABILITIES: Segmented programming; role/location experiences; targeted communication; analytics
+
+RECOMMENDATION ID: STRATEGY-006
+TITLE: Create a Formal Annual Strategy Review
+BANK CATEGORY: Strategy and Leadership
+STRATEGY DIMENSION: Strategy and Leadership
+PRIMARY DRIVER: Clarity of Value
+SECONDARY DRIVER: Structural and Environmental Friction
+RECOMMENDATION GROUP: Review Cadence
+PRIMARY TRIGGERS: Q24 score 1-3; Q21 score 1-3
+DIAGNOSIS: The program may continue by habit rather than through deliberate evaluation and prioritization.
+BEHAVIORAL PRINCIPLE: Feedback loops, status quo bias, accountability
+PSYCHOLOGICAL SIGNAL: “The strategy is intentionally reviewed and improved.”
+CLIENT-FACING RECOMMENDATION: Conduct an annual review of objectives, engagement, outcomes, employee input, vendor performance, and next-year priorities.
+RECOMMENDED FIRST STEP: Create a standard review agenda and schedule it before renewal or annual planning.
+CLIENT MEETING QUESTION: What evidence would cause the organization to change direction?
+CLASSIFICATION: High-impact move
+EFFORT / IMPACT: Medium effort / High impact
+PROPEL CAPABILITIES: Operating reviews; KPI scorecards; strategic recommendations; renewal planning
+
+RECOMMENDATION ID: MEASURE-001
+TITLE: Define a Balanced Well-being KPI Framework
+BANK CATEGORY: Measurement and Improvement
+STRATEGY DIMENSION: Measurement and Improvement
+PRIMARY DRIVER: Clarity of Value
+SECONDARY DRIVER: Structural and Environmental Friction
+RECOMMENDATION GROUP: KPI Design
+PRIMARY TRIGGERS: Q21 score 1-3
+DIAGNOSIS: The organization may rely on isolated participation totals that do not show whether the strategy is producing meaningful change.
+BEHAVIORAL PRINCIPLE: Feedback loops, measurement clarity
+PSYCHOLOGICAL SIGNAL: “We know what success looks like.”
+CLIENT-FACING RECOMMENDATION: Track a balanced set of awareness, activation, sustained engagement, behavior, health, and organizational measures.
+RECOMMENDED FIRST STEP: Select one metric from each stage of the engagement-to-outcome pathway.
+CLIENT MEETING QUESTION: Which current metric most directly informs a decision?
+CLASSIFICATION: High-impact move
+EFFORT / IMPACT: Medium effort / High impact
+PROPEL CAPABILITIES: KPI design; dashboards; strategic reporting; outcome measurement
+
+RECOMMENDATION ID: MEASURE-002
+TITLE: Separate Awareness, Registration, Activation, and Retention
+BANK CATEGORY: Measurement and Improvement
+STRATEGY DIMENSION: Measurement and Improvement
+PRIMARY DRIVER: Clarity of Value
+SECONDARY DRIVER: Structural and Environmental Friction
+RECOMMENDATION GROUP: Engagement Funnel
+PRIMARY TRIGGERS: Q22 score 1-3
+DIAGNOSIS: A single participation rate may hide whether employees are unaware, registered but inactive, or dropping out over time.
+BEHAVIORAL PRINCIPLE: Funnel analysis, diagnostic measurement
+PSYCHOLOGICAL SIGNAL: “We can see where employees disengage.”
+CLIENT-FACING RECOMMENDATION: Measure distinct stages of the engagement journey and identify the largest conversion gaps.
+RECOMMENDED FIRST STEP: Define four stages and calculate the current number of employees at each stage.
+CLIENT MEETING QUESTION: Where is the largest drop between awareness and sustained action?
+CLASSIFICATION: Quick win
+EFFORT / IMPACT: Low effort / High impact
+PROPEL CAPABILITIES: Funnel reporting; registration and engagement analytics; dashboards
+
+RECOMMENDATION ID: MEASURE-003
+TITLE: Analyze Engagement by Employee Segment
+BANK CATEGORY: Measurement and Improvement
+STRATEGY DIMENSION: Measurement and Improvement
+PRIMARY DRIVER: Clarity of Value
+SECONDARY DRIVER: Trust and Social Proof
+RECOMMENDATION GROUP: Segmentation Analytics
+PRIMARY TRIGGERS: Q23 score 1-3; Q6/Q11 score 1-3
+DIAGNOSIS: Organization-wide averages may conceal highly engaged groups and populations that are being missed.
+BEHAVIORAL PRINCIPLE: Segmentation, contextual diagnosis
+PSYCHOLOGICAL SIGNAL: “The organization understands where engagement succeeds and fails.”
+CLIENT-FACING RECOMMENDATION: Analyze engagement by meaningful dimensions such as location, department, role, or work environment.
+RECOMMENDED FIRST STEP: Choose one segmentation variable and compare registration, active use, and completion rates.
+CLIENT MEETING QUESTION: Which population looks healthy in the average but weak when viewed separately?
+CLASSIFICATION: Quick win
+EFFORT / IMPACT: Low effort / High impact
+PROPEL CAPABILITIES: Segment-level reporting; targeted engagement analysis; custom dashboards
+
+RECOMMENDATION ID: MEASURE-004
+TITLE: Measure Sustained Engagement, Not Only Completion
+BANK CATEGORY: Measurement and Improvement
+STRATEGY DIMENSION: Measurement and Improvement
+PRIMARY DRIVER: Motivation and Overcoming Inertia
+SECONDARY DRIVER: Clarity of Value
+RECOMMENDATION GROUP: Retention Metrics
+PRIMARY TRIGGERS: Q12 score 1-3; Q22 score 1-3
+DIAGNOSIS: One-time completion measures may overstate program strength when participants do not return or continue healthy actions.
+BEHAVIORAL PRINCIPLE: Behavior repetition, retention, habit formation
+PSYCHOLOGICAL SIGNAL: “We can see whether engagement continues.”
+CLIENT-FACING RECOMMENDATION: Add recurring engagement measures such as active weeks, return rates, WAU/MAU, or repeated behavior completion.
+RECOMMENDED FIRST STEP: Select one sustained-engagement metric and establish a baseline for the next reporting period.
+CLIENT MEETING QUESTION: What tells the organization that an employee returned after the first action?
+CLASSIFICATION: High-impact move
+EFFORT / IMPACT: Medium effort / High impact
+PROPEL CAPABILITIES: Engagement dashboards; WAU/MAU; tracking analytics; cohort reporting
+
+RECOMMENDATION ID: MEASURE-005
+TITLE: Connect Program Activity to Priority Outcomes
+BANK CATEGORY: Measurement and Improvement
+STRATEGY DIMENSION: Measurement and Improvement
+PRIMARY DRIVER: Clarity of Value
+SECONDARY DRIVER: Motivation and Overcoming Inertia
+RECOMMENDATION GROUP: Outcome Linkage
+PRIMARY TRIGGERS: Q1/Q2 score 1-3; Q21 score 1-3
+DIAGNOSIS: The organization may collect activity data without linking it to preventive care, behavior, health risk, or workforce outcomes.
+BEHAVIORAL PRINCIPLE: Outcome alignment, feedback loops
+PSYCHOLOGICAL SIGNAL: “Participation is connected to an outcome that matters.”
+CLIENT-FACING RECOMMENDATION: Define the expected pathway from program activity to priority outcomes and select measures at each step.
+RECOMMENDED FIRST STEP: Create a simple logic model linking inputs, employee actions, intermediate behaviors, and outcomes.
+CLIENT MEETING QUESTION: What outcome is this activity expected to influence, and over what timeframe?
+CLASSIFICATION: High-impact move
+EFFORT / IMPACT: High effort / High impact
+PROPEL CAPABILITIES: Preventive care reporting; biometric analysis; activity analytics; strategy evaluation
+
+RECOMMENDATION ID: MEASURE-006
+TITLE: Use Employee Feedback as a Continuous Data Source
+BANK CATEGORY: Measurement and Improvement
+STRATEGY DIMENSION: Measurement and Improvement
+PRIMARY DRIVER: Trust and Social Proof
+SECONDARY DRIVER: Clarity of Value
+RECOMMENDATION GROUP: Employee Feedback
+PRIMARY TRIGGERS: Q5 score 1-3; Q24 score 1-3
+DIAGNOSIS: The organization may rely on utilization data without understanding employee perceptions, barriers, or unmet needs.
+BEHAVIORAL PRINCIPLE: Voice, reciprocity, psychological safety
+PSYCHOLOGICAL SIGNAL: “Employee input influences what happens next.”
+CLIENT-FACING RECOMMENDATION: Collect brief recurring feedback and visibly communicate how it shapes program decisions.
+RECOMMENDED FIRST STEP: Add a three-question pulse after one major campaign and publish one action taken from the results.
+CLIENT MEETING QUESTION: When did employee feedback last change the program?
+CLASSIFICATION: Quick win
+EFFORT / IMPACT: Low effort / High impact
+PROPEL CAPABILITIES: Anonymous surveys; pulse feedback; strategy sessions; targeted analysis
+
+RECOMMENDATION ID: MEASURE-007
+TITLE: Create a Test-and-Learn Improvement Cycle
+BANK CATEGORY: Measurement and Improvement
+STRATEGY DIMENSION: Measurement and Improvement
+PRIMARY DRIVER: Motivation and Overcoming Inertia
+SECONDARY DRIVER: Clarity of Value
+RECOMMENDATION GROUP: Optimization
+PRIMARY TRIGGERS: Q24 score 1-3
+DIAGNOSIS: Program changes may be based on intuition or annual review rather than structured experimentation.
+BEHAVIORAL PRINCIPLE: Feedback loops, learning orientation, iteration
+PSYCHOLOGICAL SIGNAL: “The organization learns what works and improves quickly.”
+CLIENT-FACING RECOMMENDATION: Run small tests of messages, timing, incentives, or audience segmentation and compare results before scaling.
+RECOMMENDED FIRST STEP: Select one upcoming communication and define two testable versions with one success measure.
+CLIENT MEETING QUESTION: What is the smallest change the organization could test before redesigning the entire program?
+CLASSIFICATION: Quick win
+EFFORT / IMPACT: Low effort / High impact
+PROPEL CAPABILITIES: A/B communication testing; analytics; iterative strategy support
+
+RECOMMENDATION ID: MEASURE-008
+TITLE: Build a Broker- and Leadership-Ready Scorecard
+BANK CATEGORY: Measurement and Improvement
+STRATEGY DIMENSION: Measurement and Improvement
+PRIMARY DRIVER: Clarity of Value
+SECONDARY DRIVER: Trust and Social Proof
+RECOMMENDATION GROUP: Reporting
+PRIMARY TRIGGERS: Q21-Q24 score 1-3; client selects results difficult to measure
+DIAGNOSIS: Reporting may be too detailed, inconsistent, or disconnected from decisions needed by leaders and advisors.
+BEHAVIORAL PRINCIPLE: Processing fluency, accountability, decision support
+PSYCHOLOGICAL SIGNAL: “The most important results are easy to understand and act on.”
+CLIENT-FACING RECOMMENDATION: Create a concise scorecard showing objectives, current performance, trends, population gaps, and recommended actions.
+RECOMMENDED FIRST STEP: Reduce current reporting to one page containing no more than eight decision-relevant measures.
+CLIENT MEETING QUESTION: What should a leader understand within two minutes of opening the report?
+CLASSIFICATION: Quick win
+EFFORT / IMPACT: Medium effort / High impact
+PROPEL CAPABILITIES: Executive dashboards; scorecards; broker-ready reports; strategic interpretation

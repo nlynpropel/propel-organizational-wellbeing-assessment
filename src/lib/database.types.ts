@@ -248,6 +248,58 @@ export type BrokerNoteRow = {
 };
 
 // ============================================================
+// Recommendation engine types
+// ============================================================
+
+export type RecommendationType = 'strength' | 'priority_opportunity' | 'quick_win' | 'high_impact_move' | 'meeting_question';
+export type EffortLevel = 'low' | 'medium' | 'high';
+export type ImpactLevel = 'low' | 'medium' | 'high';
+export type FrameworkStatus = 'draft' | 'published' | 'retired';
+
+export type RecommendationFrameworkRow = {
+  id: string;
+  name: string;
+  version: string;
+  status: FrameworkStatus;
+  created_at: string;
+  updated_at: string;
+};
+
+export type RecommendationRow = {
+  id: string;
+  framework_id: string;
+  bank_id: string;
+  title: string;
+  description: string;
+  recommendation_type: RecommendationType;
+  dimension_key: string | null;
+  driver_key: string | null;
+  effort_level: EffortLevel | null;
+  impact_level: ImpactLevel | null;
+  display_order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AssessmentResultRecommendationRow = {
+  id: string;
+  assessment_result_id: string;
+  recommendation_id: string;
+  priority_score: number;
+  recommendation_type: RecommendationType;
+  rationale_snapshot: string;
+  title_snapshot: string;
+  description_snapshot: string;
+  dimension_key_snapshot: string | null;
+  driver_key_snapshot: string | null;
+  effort_level_snapshot: EffortLevel | null;
+  impact_level_snapshot: ImpactLevel | null;
+  display_order: number;
+  created_at: string;
+};
+
+// ============================================================
 // Composite / joined types for the service layer
 // ============================================================
 

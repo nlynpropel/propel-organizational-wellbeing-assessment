@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Calendar, Building2, User, Mail, CheckCircle2, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Calendar, Building2, User, Mail, CheckCircle2, AlertCircle, Star, Target, Zap, Flag, MessageCircleQuestion } from 'lucide-react';
 import BrokerLayout from '../components/layout/BrokerLayout';
 import PageHeader from '../components/layout/PageHeader';
 import Card from '../components/ui/Card';
@@ -14,12 +14,9 @@ import RecommendationEligibilityBadge from '../components/builder/Recommendation
 import { useAuth } from '../context/AuthContext';
 import { fetchReportData, getBehavioralInterpretation, DRIVER_LABELS } from '../services/reportData';
 import type { ReportData, BehavioralReadiness } from '../services/reportData';
+import { getDimensionLabel, getDriverLabel, getEffortLabel, getImpactLabel, type SelectedRecommendation } from '../services/recommendations';
 import { roundForDisplay, CUSTOM_ASSESSMENT_DISCLAIMER, CUSTOM_SCORING_DISCLAIMER } from '../lib/assessmentScoring';
-
-// Feature flag for Propel Strategy Review — future phase.
-// TODO: When the Propel strategy review workflow is implemented, this will initiate
-// a strategy-review request tied to the assessment instance. For now it stays dormant.
-const ENABLE_PROPEL_STRATEGY_REVIEW = false;
+import { FEATURE_FLAGS } from '../lib/featureFlags';
 
 export default function AssessmentReportPage() {
   const { instanceId } = useParams();
@@ -35,18 +32,13 @@ export default function AssessmentReportPage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchReportData(
-        instanceId,
-        profile.id,
-        profile.role === 'admin'
-      );
+      const data = await fetchReportData(instanceId, profile.id, profile.role === 'admin');
       if (!data) {
         setError('Assessment report not found or you do not have access.');
         return;
       }
       setReport(data);
     } catch (err) {
-      console.error('[AssessmentReportPage.load] Failed:', err);
       setError(err instanceof Error ? err.message : 'Failed to load report.');
     } finally {
       setLoading(false);
@@ -73,10 +65,9 @@ export default function AssessmentReportPage() {
     );
   }
 
-  const { instance, template, version, organization, sections, sectionScores, overallScore, scoreBand, behavioralReadiness, contextualAnswers, showBand } = report;
+  const { instance, template, version, organization, sections, sectionScores, overallScore, scoreBand, behavioralReadiness, contextualAnswers, showBand, recommendations } = report;
 
   const isCompleted = instance.status === 'submitted' || instance.status === 'report_ready';
-
   const sectionScoreMap = new Map(sectionScores.map((s) => [s.section_id, s]));
 
   return (
@@ -84,13 +75,8 @@ export default function AssessmentReportPage() {
       <PageHeader
         title={template?.name ?? 'Assessment Report'}
         subtitle={organization ? `Client: ${organization.organization_name}` : undefined}
-        breadcrumbs={[
-          { label: 'Reports', to: '/reports' },
-          { label: template?.name ?? 'Report' },
-        ]}
-        actions={
-          <Button variant="ghost" size="sm" to="/reports"><ArrowLeft className="w-4 h-4" /> Back</Button>
-        }
+        breadcrumbs={[{ label: 'Reports', to: '/reports' }, { label: template?.name ?? 'Report' }]}
+        actions={<Button variant="ghost" size="sm" to="/reports"><ArrowLeft className="w-4 h-4" /> Back</Button>}
       />
 
       {/* Assessment summary */}
@@ -100,9 +86,7 @@ export default function AssessmentReportPage() {
             <div className="flex items-center gap-2 mb-2">
               {template && <AssessmentOwnerBadge ownerType={template.owner_type} />}
               {version && <Badge variant="neutral">v{version.version_number}</Badge>}
-              <Badge variant={isCompleted ? 'success' : 'warning'} dot>
-                {instance.status}
-              </Badge>
+              <Badge variant={isCompleted ? 'success' : 'warning'} dot>{instance.status}</Badge>
             </div>
             <h2 className="font-display text-xl font-semibold text-navy">{template?.name ?? 'Untitled Assessment'}</h2>
             {template?.short_description && <p className="text-sm text-neutral-secondary mt-1">{template.short_description}</p>}
@@ -111,7 +95,6 @@ export default function AssessmentReportPage() {
             {template && <RecommendationEligibilityBadge ownerType={template.owner_type} recommendationsEnabled={template.recommendations_enabled} />}
           </div>
         </div>
-
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4 pt-4 border-t border-neutral-border-soft">
           <InfoRow icon={Building2} label="Client" value={organization?.organization_name ?? '—'} />
           <InfoRow icon={User} label="Respondent" value={instance.respondent_name ?? '—'} />
@@ -131,17 +114,13 @@ export default function AssessmentReportPage() {
             </div>
             <div className="flex-1">
               <ScoreBar score={overallScore} size="lg" />
-              {scoreBand && showBand && (
-                <div className="mt-2">
-                  <Badge variant="success" dot>{scoreBand}</Badge>
-                </div>
-              )}
+              {scoreBand && showBand && <div className="mt-2"><Badge variant="success" dot>{scoreBand}</Badge></div>}
             </div>
           </div>
         </Card>
       )}
 
-      {/* Strategy dimensions (section scores) */}
+      {/* Strategy dimensions */}
       {sectionScores.length > 0 && (
         <Card className="mb-6">
           <h3 className="font-display text-base font-semibold text-navy mb-4">Strategy dimensions</h3>
@@ -153,9 +132,7 @@ export default function AssessmentReportPage() {
                 <div key={section.id}>
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-sm font-medium text-navy">{section.title}</span>
-                    <span className="text-sm text-neutral-muted">
-                      {normScore !== null ? `${roundForDisplay(normScore)} / 100` : 'Not scored'}
-                    </span>
+                    <span className="text-sm text-neutral-muted">{normScore !== null ? `${roundForDisplay(normScore)} / 100` : 'Not scored'}</span>
                   </div>
                   {normScore !== null && <ScoreBar score={normScore} size="md" />}
                 </div>
@@ -169,9 +146,7 @@ export default function AssessmentReportPage() {
       {behavioralReadiness && (
         <Card className="mb-6">
           <h3 className="font-display text-base font-semibold text-navy mb-1">Behavioral readiness</h3>
-          <p className="text-xs text-neutral-muted mb-4">
-            Higher scores indicate stronger behavioral support for well-being participation.
-          </p>
+          <p className="text-xs text-neutral-muted mb-4">Higher scores indicate stronger behavioral support for well-being participation.</p>
           <div className="space-y-4">
             {(Object.keys(DRIVER_LABELS) as Array<keyof BehavioralReadiness>).map((key) => {
               const score = behavioralReadiness[key];
@@ -179,9 +154,7 @@ export default function AssessmentReportPage() {
                 <div key={key}>
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-sm font-medium text-navy">{DRIVER_LABELS[key]}</span>
-                    <span className="text-sm text-neutral-muted">
-                      {roundForDisplay(score)} / 100 · {getBehavioralInterpretation(score)}
-                    </span>
+                    <span className="text-sm text-neutral-muted">{roundForDisplay(score)} / 100 · {getBehavioralInterpretation(score)}</span>
                   </div>
                   <ScoreBar score={score} size="md" />
                 </div>
@@ -191,7 +164,58 @@ export default function AssessmentReportPage() {
         </Card>
       )}
 
-      {/* Response Details (contextual answers only — no internal IDs or scoring tags) */}
+      {/* Recommendations */}
+      {recommendations && (
+        <>
+          {recommendations.strengths.length > 0 && (
+            <RecommendationSection
+              title="Strengths"
+              icon={Star}
+              iconColor="text-green-dark"
+              iconBg="bg-green-tint"
+              recommendations={recommendations.strengths}
+            />
+          )}
+          {recommendations.priorityOpportunities.length > 0 && (
+            <RecommendationSection
+              title="Priority opportunities"
+              icon={Target}
+              iconColor="text-navy"
+              iconBg="bg-blue-tint"
+              recommendations={recommendations.priorityOpportunities}
+            />
+          )}
+          {recommendations.quickWins.length > 0 && (
+            <RecommendationSection
+              title="Quick wins"
+              icon={Zap}
+              iconColor="text-amber-dark"
+              iconBg="bg-amber-tint"
+              recommendations={recommendations.quickWins}
+            />
+          )}
+          {recommendations.highImpactMoves.length > 0 && (
+            <RecommendationSection
+              title="High-impact moves"
+              icon={Flag}
+              iconColor="text-blue-dark"
+              iconBg="bg-blue-tint"
+              recommendations={recommendations.highImpactMoves}
+            />
+          )}
+          {recommendations.meetingQuestions.length > 0 && (
+            <RecommendationSection
+              title="Client meeting questions"
+              icon={MessageCircleQuestion}
+              iconColor="text-navy"
+              iconBg="bg-neutral-bg"
+              recommendations={recommendations.meetingQuestions}
+            />
+          )}
+        </>
+      )}
+
+      {/* Response Details */}
       {contextualAnswers.length > 0 && (
         <Card className="mb-6">
           <h3 className="font-display text-base font-semibold text-navy mb-4">Response Details</h3>
@@ -206,9 +230,7 @@ export default function AssessmentReportPage() {
                     ))}
                   </div>
                 )}
-                {answer.text_value && (
-                  <p className="text-sm text-navy bg-neutral-bg/30 rounded p-2 mt-2">{answer.text_value}</p>
-                )}
+                {answer.text_value && <p className="text-sm text-navy bg-neutral-bg/30 rounded p-2 mt-2">{answer.text_value}</p>}
               </div>
             ))}
           </div>
@@ -232,14 +254,54 @@ export default function AssessmentReportPage() {
       )}
 
       {/* Dormant Propel Strategy Review — hidden behind feature flag */}
-      {ENABLE_PROPEL_STRATEGY_REVIEW && (
+      {FEATURE_FLAGS.ENABLE_PROPEL_STRATEGY_REVIEW && (
         <div className="mt-6">
-          <Button variant="outline" size="md">
-            Request Propel Strategy Review
-          </Button>
+          <Button variant="outline" size="md">Request Propel Strategy Review</Button>
         </div>
       )}
     </BrokerLayout>
+  );
+}
+
+function RecommendationSection({
+  title,
+  icon: Icon,
+  iconColor,
+  iconBg,
+  recommendations,
+}: {
+  title: string;
+  icon: typeof Star;
+  iconColor: string;
+  iconBg: string;
+  recommendations: SelectedRecommendation[];
+}) {
+  return (
+    <Card className="mb-6">
+      <div className="flex items-center gap-2 mb-4">
+        <div className={`w-8 h-8 rounded-full ${iconBg} flex items-center justify-center`}>
+          <Icon className={`w-4 h-4 ${iconColor}`} />
+        </div>
+        <h3 className="font-display text-base font-semibold text-navy">{title}</h3>
+      </div>
+      <div className="space-y-4">
+        {recommendations.map((rec) => (
+          <div key={rec.id} className="rounded-md border border-neutral-border-soft p-4">
+            <h4 className="text-sm font-semibold text-navy mb-1">{rec.title}</h4>
+            <p className="text-sm text-neutral-secondary mb-3">{rec.description}</p>
+            <div className="flex flex-wrap items-center gap-2 mb-2">
+              {rec.dimension_key && <Badge variant="neutral">{getDimensionLabel(rec.dimension_key)}</Badge>}
+              {rec.driver_key && <Badge variant="neutral">{getDriverLabel(rec.driver_key)}</Badge>}
+              {rec.effort_level && <Badge variant="neutral">{getEffortLabel(rec.effort_level)}</Badge>}
+              {rec.impact_level && <Badge variant="neutral">{getImpactLabel(rec.impact_level)}</Badge>}
+            </div>
+            {rec.rationale && (
+              <p className="text-xs text-neutral-muted italic">{rec.rationale}</p>
+            )}
+          </div>
+        ))}
+      </div>
+    </Card>
   );
 }
 

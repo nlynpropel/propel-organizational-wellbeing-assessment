@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { Loader2, Clock, ShieldAlert, Sparkles } from 'lucide-react';
+import { FEATURE_FLAGS } from './lib/featureFlags';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import LoginPage from './pages/LoginPage';
 import AuthCallbackPage from './pages/AuthCallbackPage';
@@ -167,8 +168,8 @@ function AppRoutes() {
       <Route path="/clients/:id" element={<ProtectedRoute><ClientDetailPage /></ProtectedRoute>} />
       <Route path="/clients/:id/results" element={<ProtectedRoute><ResultsPage /></ProtectedRoute>} />
       <Route path="/assessments" element={<ProtectedRoute><AssessmentsPage /></ProtectedRoute>} />
-      <Route path="/assessments/builder" element={<ProtectedRoute><AssessmentBuilderPage /></ProtectedRoute>} />
-      <Route path="/assessments/builder/:assessmentId" element={<ProtectedRoute><AssessmentBuilderPage /></ProtectedRoute>} />
+      <Route path="/assessments/builder" element={FEATURE_FLAGS.ENABLE_CUSTOM_ASSESSMENT_BUILDER ? <ProtectedRoute><AssessmentBuilderPage /></ProtectedRoute> : <Navigate to="/assessments" replace />} />
+      <Route path="/assessments/builder/:assessmentId" element={FEATURE_FLAGS.ENABLE_CUSTOM_ASSESSMENT_BUILDER ? <ProtectedRoute><AssessmentBuilderPage /></ProtectedRoute> : <Navigate to="/assessments" replace />} />
       <Route path="/assessments/send" element={<ProtectedRoute><SendAssessmentPage /></ProtectedRoute>} />
       <Route path="/reports/:instanceId" element={<ProtectedRoute><AssessmentReportPage /></ProtectedRoute>} />
       <Route path="/reports" element={<ProtectedRoute><ReportsPage /></ProtectedRoute>} />
