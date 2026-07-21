@@ -8,6 +8,8 @@ export type SelectedRecommendation = {
   title: string;
   description: string;
   rationale: string;
+  strength_title: string | null;
+  strength_description: string | null;
   dimension_key: string | null;
   driver_key: string | null;
   effort_level: EffortLevel | null;
@@ -99,6 +101,8 @@ export async function fetchRecommendationsForResult(resultId: string): Promise<G
       title: row.title_snapshot,
       description: row.description_snapshot,
       rationale: row.rationale_snapshot,
+      strength_title: row.strength_title_snapshot,
+      strength_description: row.strength_description_snapshot,
       dimension_key: row.dimension_key_snapshot,
       driver_key: row.driver_key_snapshot,
       effort_level: row.effort_level_snapshot,

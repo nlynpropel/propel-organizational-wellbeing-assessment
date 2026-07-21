@@ -1,17 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Calendar, Building2, User, Mail, CheckCircle2, AlertCircle, Star, Target, Zap, Flag, MessageCircleQuestion } from 'lucide-react';
+import { ArrowLeft, Mail, Star, Target, Zap, Flag, MessageCircleQuestion } from 'lucide-react';
 import BrokerLayout from '../components/layout/BrokerLayout';
 import Card from '../components/ui/Card';
-import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
 import LoadingState from '../components/ui/LoadingState';
 import ErrorState from '../components/ui/ErrorState';
 import OpportunitySpectrum from '../components/ui/OpportunitySpectrum';
-import AssessmentOwnerBadge from '../components/builder/AssessmentOwnerBadge';
-import RecommendationEligibilityBadge from '../components/builder/RecommendationEligibilityBadge';
 import { useAuth } from '../context/AuthContext';
-import { fetchReportData, getBehavioralInterpretation, DRIVER_LABELS, type ReportData, type BehavioralReadiness } from '../services/reportData';
+import { fetchReportData, getBehavioralInterpretation, DRIVER_LABELS, DRIVER_DESCRIPTIONS, type ReportData, type BehavioralReadiness } from '../services/reportData';
 import { getDimensionLabel, getDriverLabel, getEffortLabel, getImpactLabel, type SelectedRecommendation } from '../services/recommendations';
 import { roundForDisplay, CUSTOM_ASSESSMENT_DISCLAIMER, CUSTOM_SCORING_DISCLAIMER, getScoreBand } from '../lib/assessmentScoring';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
@@ -50,7 +47,6 @@ export default function AssessmentReportPage() {
   if (error || !report) return <BrokerLayout title="Assessment Report"><ErrorState message={error ?? 'Report not found.'} onRetry={() => navigate('/reports')} /></BrokerLayout>;
 
   const { instance, template, version, organization, sections, sectionScores, overallScore, scoreBand, behavioralReadiness, contextualAnswers, recommendations, scoreBands } = report;
-  const isCompleted = instance.status === 'submitted' || instance.status === 'report_ready';
   const sectionScoreMap = new Map(sectionScores.map((s) => [s.section_id, s]));
   const scoredSections = sections.filter((s) => s.is_scored);
   const hasStrengths = (recommendations?.strengths.length ?? 0) > 0;
@@ -65,25 +61,30 @@ export default function AssessmentReportPage() {
 
   return (
     <BrokerLayout title="Assessment Report">
-      {/* Consolidated report header */}
+      {/* Simplified report header — compact text hierarchy */}
       <Card className="mb-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2 mb-3">
-              {template && <AssessmentOwnerBadge ownerType={template.owner_type} />}
-              {version && <Badge variant="neutral">v{version.version_number}</Badge>}
-              <Badge variant={isCompleted ? 'success' : 'warning'} dot>{instance.status}</Badge>
-              {recommendations && <RecommendationEligibilityBadge ownerType={template?.owner_type ?? 'propel'} recommendationsEnabled={template?.recommendations_enabled ?? false} />}
-            </div>
             <h1 className="font-display text-2xl font-bold text-navy">{template?.name ?? 'Untitled Assessment'}</h1>
+            {version && (
+              <p className="text-xs text-neutral-muted mt-1">Version {version.version_number}</p>
+            )}
+            {organization && (
+              <p className="text-sm text-navy mt-2 font-medium">{organization.organization_name}</p>
+            )}
+            {completedDate && (
+              <p className="text-sm text-neutral-secondary mt-0.5">{completedDate}</p>
+            )}
+            {instance.respondent_name && (
+              <p className="text-sm text-neutral-secondary mt-1">
+                {instance.respondent_email ? `${instance.respondent_name} · ${instance.respondent_email}` : instance.respondent_name}
+              </p>
+            )}
+            {instance.respondent_email && !instance.respondent_name && (
+              <p className="text-sm text-neutral-secondary mt-1">{instance.respondent_email}</p>
+            )}
           </div>
           <Button variant="ghost" size="sm" to="/reports"><ArrowLeft className="w-4 h-4" /> Back to Reports</Button>
-        </div>
-        <div className="flex flex-wrap gap-x-8 gap-y-2 mt-4 pt-4 border-t border-neutral-border-soft">
-          {organization && <MetaItem icon={Building2} label="Client" value={organization.organization_name} />}
-          {completedDate && <MetaItem icon={Calendar} label="Completed" value={completedDate} />}
-          {instance.respondent_name && <MetaItem icon={User} label="Respondent" value={instance.respondent_name} />}
-          {instance.respondent_email && <MetaItem icon={Mail} label="Email" value={instance.respondent_email} />}
         </div>
       </Card>
 
@@ -133,26 +134,24 @@ export default function AssessmentReportPage() {
         </Card>
       )}
 
-      {/* Behavioral readiness — two-column grid */}
+      {/* Behavioral readiness — with descriptions, two-column grid */}
       {behavioralReadiness && (
         <Card className="mb-6">
           <h2 className="font-display text-lg font-semibold text-navy mb-1">Behavioral Readiness</h2>
           <p className="text-xs text-neutral-muted mb-4">Higher scores indicate stronger behavioral support for well-being participation.</p>
           <div className="grid gap-x-8 gap-y-5 md:grid-cols-2">
             {(Object.keys(DRIVER_LABELS) as Array<keyof BehavioralReadiness>).map((key) => (
-              <ScoreRow
+              <BehavioralReadinessRow
                 key={key}
-                label={DRIVER_LABELS[key]}
+                driverKey={key}
                 score={behavioralReadiness[key]}
-                interpretation={getBehavioralInterpretation(behavioralReadiness[key])}
-                colorFn={behavioralColor}
               />
             ))}
           </div>
         </Card>
       )}
 
-      {/* Quick Wins & High-Impact Moves — side by side */}
+      {/* Quick Wins & High-Impact Moves — side by side, with pills */}
       {recommendations && (hasQuickWins || hasHighImpact) && (
         <div className={`grid gap-6 mb-6 ${hasQuickWins && hasHighImpact ? 'md:grid-cols-2' : 'grid-cols-1'}`}>
           {hasQuickWins && (
@@ -178,7 +177,7 @@ export default function AssessmentReportPage() {
         </div>
       )}
 
-      {/* Client meeting questions — dark navy */}
+      {/* Client meeting questions — dark navy, with dimension/driver pills only */}
       {recommendations && hasMeetingQs && (
         <div className="rounded-lg bg-navy-deep shadow-md mb-6 p-6">
           <div className="flex items-center gap-2 mb-4">
@@ -203,7 +202,7 @@ export default function AssessmentReportPage() {
         </div>
       )}
 
-      {/* Appendix — Response Detail */}
+      {/* Appendix — Response Detail (plain text, no pills) */}
       {contextualAnswers.length > 0 && (
         <div className="mb-6">
           <h2 className="font-display text-sm font-semibold text-neutral-muted uppercase tracking-wide mb-3">Appendix — Response Detail</h2>
@@ -212,14 +211,10 @@ export default function AssessmentReportPage() {
               <div key={i} className="border-b border-neutral-border-soft pb-3 last:border-0 last:pb-0">
                 <p className="text-xs font-medium text-neutral-secondary mb-1.5">{answer.question_text}</p>
                 {answer.selectedOptionLabels.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5">
-                    {answer.selectedOptionLabels.map((label, j) => (
-                      <span key={j} className="inline-block text-xs text-navy bg-neutral-bg px-2 py-0.5 rounded-full">{label}</span>
-                    ))}
-                  </div>
+                  <p className="text-sm text-navy">{answer.selectedOptionLabels.join(', ')}</p>
                 )}
                 {answer.text_value && (
-                  <p className="text-xs text-neutral-secondary italic border-l-2 border-neutral-border pl-3 mt-1.5">{answer.text_value}</p>
+                  <p className="text-sm text-neutral-secondary italic border-l-2 border-neutral-border pl-3 mt-1.5">{answer.text_value}</p>
                 )}
               </div>
             ))}
@@ -231,12 +226,12 @@ export default function AssessmentReportPage() {
       {template?.owner_type === 'broker' && (
         <div className="space-y-3">
           <div className="rounded-md border border-blue/20 bg-blue-tint px-4 py-3 flex items-start gap-2.5">
-            <CheckCircle2 className="w-5 h-5 text-blue shrink-0 mt-0.5" />
+            <Mail className="w-5 h-5 text-blue shrink-0 mt-0.5" />
             <p className="text-sm text-blue/80">{CUSTOM_ASSESSMENT_DISCLAIMER}</p>
           </div>
           {template.scoring_enabled && (
             <div className="rounded-md border border-neutral-border bg-neutral-bg/30 px-4 py-3 flex items-start gap-2.5">
-              <AlertCircle className="w-5 h-5 text-neutral-muted shrink-0 mt-0.5" />
+              <Mail className="w-5 h-5 text-neutral-muted shrink-0 mt-0.5" />
               <p className="text-sm text-neutral-secondary">{CUSTOM_SCORING_DISCLAIMER}</p>
             </div>
           )}
@@ -299,7 +294,47 @@ function ScoreRow({
 }
 
 // ============================================================
-// Strengths card — green top border
+// Behavioral Readiness Row — driver name, description, score, bar, interpretation
+// ============================================================
+function BehavioralReadinessRow({
+  driverKey,
+  score,
+}: {
+  driverKey: keyof BehavioralReadiness;
+  score: number | null;
+}) {
+  if (score === null) {
+    return (
+      <div>
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-sm font-medium text-navy">{DRIVER_LABELS[driverKey]}</span>
+          <span className="text-sm text-neutral-muted">Not scored</span>
+        </div>
+      </div>
+    );
+  }
+
+  const color = behavioralColor(score);
+  const pct = Math.max(0, Math.min(100, score));
+  const interpretation = getBehavioralInterpretation(score);
+
+  return (
+    <div>
+      <div className="flex items-baseline justify-between gap-2 mb-0.5">
+        <span className="text-sm font-medium text-navy">{DRIVER_LABELS[driverKey]}</span>
+        <span className="text-sm font-semibold text-navy tabular-nums">{roundForDisplay(score)} <span className="text-neutral-muted font-normal text-xs">/ 100</span></span>
+      </div>
+      <p className="text-xs text-neutral-muted mb-1.5 leading-relaxed">{DRIVER_DESCRIPTIONS[driverKey]}</p>
+      <div className="w-full bg-neutral-bg rounded-full overflow-hidden h-2">
+        <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: color }} />
+      </div>
+      <p className="text-xs text-neutral-muted mt-1.5">{interpretation}</p>
+    </div>
+  );
+}
+
+// ============================================================
+// Strengths card — green top border, strength_title + strength_description only
 // ============================================================
 function StrengthsCard({ recommendations }: { recommendations: SelectedRecommendation[] }) {
   return (
@@ -312,7 +347,10 @@ function StrengthsCard({ recommendations }: { recommendations: SelectedRecommend
       </div>
       <div className="space-y-3">
         {recommendations.map((rec) => (
-          <RecommendationCardInner key={rec.id} rec={rec} accent="green" />
+          <div key={rec.id} className="rounded-md border border-neutral-border-soft border-l-4 border-l-green bg-white p-4">
+            <h4 className="text-sm font-semibold text-navy mb-1">{rec.strength_title ?? rec.title}</h4>
+            <p className="text-sm text-neutral-secondary leading-relaxed">{rec.strength_description ?? rec.description}</p>
+          </div>
         ))}
       </div>
     </Card>
@@ -320,7 +358,7 @@ function StrengthsCard({ recommendations }: { recommendations: SelectedRecommend
 }
 
 // ============================================================
-// Priority Opportunities card — orange top border
+// Priority Opportunities card — orange top border, title + description only
 // ============================================================
 function PriorityOpportunitiesCard({ recommendations }: { recommendations: SelectedRecommendation[] }) {
   return (
@@ -333,7 +371,10 @@ function PriorityOpportunitiesCard({ recommendations }: { recommendations: Selec
       </div>
       <div className="space-y-3">
         {recommendations.map((rec) => (
-          <RecommendationCardInner key={rec.id} rec={rec} accent="orange" />
+          <div key={rec.id} className="rounded-md border border-neutral-border-soft border-l-4 border-l-orange bg-gradient-to-r from-orange-tint/40 to-white p-4">
+            <h4 className="text-sm font-semibold text-navy mb-1">{rec.title}</h4>
+            <p className="text-sm text-neutral-secondary leading-relaxed">{rec.description}</p>
+          </div>
         ))}
       </div>
     </Card>
@@ -341,7 +382,7 @@ function PriorityOpportunitiesCard({ recommendations }: { recommendations: Selec
 }
 
 // ============================================================
-// Recommendation group card — Quick Wins / High-Impact Moves
+// Recommendation group card — Quick Wins / High-Impact Moves (with pills)
 // ============================================================
 function RecommendationGroupCard({
   title,
@@ -369,7 +410,7 @@ function RecommendationGroupCard({
       </div>
       <div className="space-y-3">
         {recommendations.map((rec) => (
-          <RecommendationCardInner key={rec.id} rec={rec} accent={accent} />
+          <RecommendationCardWithPills key={rec.id} rec={rec} accent={accent} />
         ))}
       </div>
     </Card>
@@ -377,12 +418,11 @@ function RecommendationGroupCard({
 }
 
 // ============================================================
-// Recommendation card inner — distinct styling by type
+// Recommendation card with pills — for Quick Wins / High-Impact Moves only
 // ============================================================
-function RecommendationCardInner({ rec, accent }: { rec: SelectedRecommendation; accent: 'green' | 'orange' | 'navy' }) {
+function RecommendationCardWithPills({ rec, accent }: { rec: SelectedRecommendation; accent: 'green' | 'navy' }) {
   const accentClasses: Record<string, string> = {
     green: 'border-l-green bg-white',
-    orange: 'border-l-orange bg-gradient-to-r from-orange-tint/40 to-white',
     navy: 'border-l-navy bg-white',
   };
   const accentClass = accentClasses[accent] ?? accentClasses.navy;
@@ -402,7 +442,7 @@ function RecommendationCardInner({ rec, accent }: { rec: SelectedRecommendation;
 }
 
 // ============================================================
-// Distinct tag styles
+// Distinct tag styles (only used in Quick Wins / High-Impact Moves)
 // ============================================================
 function DimensionTag({ label }: { label: string }) {
   return <span className="inline-block text-xs text-neutral-secondary border border-neutral-border px-2 py-0.5 rounded-full">{label}</span>;
@@ -427,19 +467,4 @@ function ImpactTag({ level, label }: { level: string; label: string }) {
 
 function DarkPill({ children }: { children: React.ReactNode }) {
   return <span className="inline-block text-xs text-white/80 bg-white/10 border border-white/15 px-2 py-0.5 rounded-full">{children}</span>;
-}
-
-// ============================================================
-// Metadata item — only renders when value is present
-// ============================================================
-function MetaItem({ icon: Icon, label, value }: { icon: typeof User; label: string; value: string }) {
-  return (
-    <div className="flex items-center gap-2">
-      <Icon className="w-4 h-4 text-neutral-muted shrink-0" />
-      <div>
-        <span className="text-xs text-neutral-muted uppercase tracking-wide mr-1.5">{label}</span>
-        <span className="text-sm text-navy font-medium">{value}</span>
-      </div>
-    </div>
-  );
 }

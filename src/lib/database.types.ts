@@ -272,6 +272,8 @@ export type RecommendationRow = {
   bank_id: string;
   title: string;
   description: string;
+  strength_title: string | null;
+  strength_description: string | null;
   recommendation_type: RecommendationType;
   dimension_key: string | null;
   driver_key: string | null;
@@ -292,6 +294,8 @@ export type AssessmentResultRecommendationRow = {
   rationale_snapshot: string;
   title_snapshot: string;
   description_snapshot: string;
+  strength_title_snapshot: string | null;
+  strength_description_snapshot: string | null;
   dimension_key_snapshot: string | null;
   driver_key_snapshot: string | null;
   effort_level_snapshot: EffortLevel | null;

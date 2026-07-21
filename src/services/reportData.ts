@@ -269,3 +269,10 @@ export const DRIVER_LABELS: Record<keyof BehavioralReadiness, string> = {
   trust_social_proof: 'Trust and Social Proof',
   structural_environmental_friction: 'Structural and Environmental Friction',
 };
+
+export const DRIVER_DESCRIPTIONS: Record<keyof BehavioralReadiness, string> = {
+  clarity_of_value: 'The well-being program\u2019s value and next actions are presented clearly to employees.',
+  motivation_overcoming_inertia: 'The program makes healthy action feel achievable, timely, and worth continuing.',
+  trust_social_proof: 'Employees see credible support, relatable participation, and clear privacy protections.',
+  structural_environmental_friction: 'The program removes access, technology, workplace, and administrative barriers to participation.',
+};
