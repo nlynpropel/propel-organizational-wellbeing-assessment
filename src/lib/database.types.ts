@@ -310,6 +310,7 @@ export type AssessmentResultRecommendationRow = {
 
 export type AssessmentTemplateWithVersion = AssessmentTemplateRow & {
   latest_version: AssessmentVersionRow | null;
+  versions?: AssessmentVersionRow[];
   question_count?: number;
   instance_count?: number;
   completed_count?: number;

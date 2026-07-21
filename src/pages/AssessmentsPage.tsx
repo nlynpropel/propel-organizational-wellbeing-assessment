@@ -37,10 +37,11 @@ export default function AssessmentsPage() {
     try {
       const { data: templates, error: tErr } = await supabase
         .from('assessment_templates')
-        .select('*, latest_version:assessment_versions!inner(id, version_number, status, recommendation_framework_id, show_overall_score)')
+        .select('*, versions:assessment_versions!inner(id, version_number, status, recommendation_framework_id, show_overall_score)')
         .eq('owner_type', 'propel')
-        .eq('latest_version.status', 'published')
-        .order('name');
+        .eq('versions.status', 'published')
+        .order('name')
+        .order('version_number', { ascending: false, referencedTable: 'assessment_versions' });
 
       if (tErr) {
         logDbError({ fn: 'AssessmentsPage.load', error: tErr });
@@ -48,8 +49,10 @@ export default function AssessmentsPage() {
       }
 
       const results: PropelAssessment[] = [];
-      for (const t of (templates ?? []) as unknown as Array<AssessmentTemplateRow & { latest_version: AssessmentVersionRow }>) {
-        const versionId = t.latest_version.id;
+      for (const t of (templates ?? []) as unknown as Array<AssessmentTemplateRow & { versions: AssessmentVersionRow[] }>) {
+        const latestVersion = t.versions[0];
+        if (!latestVersion) continue;
+        const versionId = latestVersion.id;
         const [{ count: sectionCount }, { count: questionCount }, { count: scoredQuestionCount }] = await Promise.all([
           supabase.from('assessment_sections').select('id', { count: 'exact', head: true }).eq('assessment_version_id', versionId),
           supabase.from('assessment_questions').select('id', { count: 'exact', head: true }).eq('assessment_version_id', versionId),
@@ -57,7 +60,7 @@ export default function AssessmentsPage() {
         ]);
         results.push({
           template: t,
-          version: t.latest_version,
+          version: latestVersion,
           sectionCount: sectionCount ?? 0,
           questionCount: questionCount ?? 0,
           scoredQuestionCount: scoredQuestionCount ?? 0,

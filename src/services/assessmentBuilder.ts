@@ -47,7 +47,7 @@ export async function fetchTemplates(opts?: {
 }): Promise<AssessmentTemplateWithVersion[]> {
   let query = supabase
     .from('assessment_templates')
-    .select('*, latest_version:assessment_versions!inner(*)');
+    .select('*, versions:assessment_versions!inner(*)');
 
   if (opts?.ownerType) {
     query = query.eq('owner_type', opts.ownerType);
@@ -59,24 +59,31 @@ export async function fetchTemplates(opts?: {
     query = query.neq('status', 'archived');
   }
 
-  const { data, error } = await query.order('created_at', { ascending: false });
+  const { data, error } = await query.order('created_at', { ascending: false }).order('version_number', { ascending: false, referencedTable: 'assessment_versions' });
   if (error) throw error;
 
-  return (data ?? []) as AssessmentTemplateWithVersion[];
+  return (data ?? []).map((t) => ({
+    ...t,
+    latest_version: (t.versions ?? [])[0] ?? null,
+  })) as AssessmentTemplateWithVersion[];
 }
 
 export async function fetchTemplatesForBroker(brokerId: string): Promise<AssessmentTemplateWithVersion[]> {
   const { data, error } = await supabase
     .from('assessment_templates')
-    .select('*, latest_version:assessment_versions!inner(*)')
+    .select('*, versions:assessment_versions!inner(*)')
     .or(`owner_type.eq.propel,and(owner_type.eq.broker,owner_profile_id.eq.${brokerId})`)
     .neq('status', 'archived')
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .order('version_number', { ascending: false, referencedTable: 'assessment_versions' });
   if (error) {
     logDbError({ fn: 'fetchTemplatesForBroker', route: '/assessments', error });
     throw error;
   }
-  return (data ?? []) as AssessmentTemplateWithVersion[];
+  return (data ?? []).map((t) => ({
+    ...t,
+    latest_version: (t.versions ?? [])[0] ?? null,
+  })) as AssessmentTemplateWithVersion[];
 }
 
 export async function fetchTemplateById(id: string): Promise<AssessmentTemplateRow | null> {
@@ -699,10 +706,14 @@ export async function retireAssessmentVersion(versionId: string): Promise<Assess
 export async function fetchAllTemplatesAdmin(): Promise<AssessmentTemplateWithVersion[]> {
   const { data, error } = await supabase
     .from('assessment_templates')
-    .select('*, latest_version:assessment_versions!inner(*)')
-    .order('created_at', { ascending: false });
+    .select('*, versions:assessment_versions!inner(*)')
+    .order('created_at', { ascending: false })
+    .order('version_number', { ascending: false, referencedTable: 'assessment_versions' });
   if (error) throw error;
-  return (data ?? []) as AssessmentTemplateWithVersion[];
+  return (data ?? []).map((t) => ({
+    ...t,
+    latest_version: (t.versions ?? [])[0] ?? null,
+  })) as AssessmentTemplateWithVersion[];
 }
 
 export async function fetchInstanceCountForTemplate(templateId: string): Promise<number> {
