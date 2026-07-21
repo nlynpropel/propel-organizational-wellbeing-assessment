@@ -426,8 +426,10 @@ async function fetchPropelAssessment(): Promise<PropelAssessment | null> {
 
   if (!data) return null;
 
-  const t = data as unknown as AssessmentTemplateRow & { latest_version: AssessmentVersionRow };
-  return { template: t, version: t.latest_version };
+  const t = data as unknown as AssessmentTemplateRow & { latest_version: AssessmentVersionRow | AssessmentVersionRow[] };
+  const latestVersion = Array.isArray(t.latest_version) ? t.latest_version[0] : t.latest_version;
+  if (!latestVersion) return null;
+  return { template: t, version: latestVersion };
 }
 
 function ReviewRow({ icon: Icon, label, value }: { icon: typeof Users; label: string; value: string }) {
