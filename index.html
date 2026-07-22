@@ -22,6 +22,22 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      window.addEventListener('error', function (e) {
+        var root = document.getElementById('root');
+        if (root && !root.innerHTML) {
+          root.innerHTML =
+            '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:system-ui;padding:2rem;">' +
+            '<div style="max-width:500px;padding:2rem;background:#fff;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.1);">' +
+            '<h1 style="font-size:1.25rem;color:#031c40;margin-bottom:0.5rem;">Application Error</h1>' +
+            '<p style="color:#5a637a;font-size:0.875rem;margin-bottom:1rem;">' + (e.message || 'Unknown error') + '</p>' +
+            '<pre style="font-size:0.75rem;color:#c23b2f;background:#fdebe9;padding:0.75rem;border-radius:4px;overflow:auto;max-height:200px;">' +
+            (e.error && e.error.stack ? e.error.stack : '') + '</pre>' +
+            '<button onclick="location.reload()" style="margin-top:1rem;color:#031c40;font-weight:500;cursor:pointer;">Reload</button>' +
+            '</div></div>';
+        }
+      });
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
