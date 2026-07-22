@@ -585,7 +585,7 @@ Deno.serve(async (req: Request) => {
     // ── 9. Update status to generating ──
     const { error: updateGenErr } = await supabase
       .from("analysis_generations")
-      .update({ status: "generating" })
+      .update({ status: "generating", model_name: openaiModel })
       .eq("id", generation_id);
     if (updateGenErr) {
       return new Response(
@@ -636,7 +636,7 @@ Deno.serve(async (req: Request) => {
     const snapshotData = snapshot.input_json as Record<string, unknown>;
     const filteredPayload = buildFilteredPayload(snapshotData);
 
-    // ── 13. Call OpenAI Responses API ──
+    // ── 13. Call OpenAI Chat Completions API ──
     const userPrompt = `Analyze the following workplace wellbeing assessment data and produce a strategy proof-of-concept.
 
 DATA (version ${filteredPayload.filter_version}):
@@ -650,7 +650,7 @@ Respond with ONLY the JSON object. No markdown, no code fences.`;
     let openaiResponse: Response;
     try {
       openaiResponse = await fetch(
-        "https://api.openai.com/v1/responses",
+        "https://api.openai.com/v1/chat/completions",
         {
           method: "POST",
           headers: {
@@ -659,10 +659,11 @@ Respond with ONLY the JSON object. No markdown, no code fences.`;
           },
           body: JSON.stringify({
             model: openaiModel,
-            instructions: SYSTEM_PROMPT,
-            input: userPrompt,
-            max_output_tokens: 4096,
-            temperature: 0.3,
+            messages: [
+              { role: "system", content: SYSTEM_PROMPT },
+              { role: "user", content: userPrompt },
+            ],
+            max_completion_tokens: 4096,
           }),
           signal: controller.signal,
         }
@@ -705,9 +706,9 @@ Respond with ONLY the JSON object. No markdown, no code fences.`;
     // ── 14. Parse OpenAI response ──
     const openaiData = await openaiResponse.json();
     const responseText =
+      openaiData.choices?.[0]?.message?.content ??
       openaiData.output?.[0]?.content?.[0]?.text ??
       openaiData.output_text ??
-      openaiData.choices?.[0]?.message?.content ??
       null;
 
     if (!responseText || typeof responseText !== "string") {
