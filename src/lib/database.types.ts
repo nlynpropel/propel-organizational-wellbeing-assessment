@@ -673,3 +673,96 @@ export type CreateSnapshotResult = {
   snapshot_version: number;
   completeness_level: CompletenessLevel;
 };
+
+// ============================================================
+// Normalized snapshot input_json structure (for validation)
+// ============================================================
+
+export type SnapshotStrategyDimensionScore = {
+  dimension: string;
+  normalized_score: number | null;
+  raw_score: number | null;
+  answered_questions: number;
+  possible_questions: number;
+};
+
+export type SnapshotBehavioralReadinessDriver = {
+  score: number | null;
+  label: string;
+  interpretation: string;
+};
+
+export type SnapshotContextualResponse = {
+  question: string;
+  reporting_label: string | null;
+  question_type: string;
+  is_scored: boolean;
+  selected_option: string | null;
+  numeric_value: number | null;
+  text_value: string | null;
+  boolean_value: boolean | null;
+  score_value: number | null;
+};
+
+export type SnapshotDiagnosticFinding = {
+  tag: string;
+  severity_threshold: number;
+  question: string;
+  reporting_label: string | null;
+};
+
+export type SnapshotRecommendation = {
+  title: string;
+  description: string;
+  rationale: string;
+  recommendation_type: string;
+  dimension: string | null;
+  driver: string | null;
+  effort_level: string | null;
+  impact_level: string | null;
+  strength_title: string | null;
+  strength_description: string | null;
+  display_order: number;
+};
+
+export type SnapshotInputJson = {
+  snapshot_version: number;
+  workspace_title: string;
+  workspace_status: string;
+  client_organization: {
+    name: string;
+    type: string | null;
+    industry: string | null;
+    size_band: string | null;
+    description: string | null;
+  };
+  assessment: {
+    template_name: string | null;
+    template_description: string | null;
+    instance_status: string;
+    submitted_at: string | null;
+    overall_score: number | null;
+    maturity_band: string | null;
+    strategy_dimension_scores: SnapshotStrategyDimensionScore[];
+    behavioral_readiness: Record<string, SnapshotBehavioralReadinessDriver>;
+    contextual_responses: SnapshotContextualResponse[];
+    diagnostic_findings: SnapshotDiagnosticFinding[];
+    driver_mapping: unknown[];
+  };
+  recommendations: SnapshotRecommendation[];
+  outcomes: unknown[];
+  metrics: unknown[];
+  programs: unknown[];
+  utilization: unknown[];
+  resource_gaps: unknown[];
+  notes: unknown[];
+  evidence_sources: unknown[];
+  readiness: ReadinessEvaluation;
+  created_at: string;
+};
+
+export type SnapshotStructureValidation = {
+  valid: boolean;
+  missingSections: string[];
+  details: Record<string, boolean>;
+};
