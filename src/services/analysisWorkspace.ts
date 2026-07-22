@@ -30,6 +30,11 @@ import type {
   AnalysisEvidenceSourceRow,
   EvidenceSourceType,
   VerificationStatus,
+  CompletenessLevel,
+  ReadinessEvaluation,
+  ReadinessRequirement,
+  AnalysisInputSnapshotRow,
+  CreateSnapshotResult,
 } from '../lib/database.types';
 
 // ============================================================
@@ -1089,4 +1094,182 @@ export async function deleteEvidenceSource(evidenceId: string): Promise<void> {
     logDbError({ fn: 'deleteEvidenceSource', error });
     throw error;
   }
+}
+
+// ============================================================
+// Readiness Evaluation
+// ============================================================
+
+export const COMPLETENESS_LEVELS: CompletenessLevel[] = ['not_ready', 'limited', 'sufficient', 'strong'];
+
+export const COMPLETENESS_LEVEL_LABELS: Record<CompletenessLevel, string> = {
+  not_ready: 'Not Ready',
+  limited: 'Limited',
+  sufficient: 'Sufficient',
+  strong: 'Strong',
+};
+
+export const READINESS_STATUS_LABELS: Record<ReadinessRequirementStatus, string> = {
+  complete: 'Complete',
+  incomplete: 'Incomplete',
+  unavailable: 'Unavailable',
+  optional: 'Optional',
+};
+
+export type ReadinessRequirementStatus = ReadinessRequirement['status'];
+
+// Client-side readiness evaluation (mirrors server RPC for UI display)
+export function evaluateReadinessClient(workspace: WorkspaceWithDetails): ReadinessEvaluation {
+  const requirements: ReadinessRequirement[] = [];
+  let completeCount = 0;
+  let totalRequired = 0;
+
+  // 1. Finalized assessment present
+  totalRequired++;
+  const hasAssessment = workspace.assessment_instance?.status === 'submitted' || workspace.assessment_instance?.status === 'report_ready';
+  if (hasAssessment) {
+    requirements.push({ key: 'finalized_assessment', label: 'Finalized assessment', status: 'complete', detail: workspace.assessment_instance?.status ?? '' });
+    completeCount++;
+  } else {
+    requirements.push({ key: 'finalized_assessment', label: 'Finalized assessment', status: 'incomplete', detail: 'No finalized assessment linked' });
+  }
+
+  // 2. Assessment scores available
+  totalRequired++;
+  if (workspace.assessment_instance?.overall_score != null) {
+    requirements.push({ key: 'assessment_scores', label: 'Assessment scores', status: 'complete', detail: 'Overall score available' });
+    completeCount++;
+  } else {
+    requirements.push({ key: 'assessment_scores', label: 'Assessment scores', status: 'incomplete', detail: 'No scores calculated yet' });
+  }
+
+  // 3. At least one desired outcome
+  totalRequired++;
+  if (workspace.goals.length > 0) {
+    requirements.push({ key: 'desired_outcomes', label: 'Desired outcomes', status: 'complete', detail: `${workspace.goals.length} outcome(s) defined` });
+    completeCount++;
+  } else {
+    requirements.push({ key: 'desired_outcomes', label: 'Desired outcomes', status: 'incomplete', detail: 'No outcomes defined' });
+  }
+
+  // 4. Program inventory reviewed
+  totalRequired++;
+  if (workspace.utilizationRecords.length > 0 || workspace.resourceGaps.length > 0) {
+    requirements.push({ key: 'program_inventory', label: 'Program inventory', status: 'complete', detail: 'Programs reviewed' });
+    completeCount++;
+  } else {
+    requirements.push({ key: 'program_inventory', label: 'Program inventory', status: 'incomplete', detail: 'No programs entered' });
+  }
+
+  // 5. Utilization entered or explicitly marked unavailable
+  totalRequired++;
+  if (workspace.utilizationRecords.length > 0) {
+    requirements.push({ key: 'utilization_data', label: 'Utilization data', status: 'complete', detail: `${workspace.utilizationRecords.length} record(s)` });
+    completeCount++;
+  } else {
+    const hasUnavailableNote = workspace.notes.some(
+      (n) => n.note_type === 'data_limitation' && n.content.toLowerCase().includes('utilization') && n.content.toLowerCase().includes('unavailable')
+    );
+    if (hasUnavailableNote) {
+      requirements.push({ key: 'utilization_data', label: 'Utilization data', status: 'unavailable', detail: 'Explicitly marked unavailable' });
+    } else {
+      requirements.push({ key: 'utilization_data', label: 'Utilization data', status: 'incomplete', detail: 'No utilization data entered' });
+    }
+  }
+
+  // 6. Resource gaps reviewed
+  totalRequired++;
+  if (workspace.resourceGaps.length > 0) {
+    requirements.push({ key: 'resource_gaps', label: 'Resource gaps', status: 'complete', detail: `${workspace.resourceGaps.length} gap(s) identified` });
+    completeCount++;
+  } else {
+    requirements.push({ key: 'resource_gaps', label: 'Resource gaps', status: 'incomplete', detail: 'No gaps reviewed' });
+  }
+
+  // 7. Notes and data limitations reviewed
+  totalRequired++;
+  if (workspace.notes.length > 0) {
+    requirements.push({ key: 'notes_reviewed', label: 'Notes and data limitations', status: 'complete', detail: `${workspace.notes.length} note(s)` });
+    completeCount++;
+  } else {
+    requirements.push({ key: 'notes_reviewed', label: 'Notes and data limitations', status: 'incomplete', detail: 'No notes added' });
+  }
+
+  // 8. Evidence sources (optional)
+  if (workspace.evidenceSources.length > 0) {
+    requirements.push({ key: 'evidence_sources', label: 'Evidence sources', status: 'complete', detail: `${workspace.evidenceSources.length} source(s)` });
+  } else {
+    requirements.push({ key: 'evidence_sources', label: 'Evidence sources', status: 'optional', detail: 'Optional but recommended' });
+  }
+
+  // Determine level
+  let level: CompletenessLevel;
+  const hasEvidence = workspace.evidenceSources.length > 0;
+  if (completeCount === totalRequired && hasEvidence) {
+    level = 'strong';
+  } else if (completeCount === totalRequired) {
+    level = 'sufficient';
+  } else if (completeCount >= 4) {
+    level = 'limited';
+  } else {
+    level = 'not_ready';
+  }
+
+  return { level, requirements, complete_count: completeCount, total_required: totalRequired };
+}
+
+export async function evaluateReadinessServer(workspaceId: string): Promise<ReadinessEvaluation> {
+  const { data, error } = await supabase.rpc('evaluate_workspace_readiness', {
+    p_workspace_id: workspaceId,
+  });
+  if (error) {
+    logDbError({ fn: 'evaluateReadinessServer', error });
+    throw error;
+  }
+  return data as ReadinessEvaluation;
+}
+
+export function canCreateSnapshot(
+  capabilities: Set<OrganizationCapability>,
+  workspaceStatus: WorkspaceStatus
+): boolean {
+  return (
+    hasCapability(capabilities, 'edit_strategy_analysis') &&
+    workspaceStatus !== 'finalized'
+  );
+}
+
+export function validateSnapshotPrerequisites(readiness: ReadinessEvaluation): string | null {
+  if (readiness.level === 'not_ready') {
+    return 'Workspace is not ready for snapshot creation. Complete more requirements first.';
+  }
+  return null;
+}
+
+// ============================================================
+// Snapshot CRUD
+// ============================================================
+
+export async function fetchSnapshotsForWorkspace(workspaceId: string): Promise<AnalysisInputSnapshotRow[]> {
+  const { data, error } = await supabase
+    .from('analysis_input_snapshots')
+    .select('*')
+    .eq('workspace_id', workspaceId)
+    .order('snapshot_version', { ascending: false });
+  if (error) {
+    logDbError({ fn: 'fetchSnapshotsForWorkspace', error });
+    throw error;
+  }
+  return data ?? [];
+}
+
+export async function createSnapshot(workspaceId: string): Promise<CreateSnapshotResult> {
+  const { data, error } = await supabase.rpc('create_analysis_snapshot', {
+    p_workspace_id: workspaceId,
+  });
+  if (error) {
+    logDbError({ fn: 'createSnapshot', error });
+    throw error;
+  }
+  return data as CreateSnapshotResult;
 }

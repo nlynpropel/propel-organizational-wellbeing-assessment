@@ -636,3 +636,40 @@ export type AnalysisEvidenceSourceRow = {
   entered_by: string;
   created_at: string;
 };
+
+// ============================================================
+// Analysis Input Snapshots & Readiness
+// ============================================================
+
+export type CompletenessLevel = 'not_ready' | 'limited' | 'sufficient' | 'strong';
+export type ReadinessRequirementStatus = 'complete' | 'incomplete' | 'unavailable' | 'optional';
+
+export type ReadinessRequirement = {
+  key: string;
+  label: string;
+  status: ReadinessRequirementStatus;
+  detail: string;
+};
+
+export type ReadinessEvaluation = {
+  level: CompletenessLevel;
+  requirements: ReadinessRequirement[];
+  complete_count: number;
+  total_required: number;
+};
+
+export type AnalysisInputSnapshotRow = {
+  id: string;
+  workspace_id: string;
+  snapshot_version: number;
+  input_json: Record<string, unknown>;
+  completeness_level: CompletenessLevel;
+  created_by: string;
+  created_at: string;
+};
+
+export type CreateSnapshotResult = {
+  snapshot_id: string;
+  snapshot_version: number;
+  completeness_level: CompletenessLevel;
+};

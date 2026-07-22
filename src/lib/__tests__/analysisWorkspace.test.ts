@@ -8,9 +8,15 @@ import {
   validateUtilizationInput,
   validateGapInput,
   validateEvidenceInput,
+  validateSnapshotPrerequisites,
   isWorkspaceEditable,
   canEditWorkspace,
   canApproveWorkspace,
+  canCreateSnapshot,
+  evaluateReadinessClient,
+  COMPLETENESS_LEVELS,
+  COMPLETENESS_LEVEL_LABELS,
+  READINESS_STATUS_LABELS,
   WORKSPACE_STATUSES,
   DATA_QUALITY_LEVELS,
   NOTE_TYPES,
@@ -46,7 +52,7 @@ import {
   EVIDENCE_SOURCE_TYPE_LABELS,
   VERIFICATION_STATUS_LABELS,
 } from '../../services/analysisWorkspace';
-import type { OrganizationCapability } from '../../lib/database.types';
+import type { OrganizationCapability, WorkspaceWithDetails } from '../../lib/database.types';
 
 function makeCaps(caps: string[]): Set<OrganizationCapability> {
   return new Set(caps as OrganizationCapability[]);
@@ -615,6 +621,227 @@ describe('analysisWorkspace validation', () => {
       for (const v of VERIFICATION_STATUSES) {
         expect(VERIFICATION_STATUS_LABELS[v]).toBeTruthy();
       }
+    });
+  });
+
+  // ============================================================
+  // validateSnapshotPrerequisites
+  // ============================================================
+  describe('validateSnapshotPrerequisites', () => {
+    it('returns error when readiness is not_ready', () => {
+      const result = validateSnapshotPrerequisites({
+        level: 'not_ready',
+        requirements: [],
+        complete_count: 0,
+        total_required: 7,
+      });
+      expect(result).toBe('Workspace is not ready for snapshot creation. Complete more requirements first.');
+    });
+
+    it('returns null when readiness is limited', () => {
+      expect(validateSnapshotPrerequisites({
+        level: 'limited',
+        requirements: [],
+        complete_count: 4,
+        total_required: 7,
+      })).toBeNull();
+    });
+
+    it('returns null when readiness is sufficient', () => {
+      expect(validateSnapshotPrerequisites({
+        level: 'sufficient',
+        requirements: [],
+        complete_count: 7,
+        total_required: 7,
+      })).toBeNull();
+    });
+
+    it('returns null when readiness is strong', () => {
+      expect(validateSnapshotPrerequisites({
+        level: 'strong',
+        requirements: [],
+        complete_count: 7,
+        total_required: 7,
+      })).toBeNull();
+    });
+  });
+
+  // ============================================================
+  // canCreateSnapshot
+  // ============================================================
+  describe('canCreateSnapshot', () => {
+    it('returns true when user has edit_strategy_analysis and workspace is not finalized', () => {
+      expect(canCreateSnapshot(makeCaps(['edit_strategy_analysis']), 'draft')).toBe(true);
+    });
+
+    it('returns false when user lacks edit_strategy_analysis', () => {
+      expect(canCreateSnapshot(makeCaps(['view_reports']), 'draft')).toBe(false);
+    });
+
+    it('returns false when workspace is finalized', () => {
+      expect(canCreateSnapshot(makeCaps(['edit_strategy_analysis']), 'finalized')).toBe(false);
+    });
+
+    it('returns false when user has no capabilities', () => {
+      expect(canCreateSnapshot(new Set(), 'draft')).toBe(false);
+    });
+  });
+
+  // ============================================================
+  // evaluateReadinessClient
+  // ============================================================
+  describe('evaluateReadinessClient', () => {
+    function makeWorkspace(overrides: Partial<WorkspaceWithDetails> = {}): WorkspaceWithDetails {
+      return {
+        id: 'ws-1',
+        client_organization_id: 'org-1',
+        assessment_instance_id: 'inst-1',
+        service_organization_id: 'org-2',
+        created_by: 'user-1',
+        assigned_to: null,
+        title: 'Test Workspace',
+        status: 'draft',
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-01T00:00:00Z',
+        goals: [],
+        metrics: [],
+        notes: [],
+        utilizationRecords: [],
+        resourceGaps: [],
+        evidenceSources: [],
+        assessment_instance: {
+          id: 'inst-1',
+          status: 'submitted',
+          overall_score: 75,
+          primary_opportunity: 'Test',
+        },
+        ...overrides,
+      } as WorkspaceWithDetails;
+    }
+
+    it('returns not_ready when nothing is filled in', () => {
+      const ws = makeWorkspace({
+        assessment_instance: null,
+        goals: [],
+        utilizationRecords: [],
+        resourceGaps: [],
+        notes: [],
+        evidenceSources: [],
+      });
+      const result = evaluateReadinessClient(ws);
+      expect(result.level).toBe('not_ready');
+      expect(result.complete_count).toBe(0);
+    });
+
+    it('returns limited when 4 of 7 required checks pass', () => {
+      const ws = makeWorkspace({
+        assessment_instance: null,
+        goals: [{ id: 'g1' } as never],
+        notes: [{ id: 'n1' } as never],
+        utilizationRecords: [],
+        resourceGaps: [{ id: 'r1' } as never],
+      });
+      const result = evaluateReadinessClient(ws);
+      expect(result.level).toBe('limited');
+      expect(result.complete_count).toBe(4);
+    });
+
+    it('returns sufficient when all 7 required checks pass but no evidence', () => {
+      const ws = makeWorkspace({
+        goals: [{ id: 'g1' } as never],
+        notes: [{ id: 'n1' } as never],
+        utilizationRecords: [{ id: 'u1' } as never],
+        resourceGaps: [{ id: 'r1' } as never],
+        evidenceSources: [],
+      });
+      const result = evaluateReadinessClient(ws);
+      expect(result.level).toBe('sufficient');
+      expect(result.complete_count).toBe(7);
+    });
+
+    it('returns strong when all required checks pass and evidence sources exist', () => {
+      const ws = makeWorkspace({
+        goals: [{ id: 'g1' } as never],
+        notes: [{ id: 'n1' } as never],
+        utilizationRecords: [{ id: 'u1' } as never],
+        resourceGaps: [{ id: 'r1' } as never],
+        evidenceSources: [{ id: 'e1' } as never],
+      });
+      const result = evaluateReadinessClient(ws);
+      expect(result.level).toBe('strong');
+    });
+
+    it('marks utilization as unavailable when data_limitation note mentions it', () => {
+      const ws = makeWorkspace({
+        goals: [{ id: 'g1' } as never],
+        notes: [{ id: 'n1', note_type: 'data_limitation', content: 'Utilization data is unavailable for this period' } as never],
+        resourceGaps: [{ id: 'r1' } as never],
+        utilizationRecords: [],
+      });
+      const result = evaluateReadinessClient(ws);
+      const utilReq = result.requirements.find((r) => r.key === 'utilization_data');
+      expect(utilReq?.status).toBe('unavailable');
+    });
+
+    it('marks evidence sources as optional when none exist', () => {
+      const ws = makeWorkspace();
+      const result = evaluateReadinessClient(ws);
+      const evidenceReq = result.requirements.find((r) => r.key === 'evidence_sources');
+      expect(evidenceReq?.status).toBe('optional');
+    });
+
+    it('returns 8 requirements total', () => {
+      const ws = makeWorkspace();
+      const result = evaluateReadinessClient(ws);
+      expect(result.requirements).toHaveLength(8);
+    });
+
+    it('returns limited when assessment is missing', () => {
+      const ws = makeWorkspace({
+        assessment_instance: null,
+        goals: [{ id: 'g1' } as never],
+        notes: [{ id: 'n1' } as never],
+        utilizationRecords: [{ id: 'u1' } as never],
+        resourceGaps: [{ id: 'r1' } as never],
+      });
+      const result = evaluateReadinessClient(ws);
+      expect(result.level).toBe('limited');
+      expect(result.complete_count).toBe(5);
+    });
+
+    it('returns limited when scores are missing', () => {
+      const ws = makeWorkspace({
+        assessment_instance: { id: 'inst-1', status: 'submitted', overall_score: null, primary_opportunity: null } as never,
+        goals: [{ id: 'g1' } as never],
+        notes: [{ id: 'n1' } as never],
+        utilizationRecords: [{ id: 'u1' } as never],
+        resourceGaps: [{ id: 'r1' } as never],
+      });
+      const result = evaluateReadinessClient(ws);
+      expect(result.level).toBe('limited');
+      expect(result.complete_count).toBe(6);
+    });
+  });
+
+  // ============================================================
+  // Completeness level labels
+  // ============================================================
+  describe('completeness level labels', () => {
+    it('COMPLETENESS_LEVELS has exactly 4 levels', () => {
+      expect(COMPLETENESS_LEVELS).toHaveLength(4);
+    });
+
+    it('COMPLETENESS_LEVEL_LABELS covers all levels', () => {
+      for (const l of COMPLETENESS_LEVELS) {
+        expect(COMPLETENESS_LEVEL_LABELS[l]).toBeTruthy();
+      }
+    });
+
+    it('READINESS_STATUS_LABELS covers all 4 statuses', () => {
+      expect(READINESS_STATUS_LABELS.complete).toBe('Complete');
+      expect(READINESS_STATUS_LABELS.incomplete).toBe('Incomplete');
+      expect(READINESS_STATUS_LABELS.unavailable).toBe('Unavailable');
+      expect(READINESS_STATUS_LABELS.optional).toBe('Optional');
     });
   });
 });

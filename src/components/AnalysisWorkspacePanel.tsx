@@ -14,6 +14,11 @@ import {
   Activity,
   AlertTriangle,
   BookOpen,
+  Camera,
+  Gauge,
+  XCircle,
+  MinusCircle,
+  HelpCircle,
 } from 'lucide-react';
 import Button from './ui/Button';
 import Card from './ui/Card';
@@ -96,6 +101,12 @@ import {
   VERIFICATION_STATUSES,
   EVIDENCE_SOURCE_TYPE_LABELS,
   VERIFICATION_STATUS_LABELS,
+  evaluateReadinessClient,
+  evaluateReadinessServer,
+  fetchSnapshotsForWorkspace,
+  createSnapshot,
+  COMPLETENESS_LEVEL_LABELS,
+  READINESS_STATUS_LABELS,
 } from '../services/analysisWorkspace';
 import type {
   WorkspaceWithDetails,
@@ -125,6 +136,10 @@ import type {
   AnalysisEvidenceSourceRow,
   EvidenceSourceType,
   VerificationStatus,
+  CompletenessLevel,
+  ReadinessEvaluation,
+  ReadinessRequirement,
+  AnalysisInputSnapshotRow,
 } from '../lib/database.types';
 import type { InstanceWithTemplate } from '../services/organizations';
 
@@ -377,6 +392,7 @@ function WorkspaceDetail({
 }) {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [programs, setPrograms] = useState<ClientProgramRow[]>([]);
+  const [readinessLevel, setReadinessLevel] = useState<CompletenessLevel>('not_ready');
   const editable = canEditWorkspace(capabilities, workspace.status);
   const canApprove = canApproveWorkspace(capabilities);
   const isFinalized = workspace.status === 'finalized';
@@ -386,6 +402,11 @@ function WorkspaceDetail({
       .then(setPrograms)
       .catch(() => { /* error handled by parent */ });
   }, [workspace.client_organization_id]);
+
+  useEffect(() => {
+    const readiness = evaluateReadinessClient(workspace);
+    setReadinessLevel(readiness.level);
+  }, [workspace]);
 
   const statusVariant = (status: WorkspaceStatus) => {
     const map: Record<WorkspaceStatus, 'neutral' | 'info' | 'progress' | 'success' | 'warning' | 'danger'> = {
@@ -504,6 +525,21 @@ function WorkspaceDetail({
         metrics={workspace.metrics}
         goals={workspace.goals}
         editable={editable}
+        onRefresh={onRefresh}
+      />
+
+      {/* Analysis Readiness */}
+      <ReadinessSection
+        workspace={workspace}
+        editable={editable}
+        onRefresh={onRefresh}
+      />
+
+      {/* Snapshots */}
+      <SnapshotsSection
+        workspaceId={workspace.id}
+        editable={editable}
+        readinessLevel={readinessLevel}
         onRefresh={onRefresh}
       />
 
@@ -2252,5 +2288,217 @@ function EvidenceForm({
         <Button type="button" variant="ghost" size="sm" onClick={onCancel}>Cancel</Button>
       </div>
     </form>
+  );
+}
+
+// ============================================================
+// Analysis Readiness Section
+// ============================================================
+
+function ReadinessSection({
+  workspace,
+  editable: _editable,
+  onRefresh: _onRefresh,
+}: {
+  workspace: WorkspaceWithDetails;
+  editable: boolean;
+  onRefresh: () => void;
+}) {
+  const [evaluation, setEvaluation] = useState<ReadinessEvaluation | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    evaluateReadinessServer(workspace.id)
+      .then(setEvaluation)
+      .catch(() => {
+        // Fallback to client-side evaluation
+        setEvaluation(evaluateReadinessClient(workspace));
+      })
+      .finally(() => setLoading(false));
+  }, [workspace]);
+
+  if (loading) {
+    return (
+      <Card>
+        <div className="flex items-center gap-2 mb-3">
+          <Gauge className="w-5 h-5 text-navy/60" />
+          <span className="eyebrow">Analysis Readiness</span>
+        </div>
+        <p className="text-sm text-neutral-muted py-4">Evaluating readiness…</p>
+      </Card>
+    );
+  }
+
+  if (!evaluation) return null;
+
+  const levelVariant = (level: CompletenessLevel): 'neutral' | 'info' | 'progress' | 'success' => {
+    switch (level) {
+      case 'not_ready': return 'neutral';
+      case 'limited': return 'info';
+      case 'sufficient': return 'progress';
+      case 'strong': return 'success';
+    }
+  };
+
+  const statusIcon = (status: ReadinessRequirement['status']) => {
+    switch (status) {
+      case 'complete': return <CheckCircle2 className="w-4 h-4 text-green" />;
+      case 'incomplete': return <XCircle className="w-4 h-4 text-red" />;
+      case 'unavailable': return <MinusCircle className="w-4 h-4 text-orange" />;
+      case 'optional': return <HelpCircle className="w-4 h-4 text-neutral-muted" />;
+    }
+  };
+
+  return (
+    <Card>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Gauge className="w-5 h-5 text-navy/60" />
+          <span className="eyebrow">Analysis Readiness</span>
+        </div>
+        <Badge variant={levelVariant(evaluation.level)} dot>
+          {COMPLETENESS_LEVEL_LABELS[evaluation.level]}
+        </Badge>
+      </div>
+      <div className="space-y-2">
+        {evaluation.requirements.map((req) => (
+          <div key={req.key} className="flex items-start gap-2.5 py-1.5 border-b border-neutral-border-soft last:border-0">
+            <span className="mt-0.5 shrink-0">{statusIcon(req.status)}</span>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-medium text-navy">{req.label}</span>
+                <Badge variant="neutral" className="shrink-0">
+                  {READINESS_STATUS_LABELS[req.status]}
+                </Badge>
+              </div>
+              <p className="text-xs text-neutral-muted mt-0.5">{req.detail}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="mt-3 pt-3 border-t border-neutral-border-soft text-xs text-neutral-muted">
+        {evaluation.complete_count} of {evaluation.total_required} required checks complete
+      </div>
+    </Card>
+  );
+}
+
+// ============================================================
+// Snapshots Section
+// ============================================================
+
+function SnapshotsSection({
+  workspaceId,
+  editable,
+  readinessLevel,
+  onRefresh,
+}: {
+  workspaceId: string;
+  editable: boolean;
+  readinessLevel: CompletenessLevel;
+  onRefresh: () => void;
+}) {
+  const [snapshots, setSnapshots] = useState<AnalysisInputSnapshotRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadSnapshots = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await fetchSnapshotsForWorkspace(workspaceId);
+      setSnapshots(data);
+    } catch {
+      setError('Failed to load snapshots.');
+    } finally {
+      setLoading(false);
+    }
+  }, [workspaceId]);
+
+  useEffect(() => {
+    loadSnapshots();
+  }, [loadSnapshots]);
+
+  const handleCreate = async () => {
+    setCreating(true);
+    setError(null);
+    try {
+      await createSnapshot(workspaceId);
+      await loadSnapshots();
+      onRefresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create snapshot.');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const levelVariant = (level: CompletenessLevel): 'neutral' | 'info' | 'progress' | 'success' => {
+    switch (level) {
+      case 'not_ready': return 'neutral';
+      case 'limited': return 'info';
+      case 'sufficient': return 'progress';
+      case 'strong': return 'success';
+    }
+  };
+
+  const canCreate = editable && readinessLevel !== 'not_ready' && !creating;
+
+  return (
+    <Card>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Camera className="w-5 h-5 text-navy/60" />
+          <span className="eyebrow">Input Snapshots</span>
+        </div>
+        {canCreate && (
+          <Button size="sm" variant="outline" onClick={handleCreate} disabled={creating}>
+            <Camera className="w-4 h-4" /> Create snapshot
+          </Button>
+        )}
+      </div>
+
+      {readinessLevel === 'not_ready' && editable && (
+        <p className="text-sm text-orange flex items-center gap-1.5 mb-3">
+          <AlertCircle className="w-4 h-4" /> Workspace is not ready — complete more requirements before creating a snapshot.
+        </p>
+      )}
+
+      {error && (
+        <p className="text-sm text-red flex items-center gap-1.5 mb-3">
+          <AlertCircle className="w-4 h-4" /> {error}
+        </p>
+      )}
+
+      {loading ? (
+        <p className="text-sm text-neutral-muted py-4">Loading snapshots…</p>
+      ) : snapshots.length === 0 ? (
+        <p className="text-sm text-neutral-muted py-4">
+          No snapshots yet. Each snapshot is an immutable, normalized capture of all workspace inputs. Future AI analysis generation will reference a specific snapshot.
+        </p>
+      ) : (
+        <div className="space-y-3">
+          {snapshots.map((snap) => (
+            <div key={snap.id} className="rounded-md border border-neutral-border-soft p-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm font-semibold text-navy">Version {snap.snapshot_version}</span>
+                  <Badge variant={levelVariant(snap.completeness_level)} dot>
+                    {COMPLETENESS_LEVEL_LABELS[snap.completeness_level]}
+                  </Badge>
+                  <span className="inline-flex items-center gap-1 text-xs text-neutral-muted">
+                    <Lock className="w-3 h-3" /> Immutable
+                  </span>
+                </div>
+                <span className="text-xs text-neutral-muted">
+                  {new Date(snap.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
   );
 }
