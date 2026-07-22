@@ -296,9 +296,6 @@ export type BrokerNoteRow = {
   updated_at: string;
 };
 
-// Alias for neutral terminology. Same shape as BrokerNoteRow.
-export type AnalysisNoteRow = BrokerNoteRow;
-
 // ============================================================
 // Recommendation engine types
 // ============================================================
@@ -452,4 +449,100 @@ export type ResolvedAssessment = {
     }>;
   }>;
   responses: SavedResponse[];
+};
+
+// ============================================================
+// Strategy Analysis Workspace types
+// ============================================================
+
+export type WorkspaceStatus =
+  | 'draft'
+  | 'inputs_in_progress'
+  | 'ready_for_analysis'
+  | 'analysis_generated'
+  | 'under_review'
+  | 'approved'
+  | 'finalized';
+
+export type OutcomeGoalPriority = 'low' | 'medium' | 'high' | 'critical';
+export type OutcomeGoalSourceType = 'analyst' | 'client_directed' | 'assessment_finding' | 'stakeholder_input';
+export type DataQualityLevel = 'verified' | 'client_reported' | 'estimated' | 'incomplete' | 'unknown';
+export type AnalysisNoteType =
+  | 'organization_context'
+  | 'analyst_observation'
+  | 'specific_question'
+  | 'key_consideration'
+  | 'known_constraint'
+  | 'client_priority'
+  | 'implementation_history'
+  | 'data_limitation'
+  | 'follow_up';
+export type AnalysisNoteVisibility = 'internal' | 'organization_team' | 'client_report_candidate';
+export type AnalysisNoteImportance = 'low' | 'normal' | 'high' | 'critical';
+
+export type AnalysisWorkspaceRow = {
+  id: string;
+  client_organization_id: string;
+  assessment_instance_id: string;
+  service_organization_id: string;
+  created_by: string;
+  assigned_to: string | null;
+  title: string;
+  status: WorkspaceStatus;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AnalysisOutcomeGoalRow = {
+  id: string;
+  workspace_id: string;
+  outcome_category: string;
+  title: string;
+  description: string | null;
+  priority: OutcomeGoalPriority;
+  target_population: string | null;
+  desired_timeframe: string | null;
+  source_type: OutcomeGoalSourceType;
+  source_note: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AnalysisOutcomeMetricRow = {
+  id: string;
+  workspace_id: string;
+  outcome_goal_id: string | null;
+  metric_name: string;
+  metric_category: string | null;
+  current_value: string | null;
+  target_value: string | null;
+  unit: string | null;
+  measurement_period: string | null;
+  population_description: string | null;
+  data_source: string | null;
+  data_quality: DataQualityLevel;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AnalysisNoteRow = {
+  id: string;
+  workspace_id: string;
+  note_type: AnalysisNoteType;
+  title: string | null;
+  content: string;
+  visibility: AnalysisNoteVisibility;
+  importance: AnalysisNoteImportance;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type WorkspaceWithDetails = AnalysisWorkspaceRow & {
+  goals: AnalysisOutcomeGoalRow[];
+  metrics: AnalysisOutcomeMetricRow[];
+  notes: AnalysisNoteRow[];
+  assessment_instance?: Pick<AssessmentInstanceRow, 'id' | 'status' | 'overall_score' | 'primary_opportunity'> | null;
 };
