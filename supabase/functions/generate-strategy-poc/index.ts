@@ -190,15 +190,11 @@ function buildFilteredPayload(
 // ============================================================
 // Evidence path validation
 // ============================================================
-function isValidEvidencePath(
-  path: string,
-  payload: FilteredPayload
+function resolvePath(
+  parts: string[],
+  root: unknown
 ): boolean {
-  if (!path || typeof path !== "string") return false;
-
-  const parts = path.split(".");
-  let current: unknown = payload as Record<string, unknown>;
-
+  let current: unknown = root;
   for (const part of parts) {
     if (current === null || current === undefined) return false;
 
@@ -226,8 +222,38 @@ function isValidEvidencePath(
       current = (current as Record<string, unknown>)[part];
     }
   }
-
   return current !== undefined;
+}
+
+function isValidEvidencePath(
+  path: string,
+  payload: FilteredPayload
+): boolean {
+  if (!path || typeof path !== "string") return false;
+
+  const parts = path.split(".");
+  const root = payload as Record<string, unknown>;
+
+  if (resolvePath(parts, root)) return true;
+
+  // Fallback: the model may omit the "assessment." prefix for nested keys
+  const assessmentKeys = new Set([
+    "strategy_dimension_scores",
+    "behavioral_readiness",
+    "contextual_responses",
+    "diagnostic_findings",
+    "template_name",
+    "template_description",
+    "instance_status",
+    "submitted_at",
+    "overall_score",
+    "maturity_band",
+  ]);
+  if (parts.length > 0 && assessmentKeys.has(parts[0])) {
+    return resolvePath(["assessment", ...parts], root);
+  }
+
+  return false;
 }
 
 function validateEvidencePaths(
