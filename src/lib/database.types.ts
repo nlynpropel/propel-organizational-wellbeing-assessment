@@ -766,3 +766,33 @@ export type SnapshotStructureValidation = {
   missingSections: string[];
   details: Record<string, boolean>;
 };
+
+// ============================================================
+// AI Generation records (Phase 1A — governance only, no AI calls)
+// ============================================================
+
+export type GenerationType = 'strategy_poc';
+export type GenerationStatus =
+  | 'queued'
+  | 'generating'
+  | 'draft_generated'
+  | 'failed'
+  | 'approved'
+  | 'rejected';
+
+export type AnalysisGenerationRow = {
+  id: string;
+  workspace_id: string;
+  snapshot_id: string;
+  generation_type: GenerationType;
+  status: GenerationStatus;
+  model_name: string;
+  prompt_version: string;
+  input_snapshot_version: number;
+  output_json: Record<string, unknown> | null;
+  error_message: string | null;
+  created_by: string;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+};

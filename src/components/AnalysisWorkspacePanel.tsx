@@ -108,6 +108,10 @@ import {
   COMPLETENESS_LEVEL_LABELS,
   READINESS_STATUS_LABELS,
 } from '../services/analysisWorkspace';
+import {
+  fetchGenerationsForWorkspace,
+  GENERATION_STATUS_LABELS,
+} from '../services/aiGenerations';
 import type {
   WorkspaceWithDetails,
   AnalysisWorkspaceRow,
@@ -140,6 +144,7 @@ import type {
   ReadinessEvaluation,
   ReadinessRequirement,
   AnalysisInputSnapshotRow,
+  AnalysisGenerationRow,
 } from '../lib/database.types';
 import type { InstanceWithTemplate } from '../services/organizations';
 
@@ -542,6 +547,9 @@ function WorkspaceDetail({
         readinessLevel={readinessLevel}
         onRefresh={onRefresh}
       />
+
+      {/* AI Generation History (Phase 1A placeholder) */}
+      <GenerationHistorySection workspaceId={workspace.id} />
 
       {/* Programs and Resources */}
       <ProgramsSection
@@ -2495,6 +2503,77 @@ function SnapshotsSection({
                   {new Date(snap.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}
                 </span>
               </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+// ============================================================
+// AI Generation History Section (Phase 1A placeholder)
+// ============================================================
+
+function GenerationHistorySection({ workspaceId }: { workspaceId: string }) {
+  const [generations, setGenerations] = useState<AnalysisGenerationRow[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadGenerations = useCallback(async () => {
+    try {
+      const data = await fetchGenerationsForWorkspace(workspaceId);
+      setGenerations(data);
+    } catch {
+      setGenerations([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [workspaceId]);
+
+  useEffect(() => {
+    loadGenerations();
+  }, [loadGenerations]);
+
+  return (
+    <Card>
+      <div className="flex items-center justify-between mb-3">
+        <span className="eyebrow">AI Generation History</span>
+        <span className="text-xs text-neutral-muted">Phase 1A — Governance Only</span>
+      </div>
+      {loading ? (
+        <p className="text-sm text-neutral-muted py-4">Loading generation history…</p>
+      ) : generations.length === 0 ? (
+        <div className="py-4">
+          <p className="text-sm text-neutral-muted">
+            No AI generations yet. Generation records will appear here once AI analysis is enabled.
+          </p>
+          <p className="text-xs text-neutral-muted mt-2">
+            Each generation references an immutable input snapshot and tracks status, model, prompt version, and review state.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {generations.map((gen) => (
+            <div key={gen.id} className="border border-neutral-border rounded-sm p-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-semibold text-navy">
+                  {gen.generation_type} — v{gen.input_snapshot_version}
+                </span>
+                <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-neutral-bg text-neutral-secondary">
+                  {GENERATION_STATUS_LABELS[gen.status] ?? gen.status}
+                </span>
+              </div>
+              <div className="text-xs text-neutral-muted mt-1">
+                {gen.model_name} · Prompt {gen.prompt_version} · {new Date(gen.created_at).toLocaleString()}
+              </div>
+              {gen.error_message && (
+                <p className="text-xs text-red mt-1">{gen.error_message}</p>
+              )}
+              {gen.reviewed_at && (
+                <p className="text-xs text-neutral-muted mt-1">
+                  Reviewed {new Date(gen.reviewed_at).toLocaleString()}
+                </p>
+              )}
             </div>
           ))}
         </div>
