@@ -790,7 +790,14 @@ export type AnalysisGenerationRow = {
   prompt_version: string;
   input_snapshot_version: number;
   output_json: Record<string, unknown> | null;
+  original_output_json: Record<string, unknown> | null;
+  reviewed_output_json: Record<string, unknown> | null;
+  review_status: string | null;
+  rejection_reason: string | null;
   error_message: string | null;
+  input_tokens: number | null;
+  output_tokens: number | null;
+  total_tokens: number | null;
   created_by: string;
   reviewed_by: string | null;
   reviewed_at: string | null;

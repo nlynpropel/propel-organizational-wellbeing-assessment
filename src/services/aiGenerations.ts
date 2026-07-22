@@ -1,11 +1,13 @@
 import { supabase } from '../lib/supabase';
 import { logDbError } from '../lib/logger';
 import { isFeatureEnabled } from '../lib/featureFlags';
+import { hasCapability } from './capabilities';
 import type {
   AnalysisGenerationRow,
   GenerationType,
   GenerationStatus,
   AnalysisInputSnapshotRow,
+  OrganizationCapability,
 } from '../lib/database.types';
 
 export const GENERATION_TYPES: GenerationType[] = ['strategy_poc'];
@@ -25,6 +27,15 @@ export const GENERATION_STATUS_LABELS: Record<GenerationStatus, string> = {
   failed: 'Failed',
   approved: 'Approved',
   rejected: 'Rejected',
+};
+
+export const GENERATION_STATUS_VARIANTS: Record<GenerationStatus, 'neutral' | 'info' | 'progress' | 'success' | 'warning' | 'danger'> = {
+  queued: 'neutral',
+  generating: 'info',
+  draft_generated: 'progress',
+  failed: 'danger',
+  approved: 'success',
+  rejected: 'warning',
 };
 
 export type CreateGenerationInput = {
@@ -60,7 +71,22 @@ export async function fetchGenerationsForWorkspace(
     logDbError({ fn: 'fetchGenerationsForWorkspace', error });
     throw error;
   }
-  return data ?? [];
+  return (data ?? []) as AnalysisGenerationRow[];
+}
+
+export async function fetchGenerationById(
+  generationId: string
+): Promise<AnalysisGenerationRow | null> {
+  const { data, error } = await supabase
+    .from('analysis_generations')
+    .select('*')
+    .eq('id', generationId)
+    .maybeSingle();
+  if (error) {
+    logDbError({ fn: 'fetchGenerationById', error });
+    throw error;
+  }
+  return data as AnalysisGenerationRow | null;
 }
 
 export async function createGeneration(
@@ -91,6 +117,21 @@ export async function createGeneration(
     );
   }
 
+  // Block if an active generation already exists for this snapshot
+  const { data: existing, error: existingErr } = await supabase
+    .from('analysis_generations')
+    .select('id, status')
+    .eq('snapshot_id', input.snapshot_id)
+    .in('status', ['queued', 'generating'])
+    .maybeSingle();
+  if (existingErr) {
+    logDbError({ fn: 'createGeneration.activeCheck', error: existingErr });
+    throw existingErr;
+  }
+  if (existing) {
+    throw new Error('An active generation already exists for this snapshot. Wait for it to complete before starting a new one.');
+  }
+
   const { data, error } = await supabase
     .from('analysis_generations')
     .insert({
@@ -111,7 +152,7 @@ export async function createGeneration(
     logDbError({ fn: 'createGeneration', error });
     throw error;
   }
-  return data;
+  return data as AnalysisGenerationRow;
 }
 
 export async function updateGenerationStatus(
@@ -129,29 +170,129 @@ export async function updateGenerationStatus(
     logDbError({ fn: 'updateGenerationStatus', error });
     throw error;
   }
-  return data;
+  return data as AnalysisGenerationRow;
 }
 
-export async function reviewGeneration(
+// ============================================================
+// Review workflow
+// ============================================================
+
+export type ReviewableGeneration = AnalysisGenerationRow;
+
+export function canReviewGeneration(
+  capabilities: Set<OrganizationCapability>
+): boolean {
+  return hasCapability(capabilities, 'generate_ai_analysis') ||
+    hasCapability(capabilities, 'approve_strategy_analysis');
+}
+
+export function canApproveGeneration(
+  capabilities: Set<OrganizationCapability>
+): boolean {
+  return hasCapability(capabilities, 'generate_ai_analysis') ||
+    hasCapability(capabilities, 'approve_strategy_analysis');
+}
+
+export function canRegenerate(
+  capabilities: Set<OrganizationCapability>,
+  generations: AnalysisGenerationRow[]
+): boolean {
+  if (!isFeatureEnabled('ENABLE_AI_ANALYSIS')) return false;
+  if (!hasCapability(capabilities, 'generate_ai_analysis')) return false;
+  const hasActive = generations.some(g => g.status === 'queued' || g.status === 'generating');
+  return !hasActive;
+}
+
+export function isGenerationReadOnly(status: GenerationStatus): boolean {
+  return status === 'approved' || status === 'rejected';
+}
+
+export type ReviewedOutput = {
+  executive_summary: string;
+  priority_recommendations: Array<{
+    title: string;
+    rationale: string;
+    recommended_action: string;
+    evidence_references: Array<{ path: string; label: string }>;
+  }>;
+  client_discussion_questions: string[];
+  limitations: string;
+  evidence_references: Array<{ path: string; label: string }>;
+};
+
+export async function saveReviewEdits(
   generationId: string,
-  reviewerId: string,
-  approved: boolean
+  reviewedOutput: ReviewedOutput
 ): Promise<AnalysisGenerationRow> {
   const { data, error } = await supabase
     .from('analysis_generations')
     .update({
-      status: approved ? 'approved' : 'rejected',
-      reviewed_by: reviewerId,
-      reviewed_at: new Date().toISOString(),
+      reviewed_output_json: reviewedOutput as unknown as Record<string, unknown>,
     })
     .eq('id', generationId)
     .select()
     .single();
   if (error) {
-    logDbError({ fn: 'reviewGeneration', error });
+    logDbError({ fn: 'saveReviewEdits', error });
     throw error;
   }
-  return data;
+  return data as AnalysisGenerationRow;
+}
+
+export async function approveGeneration(
+  generationId: string,
+  reviewerId: string,
+  reviewedOutput?: ReviewedOutput
+): Promise<AnalysisGenerationRow> {
+  const updates: Record<string, unknown> = {
+    status: 'approved',
+    reviewed_by: reviewerId,
+    reviewed_at: new Date().toISOString(),
+    review_status: 'approved',
+  };
+  if (reviewedOutput) {
+    updates.reviewed_output_json = reviewedOutput as unknown as Record<string, unknown>;
+  }
+
+  const { data, error } = await supabase
+    .from('analysis_generations')
+    .update(updates)
+    .eq('id', generationId)
+    .select()
+    .single();
+  if (error) {
+    logDbError({ fn: 'approveGeneration', error });
+    throw error;
+  }
+  return data as AnalysisGenerationRow;
+}
+
+export async function rejectGeneration(
+  generationId: string,
+  reviewerId: string,
+  rejectionReason: string
+): Promise<AnalysisGenerationRow> {
+  if (!rejectionReason.trim()) {
+    throw new Error('A rejection reason is required.');
+  }
+
+  const { data, error } = await supabase
+    .from('analysis_generations')
+    .update({
+      status: 'rejected',
+      reviewed_by: reviewerId,
+      reviewed_at: new Date().toISOString(),
+      review_status: 'rejected',
+      rejection_reason: rejectionReason,
+    })
+    .eq('id', generationId)
+    .select()
+    .single();
+  if (error) {
+    logDbError({ fn: 'rejectGeneration', error });
+    throw error;
+  }
+  return data as AnalysisGenerationRow;
 }
 
 export async function deleteGeneration(generationId: string): Promise<void> {
@@ -172,4 +313,39 @@ export function canCreateGeneration(
   if (!snapshot) return false;
   const level = snapshot.completeness_level as string;
   return level === 'sufficient' || level === 'strong';
+}
+
+// ============================================================
+// Evidence path normalization
+// ============================================================
+
+const ASSESSMENT_NESTED_KEYS = new Set([
+  'strategy_dimension_scores',
+  'behavioral_readiness',
+  'contextual_responses',
+  'diagnostic_findings',
+  'template_name',
+  'template_description',
+  'instance_status',
+  'submitted_at',
+  'overall_score',
+  'maturity_band',
+]);
+
+export function normalizeEvidencePath(path: string): string {
+  if (!path) return path;
+  const parts = path.split('.');
+  // Extract the key name before any array bracket: "contextual_responses[1]" -> "contextual_responses"
+  const firstKey = parts[0].replace(/\[.*$/, '');
+  if (firstKey !== parts[0] && ASSESSMENT_NESTED_KEYS.has(firstKey)) {
+    return `assessment.${path}`;
+  }
+  if (parts.length > 0 && ASSESSMENT_NESTED_KEYS.has(parts[0])) {
+    return `assessment.${path}`;
+  }
+  return path;
+}
+
+export function getDisplayOutput(gen: AnalysisGenerationRow): Record<string, unknown> | null {
+  return gen.reviewed_output_json ?? gen.output_json ?? null;
 }

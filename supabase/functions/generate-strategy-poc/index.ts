@@ -810,13 +810,23 @@ Respond with ONLY the JSON object. No markdown, no code fences.`;
       );
     }
 
-    // ── 17. Save successful result ──
+    // ── 17. Extract token usage from OpenAI response ──
+    const usage = openaiData.usage;
+    const inputTokens = usage?.prompt_tokens ?? null;
+    const outputTokens = usage?.completion_tokens ?? null;
+    const totalTokens = usage?.total_tokens ?? null;
+
+    // ── 18. Save successful result ──
     const { error: saveError } = await supabase
       .from("analysis_generations")
       .update({
         status: "draft_generated",
         output_json: validation.output as Record<string, unknown>,
+        original_output_json: validation.output as Record<string, unknown>,
         error_message: null,
+        input_tokens: inputTokens,
+        output_tokens: outputTokens,
+        total_tokens: totalTokens,
       })
       .eq("id", generation_id);
     if (saveError) {
