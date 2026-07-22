@@ -4,6 +4,10 @@ import {
   validateMetricInput,
   validateNoteInput,
   validateWorkspaceInput,
+  validateProgramInput,
+  validateUtilizationInput,
+  validateGapInput,
+  validateEvidenceInput,
   isWorkspaceEditable,
   canEditWorkspace,
   canApproveWorkspace,
@@ -14,6 +18,16 @@ import {
   NOTE_IMPORTANCES,
   GOAL_PRIORITIES,
   GOAL_SOURCE_TYPES,
+  PROGRAM_STATUSES,
+  PROGRAM_SOURCE_TYPES,
+  UTILIZATION_STATUSES,
+  GAP_CATEGORIES,
+  GAP_EVIDENCE_SOURCES,
+  GAP_SEVERITIES,
+  GAP_CONFIDENCES,
+  GAP_STATUSES,
+  EVIDENCE_SOURCE_TYPES,
+  VERIFICATION_STATUSES,
   WORKSPACE_STATUS_LABELS,
   DATA_QUALITY_LABELS,
   NOTE_TYPE_LABELS,
@@ -21,6 +35,16 @@ import {
   NOTE_IMPORTANCE_LABELS,
   PRIORITY_LABELS,
   SOURCE_TYPE_LABELS,
+  PROGRAM_STATUS_LABELS,
+  PROGRAM_SOURCE_TYPE_LABELS,
+  UTILIZATION_STATUS_LABELS,
+  GAP_CATEGORY_LABELS,
+  GAP_EVIDENCE_SOURCE_LABELS,
+  GAP_SEVERITY_LABELS,
+  GAP_CONFIDENCE_LABELS,
+  GAP_STATUS_LABELS,
+  EVIDENCE_SOURCE_TYPE_LABELS,
+  VERIFICATION_STATUS_LABELS,
 } from '../../services/analysisWorkspace';
 import type { OrganizationCapability } from '../../lib/database.types';
 
@@ -309,6 +333,288 @@ describe('analysisWorkspace validation', () => {
 
     it('has exactly 4 source types', () => {
       expect(GOAL_SOURCE_TYPES).toHaveLength(4);
+    });
+  });
+
+  // ============================================================
+  // validateProgramInput
+  // ============================================================
+  describe('validateProgramInput', () => {
+    it('returns null for valid input', () => {
+      expect(validateProgramInput({ program_name: 'EAP', program_category: 'Mental Health' })).toBeNull();
+    });
+
+    it('returns error when program_name is empty', () => {
+      expect(validateProgramInput({ program_name: '', program_category: 'Health' })).toBe('Program name is required');
+    });
+
+    it('returns error when program_category is empty', () => {
+      expect(validateProgramInput({ program_name: 'EAP', program_category: '' })).toBe('Program category is required');
+    });
+
+    it('returns error for invalid status', () => {
+      expect(validateProgramInput({ program_name: 'P', program_category: 'C', status: 'deleted' })).toBe('Invalid program status');
+    });
+
+    it('returns error for invalid source_type', () => {
+      expect(validateProgramInput({ program_name: 'P', program_category: 'C', source_type: 'guessed' })).toBe('Invalid program source type');
+    });
+
+    it('accepts all valid statuses', () => {
+      for (const s of PROGRAM_STATUSES) {
+        expect(validateProgramInput({ program_name: 'P', program_category: 'C', status: s })).toBeNull();
+      }
+    });
+
+    it('accepts all valid source types', () => {
+      for (const s of PROGRAM_SOURCE_TYPES) {
+        expect(validateProgramInput({ program_name: 'P', program_category: 'C', source_type: s })).toBeNull();
+      }
+    });
+  });
+
+  // ============================================================
+  // validateUtilizationInput
+  // ============================================================
+  describe('validateUtilizationInput', () => {
+    it('returns null for valid input', () => {
+      expect(validateUtilizationInput({ client_program_id: 'prog-1' })).toBeNull();
+    });
+
+    it('returns error when client_program_id is empty', () => {
+      expect(validateUtilizationInput({ client_program_id: '' })).toBe('Client program is required');
+    });
+
+    it('returns error for invalid utilization_status', () => {
+      expect(validateUtilizationInput({ client_program_id: 'p', utilization_status: 'extreme' })).toBe('Invalid utilization status');
+    });
+
+    it('returns error for invalid data_quality', () => {
+      expect(validateUtilizationInput({ client_program_id: 'p', data_quality: 'bad' })).toBe('Invalid data quality level');
+    });
+
+    it('accepts all valid utilization statuses', () => {
+      for (const s of UTILIZATION_STATUSES) {
+        expect(validateUtilizationInput({ client_program_id: 'p', utilization_status: s })).toBeNull();
+      }
+    });
+  });
+
+  // ============================================================
+  // validateGapInput
+  // ============================================================
+  describe('validateGapInput', () => {
+    it('returns null for valid input', () => {
+      expect(validateGapInput({ gap_category: 'program_gap', title: 'Missing EAP', description: 'No EAP for shift workers' })).toBeNull();
+    });
+
+    it('returns error when gap_category is empty', () => {
+      expect(validateGapInput({ gap_category: '', title: 'T', description: 'D' })).toBe('Gap category is required');
+    });
+
+    it('returns error for invalid gap_category', () => {
+      expect(validateGapInput({ gap_category: 'budget_gap', title: 'T', description: 'D' })).toBe('Invalid gap category');
+    });
+
+    it('returns error when title is empty', () => {
+      expect(validateGapInput({ gap_category: 'program_gap', title: '', description: 'D' })).toBe('Title is required');
+    });
+
+    it('returns error when description is empty', () => {
+      expect(validateGapInput({ gap_category: 'program_gap', title: 'T', description: '' })).toBe('Description is required');
+    });
+
+    it('returns error for invalid severity', () => {
+      expect(validateGapInput({ gap_category: 'program_gap', title: 'T', description: 'D', severity: 'extreme' })).toBe('Invalid severity');
+    });
+
+    it('returns error for invalid confidence', () => {
+      expect(validateGapInput({ gap_category: 'program_gap', title: 'T', description: 'D', confidence: 'absolute' })).toBe('Invalid confidence');
+    });
+
+    it('returns error for invalid status', () => {
+      expect(validateGapInput({ gap_category: 'program_gap', title: 'T', description: 'D', status: 'closed' })).toBe('Invalid gap status');
+    });
+
+    it('returns error for invalid evidence_source', () => {
+      expect(validateGapInput({ gap_category: 'program_gap', title: 'T', description: 'D', evidence_source: 'ai_suggested' })).toBe('Invalid evidence source');
+    });
+
+    it('accepts all valid gap categories', () => {
+      for (const c of GAP_CATEGORIES) {
+        expect(validateGapInput({ gap_category: c, title: 'T', description: 'D' })).toBeNull();
+      }
+    });
+
+    it('accepts all valid severities', () => {
+      for (const s of GAP_SEVERITIES) {
+        expect(validateGapInput({ gap_category: 'other', title: 'T', description: 'D', severity: s })).toBeNull();
+      }
+    });
+
+    it('accepts all valid confidences', () => {
+      for (const c of GAP_CONFIDENCES) {
+        expect(validateGapInput({ gap_category: 'other', title: 'T', description: 'D', confidence: c })).toBeNull();
+      }
+    });
+
+    it('accepts all valid gap statuses', () => {
+      for (const s of GAP_STATUSES) {
+        expect(validateGapInput({ gap_category: 'other', title: 'T', description: 'D', status: s })).toBeNull();
+      }
+    });
+
+    it('accepts all valid evidence sources', () => {
+      for (const s of GAP_EVIDENCE_SOURCES) {
+        expect(validateGapInput({ gap_category: 'other', title: 'T', description: 'D', evidence_source: s })).toBeNull();
+      }
+    });
+  });
+
+  // ============================================================
+  // validateEvidenceInput
+  // ============================================================
+  describe('validateEvidenceInput', () => {
+    it('returns null for valid input', () => {
+      expect(validateEvidenceInput({ source_type: 'assessment_data', source_name: '2026 Wellness Survey' })).toBeNull();
+    });
+
+    it('returns error when source_type is empty', () => {
+      expect(validateEvidenceInput({ source_type: '', source_name: 'N' })).toBe('Source type is required');
+    });
+
+    it('returns error for invalid source_type', () => {
+      expect(validateEvidenceInput({ source_type: 'invalid', source_name: 'N' })).toBe('Invalid evidence source type');
+    });
+
+    it('returns error when source_name is empty', () => {
+      expect(validateEvidenceInput({ source_type: 'other', source_name: '' })).toBe('Source name is required');
+    });
+
+    it('returns error for invalid verification_status', () => {
+      expect(validateEvidenceInput({ source_type: 'other', source_name: 'N', verification_status: 'pending' })).toBe('Invalid verification status');
+    });
+
+    it('accepts all valid source types', () => {
+      for (const t of EVIDENCE_SOURCE_TYPES) {
+        expect(validateEvidenceInput({ source_type: t, source_name: 'N' })).toBeNull();
+      }
+    });
+
+    it('accepts all valid verification statuses', () => {
+      for (const v of VERIFICATION_STATUSES) {
+        expect(validateEvidenceInput({ source_type: 'other', source_name: 'N', verification_status: v })).toBeNull();
+      }
+    });
+  });
+
+  // ============================================================
+  // New enum completeness
+  // ============================================================
+  describe('new enum completeness', () => {
+    it('has exactly 4 program statuses', () => {
+      expect(PROGRAM_STATUSES).toHaveLength(4);
+    });
+
+    it('has exactly 4 program source types', () => {
+      expect(PROGRAM_SOURCE_TYPES).toHaveLength(4);
+    });
+
+    it('has exactly 5 utilization statuses', () => {
+      expect(UTILIZATION_STATUSES).toHaveLength(5);
+    });
+
+    it('has exactly 6 gap categories', () => {
+      expect(GAP_CATEGORIES).toHaveLength(6);
+    });
+
+    it('has exactly 5 gap evidence sources', () => {
+      expect(GAP_EVIDENCE_SOURCES).toHaveLength(5);
+    });
+
+    it('has exactly 4 gap severities', () => {
+      expect(GAP_SEVERITIES).toHaveLength(4);
+    });
+
+    it('has exactly 3 gap confidences', () => {
+      expect(GAP_CONFIDENCES).toHaveLength(3);
+    });
+
+    it('has exactly 4 gap statuses', () => {
+      expect(GAP_STATUSES).toHaveLength(4);
+    });
+
+    it('has exactly 7 evidence source types', () => {
+      expect(EVIDENCE_SOURCE_TYPES).toHaveLength(7);
+    });
+
+    it('has exactly 3 verification statuses', () => {
+      expect(VERIFICATION_STATUSES).toHaveLength(3);
+    });
+  });
+
+  // ============================================================
+  // New label completeness
+  // ============================================================
+  describe('new label completeness', () => {
+    it('PROGRAM_STATUS_LABELS covers all statuses', () => {
+      for (const s of PROGRAM_STATUSES) {
+        expect(PROGRAM_STATUS_LABELS[s]).toBeTruthy();
+      }
+    });
+
+    it('PROGRAM_SOURCE_TYPE_LABELS covers all source types', () => {
+      for (const s of PROGRAM_SOURCE_TYPES) {
+        expect(PROGRAM_SOURCE_TYPE_LABELS[s]).toBeTruthy();
+      }
+    });
+
+    it('UTILIZATION_STATUS_LABELS covers all statuses', () => {
+      for (const s of UTILIZATION_STATUSES) {
+        expect(UTILIZATION_STATUS_LABELS[s]).toBeTruthy();
+      }
+    });
+
+    it('GAP_CATEGORY_LABELS covers all categories', () => {
+      for (const c of GAP_CATEGORIES) {
+        expect(GAP_CATEGORY_LABELS[c]).toBeTruthy();
+      }
+    });
+
+    it('GAP_EVIDENCE_SOURCE_LABELS covers all sources', () => {
+      for (const s of GAP_EVIDENCE_SOURCES) {
+        expect(GAP_EVIDENCE_SOURCE_LABELS[s]).toBeTruthy();
+      }
+    });
+
+    it('GAP_SEVERITY_LABELS covers all severities', () => {
+      for (const s of GAP_SEVERITIES) {
+        expect(GAP_SEVERITY_LABELS[s]).toBeTruthy();
+      }
+    });
+
+    it('GAP_CONFIDENCE_LABELS covers all confidences', () => {
+      for (const c of GAP_CONFIDENCES) {
+        expect(GAP_CONFIDENCE_LABELS[c]).toBeTruthy();
+      }
+    });
+
+    it('GAP_STATUS_LABELS covers all statuses', () => {
+      for (const s of GAP_STATUSES) {
+        expect(GAP_STATUS_LABELS[s]).toBeTruthy();
+      }
+    });
+
+    it('EVIDENCE_SOURCE_TYPE_LABELS covers all source types', () => {
+      for (const t of EVIDENCE_SOURCE_TYPES) {
+        expect(EVIDENCE_SOURCE_TYPE_LABELS[t]).toBeTruthy();
+      }
+    });
+
+    it('VERIFICATION_STATUS_LABELS covers all statuses', () => {
+      for (const v of VERIFICATION_STATUSES) {
+        expect(VERIFICATION_STATUS_LABELS[v]).toBeTruthy();
+      }
     });
   });
 });

@@ -16,6 +16,20 @@ import type {
   AnalysisNoteVisibility,
   AnalysisNoteImportance,
   OrganizationCapability,
+  ClientProgramRow,
+  ProgramStatus,
+  ProgramSourceType,
+  ProgramUtilizationRecordRow,
+  UtilizationStatus,
+  AnalysisResourceGapRow,
+  GapCategory,
+  GapEvidenceSource,
+  GapSeverity,
+  GapConfidence,
+  GapStatus,
+  AnalysisEvidenceSourceRow,
+  EvidenceSourceType,
+  VerificationStatus,
 } from '../lib/database.types';
 
 // ============================================================
@@ -240,10 +254,13 @@ export async function fetchWorkspaceById(workspaceId: string): Promise<Workspace
   }
   if (!ws) return null;
 
-  const [goals, metrics, notes] = await Promise.all([
+  const [goals, metrics, notes, utilizationRecords, resourceGaps, evidenceSources] = await Promise.all([
     fetchGoalsForWorkspace(workspaceId),
     fetchMetricsForWorkspace(workspaceId),
     fetchNotesForWorkspace(workspaceId),
+    fetchUtilizationForWorkspace(workspaceId),
+    fetchResourceGapsForWorkspace(workspaceId),
+    fetchEvidenceSourcesForWorkspace(workspaceId),
   ]);
 
   return {
@@ -251,6 +268,9 @@ export async function fetchWorkspaceById(workspaceId: string): Promise<Workspace
     goals,
     metrics,
     notes,
+    utilizationRecords,
+    resourceGaps,
+    evidenceSources,
   };
 }
 
@@ -576,6 +596,497 @@ export async function deleteAnalysisNote(noteId: string): Promise<void> {
     .eq('id', noteId);
   if (error) {
     logDbError({ fn: 'deleteAnalysisNote', error });
+    throw error;
+  }
+}
+
+// ============================================================
+// Enums and labels for new tables
+// ============================================================
+
+export const PROGRAM_STATUSES: ProgramStatus[] = ['active', 'paused', 'discontinued', 'planned'];
+export const PROGRAM_SOURCE_TYPES: ProgramSourceType[] = ['client_reported', 'analyst_entered', 'verified', 'estimated'];
+export const UTILIZATION_STATUSES: UtilizationStatus[] = ['not_measured', 'low', 'moderate', 'high', 'unknown'];
+export const GAP_CATEGORIES: GapCategory[] = ['program_gap', 'population_gap', 'access_gap', 'resource_gap', 'data_gap', 'other'];
+export const GAP_EVIDENCE_SOURCES: GapEvidenceSource[] = ['manual', 'utilization_data', 'assessment_finding', 'client_input', 'benchmark'];
+export const GAP_SEVERITIES: GapSeverity[] = ['low', 'medium', 'high', 'critical'];
+export const GAP_CONFIDENCES: GapConfidence[] = ['low', 'medium', 'high'];
+export const GAP_STATUSES: GapStatus[] = ['open', 'confirmed', 'addressed', 'dismissed'];
+export const EVIDENCE_SOURCE_TYPES: EvidenceSourceType[] = ['assessment_data', 'utilization_report', 'client_document', 'benchmark_data', 'stakeholder_interview', 'third_party_report', 'other'];
+export const VERIFICATION_STATUSES: VerificationStatus[] = ['unverified', 'verified', 'disputed'];
+
+export const PROGRAM_STATUS_LABELS: Record<ProgramStatus, string> = {
+  active: 'Active',
+  paused: 'Paused',
+  discontinued: 'Discontinued',
+  planned: 'Planned',
+};
+export const PROGRAM_SOURCE_TYPE_LABELS: Record<ProgramSourceType, string> = {
+  client_reported: 'Client Reported',
+  analyst_entered: 'Analyst Entered',
+  verified: 'Verified',
+  estimated: 'Estimated',
+};
+export const UTILIZATION_STATUS_LABELS: Record<UtilizationStatus, string> = {
+  not_measured: 'Not Measured',
+  low: 'Low',
+  moderate: 'Moderate',
+  high: 'High',
+  unknown: 'Unknown',
+};
+export const GAP_CATEGORY_LABELS: Record<GapCategory, string> = {
+  program_gap: 'Program Gap',
+  population_gap: 'Population Gap',
+  access_gap: 'Access Gap',
+  resource_gap: 'Resource Gap',
+  data_gap: 'Data Gap',
+  other: 'Other',
+};
+export const GAP_EVIDENCE_SOURCE_LABELS: Record<GapEvidenceSource, string> = {
+  manual: 'Manual',
+  utilization_data: 'Utilization Data',
+  assessment_finding: 'Assessment Finding',
+  client_input: 'Client Input',
+  benchmark: 'Benchmark',
+};
+export const GAP_SEVERITY_LABELS: Record<GapSeverity, string> = {
+  low: 'Low',
+  medium: 'Medium',
+  high: 'High',
+  critical: 'Critical',
+};
+export const GAP_CONFIDENCE_LABELS: Record<GapConfidence, string> = {
+  low: 'Low',
+  medium: 'Medium',
+  high: 'High',
+};
+export const GAP_STATUS_LABELS: Record<GapStatus, string> = {
+  open: 'Open',
+  confirmed: 'Confirmed',
+  addressed: 'Addressed',
+  dismissed: 'Dismissed',
+};
+export const EVIDENCE_SOURCE_TYPE_LABELS: Record<EvidenceSourceType, string> = {
+  assessment_data: 'Assessment Data',
+  utilization_report: 'Utilization Report',
+  client_document: 'Client Document',
+  benchmark_data: 'Benchmark Data',
+  stakeholder_interview: 'Stakeholder Interview',
+  third_party_report: 'Third-Party Report',
+  other: 'Other',
+};
+export const VERIFICATION_STATUS_LABELS: Record<VerificationStatus, string> = {
+  unverified: 'Unverified',
+  verified: 'Verified',
+  disputed: 'Disputed',
+};
+
+// ============================================================
+// Validation for new tables
+// ============================================================
+
+export function validateProgramInput(input: {
+  program_name: string;
+  program_category: string;
+  status?: string;
+  source_type?: string;
+}): string | null {
+  if (!input.program_name.trim()) return 'Program name is required';
+  if (!input.program_category.trim()) return 'Program category is required';
+  if (input.status && !PROGRAM_STATUSES.includes(input.status as ProgramStatus)) return 'Invalid program status';
+  if (input.source_type && !PROGRAM_SOURCE_TYPES.includes(input.source_type as ProgramSourceType)) return 'Invalid program source type';
+  return null;
+}
+
+export function validateUtilizationInput(input: {
+  client_program_id: string;
+  utilization_status?: string;
+  data_quality?: string;
+}): string | null {
+  if (!input.client_program_id) return 'Client program is required';
+  if (input.utilization_status && !UTILIZATION_STATUSES.includes(input.utilization_status as UtilizationStatus)) return 'Invalid utilization status';
+  if (input.data_quality && !DATA_QUALITY_LEVELS.includes(input.data_quality as DataQualityLevel)) return 'Invalid data quality level';
+  return null;
+}
+
+export function validateGapInput(input: {
+  gap_category: string;
+  title: string;
+  description: string;
+  severity?: string;
+  confidence?: string;
+  status?: string;
+  evidence_source?: string;
+}): string | null {
+  if (!input.gap_category.trim()) return 'Gap category is required';
+  if (!GAP_CATEGORIES.includes(input.gap_category as GapCategory)) return 'Invalid gap category';
+  if (!input.title.trim()) return 'Title is required';
+  if (!input.description.trim()) return 'Description is required';
+  if (input.severity && !GAP_SEVERITIES.includes(input.severity as GapSeverity)) return 'Invalid severity';
+  if (input.confidence && !GAP_CONFIDENCES.includes(input.confidence as GapConfidence)) return 'Invalid confidence';
+  if (input.status && !GAP_STATUSES.includes(input.status as GapStatus)) return 'Invalid gap status';
+  if (input.evidence_source && !GAP_EVIDENCE_SOURCES.includes(input.evidence_source as GapEvidenceSource)) return 'Invalid evidence source';
+  return null;
+}
+
+export function validateEvidenceInput(input: {
+  source_type: string;
+  source_name: string;
+  verification_status?: string;
+}): string | null {
+  if (!input.source_type.trim()) return 'Source type is required';
+  if (!EVIDENCE_SOURCE_TYPES.includes(input.source_type as EvidenceSourceType)) return 'Invalid evidence source type';
+  if (!input.source_name.trim()) return 'Source name is required';
+  if (input.verification_status && !VERIFICATION_STATUSES.includes(input.verification_status as VerificationStatus)) return 'Invalid verification status';
+  return null;
+}
+
+// ============================================================
+// Client Programs CRUD (org-scoped, not workspace-scoped)
+// ============================================================
+
+export async function fetchProgramsForClient(clientOrgId: string): Promise<ClientProgramRow[]> {
+  const { data, error } = await supabase
+    .from('client_programs')
+    .select('*')
+    .eq('client_organization_id', clientOrgId)
+    .order('created_at', { ascending: false });
+  if (error) {
+    logDbError({ fn: 'fetchProgramsForClient', error });
+    throw error;
+  }
+  return data ?? [];
+}
+
+export async function createProgram(params: {
+  client_organization_id: string;
+  program_name: string;
+  program_category: string;
+  provider_name?: string;
+  description?: string;
+  target_population?: string;
+  eligibility_summary?: string;
+  access_method?: string;
+  communication_channels?: string;
+  incentive_connected?: boolean;
+  status?: ProgramStatus;
+  start_date?: string;
+  end_date?: string;
+  source_type?: ProgramSourceType;
+  source_note?: string;
+}): Promise<ClientProgramRow> {
+  const validationError = validateProgramInput(params);
+  if (validationError) throw new Error(validationError);
+
+  const { data, error } = await supabase
+    .from('client_programs')
+    .insert({
+      client_organization_id: params.client_organization_id,
+      program_name: params.program_name,
+      program_category: params.program_category,
+      provider_name: params.provider_name ?? null,
+      description: params.description ?? null,
+      target_population: params.target_population ?? null,
+      eligibility_summary: params.eligibility_summary ?? null,
+      access_method: params.access_method ?? null,
+      communication_channels: params.communication_channels ?? null,
+      incentive_connected: params.incentive_connected ?? false,
+      status: params.status ?? 'active',
+      start_date: params.start_date ?? null,
+      end_date: params.end_date ?? null,
+      source_type: params.source_type ?? 'client_reported',
+      source_note: params.source_note ?? null,
+    })
+    .select()
+    .single();
+  if (error) {
+    logDbError({ fn: 'createProgram', error });
+    throw error;
+  }
+  return data;
+}
+
+export async function updateProgram(
+  programId: string,
+  updates: Partial<Omit<ClientProgramRow, 'id' | 'client_organization_id' | 'created_at' | 'updated_at'>>
+): Promise<ClientProgramRow> {
+  const { data, error } = await supabase
+    .from('client_programs')
+    .update(updates)
+    .eq('id', programId)
+    .select()
+    .single();
+  if (error) {
+    logDbError({ fn: 'updateProgram', error });
+    throw error;
+  }
+  return data;
+}
+
+export async function deleteProgram(programId: string): Promise<void> {
+  const { error } = await supabase
+    .from('client_programs')
+    .delete()
+    .eq('id', programId);
+  if (error) {
+    logDbError({ fn: 'deleteProgram', error });
+    throw error;
+  }
+}
+
+// ============================================================
+// Program Utilization CRUD (workspace-scoped)
+// ============================================================
+
+export async function fetchUtilizationForWorkspace(workspaceId: string): Promise<ProgramUtilizationRecordRow[]> {
+  const { data, error } = await supabase
+    .from('program_utilization_records')
+    .select('*')
+    .eq('workspace_id', workspaceId)
+    .order('created_at', { ascending: true });
+  if (error) {
+    logDbError({ fn: 'fetchUtilizationForWorkspace', error });
+    throw error;
+  }
+  return data ?? [];
+}
+
+export async function createUtilizationRecord(params: {
+  workspace_id: string;
+  client_program_id: string;
+  measurement_start?: string;
+  measurement_end?: string;
+  eligible_population?: number;
+  registered_count?: number;
+  active_user_count?: number;
+  completion_count?: number;
+  utilization_rate?: number;
+  repeat_engagement_rate?: number;
+  benchmark_value?: string;
+  benchmark_source?: string;
+  utilization_status?: UtilizationStatus;
+  data_quality?: DataQualityLevel;
+  notes?: string;
+}): Promise<ProgramUtilizationRecordRow> {
+  const validationError = validateUtilizationInput(params);
+  if (validationError) throw new Error(validationError);
+
+  const { data, error } = await supabase
+    .from('program_utilization_records')
+    .insert({
+      workspace_id: params.workspace_id,
+      client_program_id: params.client_program_id,
+      measurement_start: params.measurement_start ?? null,
+      measurement_end: params.measurement_end ?? null,
+      eligible_population: params.eligible_population ?? null,
+      registered_count: params.registered_count ?? null,
+      active_user_count: params.active_user_count ?? null,
+      completion_count: params.completion_count ?? null,
+      utilization_rate: params.utilization_rate ?? null,
+      repeat_engagement_rate: params.repeat_engagement_rate ?? null,
+      benchmark_value: params.benchmark_value ?? null,
+      benchmark_source: params.benchmark_source ?? null,
+      utilization_status: params.utilization_status ?? 'not_measured',
+      data_quality: params.data_quality ?? 'unknown',
+      notes: params.notes ?? null,
+    })
+    .select()
+    .single();
+  if (error) {
+    logDbError({ fn: 'createUtilizationRecord', error });
+    throw error;
+  }
+  return data;
+}
+
+export async function updateUtilizationRecord(
+  recordId: string,
+  updates: Partial<Omit<ProgramUtilizationRecordRow, 'id' | 'workspace_id' | 'client_program_id' | 'created_at' | 'updated_at'>>
+): Promise<ProgramUtilizationRecordRow> {
+  const { data, error } = await supabase
+    .from('program_utilization_records')
+    .update(updates)
+    .eq('id', recordId)
+    .select()
+    .single();
+  if (error) {
+    logDbError({ fn: 'updateUtilizationRecord', error });
+    throw error;
+  }
+  return data;
+}
+
+export async function deleteUtilizationRecord(recordId: string): Promise<void> {
+  const { error } = await supabase
+    .from('program_utilization_records')
+    .delete()
+    .eq('id', recordId);
+  if (error) {
+    logDbError({ fn: 'deleteUtilizationRecord', error });
+    throw error;
+  }
+}
+
+// ============================================================
+// Resource Gaps CRUD (workspace-scoped)
+// ============================================================
+
+export async function fetchResourceGapsForWorkspace(workspaceId: string): Promise<AnalysisResourceGapRow[]> {
+  const { data, error } = await supabase
+    .from('analysis_resource_gaps')
+    .select('*')
+    .eq('workspace_id', workspaceId)
+    .order('created_at', { ascending: true });
+  if (error) {
+    logDbError({ fn: 'fetchResourceGapsForWorkspace', error });
+    throw error;
+  }
+  return data ?? [];
+}
+
+export async function createResourceGap(params: {
+  workspace_id: string;
+  gap_category: GapCategory;
+  title: string;
+  description: string;
+  affected_population?: string;
+  evidence_source?: GapEvidenceSource;
+  severity?: GapSeverity;
+  confidence?: GapConfidence;
+  status?: GapStatus;
+  user_confirmed?: boolean;
+  created_by: string;
+}): Promise<AnalysisResourceGapRow> {
+  const validationError = validateGapInput(params);
+  if (validationError) throw new Error(validationError);
+
+  const { data, error } = await supabase
+    .from('analysis_resource_gaps')
+    .insert({
+      workspace_id: params.workspace_id,
+      gap_category: params.gap_category,
+      title: params.title,
+      description: params.description,
+      affected_population: params.affected_population ?? null,
+      evidence_source: params.evidence_source ?? 'manual',
+      severity: params.severity ?? 'medium',
+      confidence: params.confidence ?? 'medium',
+      status: params.status ?? 'open',
+      user_confirmed: params.user_confirmed ?? false,
+      created_by: params.created_by,
+    })
+    .select()
+    .single();
+  if (error) {
+    logDbError({ fn: 'createResourceGap', error });
+    throw error;
+  }
+  return data;
+}
+
+export async function updateResourceGap(
+  gapId: string,
+  updates: Partial<Omit<AnalysisResourceGapRow, 'id' | 'workspace_id' | 'created_by' | 'created_at' | 'updated_at'>>
+): Promise<AnalysisResourceGapRow> {
+  const { data, error } = await supabase
+    .from('analysis_resource_gaps')
+    .update(updates)
+    .eq('id', gapId)
+    .select()
+    .single();
+  if (error) {
+    logDbError({ fn: 'updateResourceGap', error });
+    throw error;
+  }
+  return data;
+}
+
+export async function deleteResourceGap(gapId: string): Promise<void> {
+  const { error } = await supabase
+    .from('analysis_resource_gaps')
+    .delete()
+    .eq('id', gapId);
+  if (error) {
+    logDbError({ fn: 'deleteResourceGap', error });
+    throw error;
+  }
+}
+
+// ============================================================
+// Evidence Sources CRUD (workspace-scoped)
+// ============================================================
+
+export async function fetchEvidenceSourcesForWorkspace(workspaceId: string): Promise<AnalysisEvidenceSourceRow[]> {
+  const { data, error } = await supabase
+    .from('analysis_evidence_sources')
+    .select('*')
+    .eq('workspace_id', workspaceId)
+    .order('created_at', { ascending: false });
+  if (error) {
+    logDbError({ fn: 'fetchEvidenceSourcesForWorkspace', error });
+    throw error;
+  }
+  return data ?? [];
+}
+
+export async function createEvidenceSource(params: {
+  workspace_id: string;
+  source_type: EvidenceSourceType;
+  source_name: string;
+  source_date?: string;
+  description?: string;
+  file_reference?: string;
+  verification_status?: VerificationStatus;
+  entered_by: string;
+}): Promise<AnalysisEvidenceSourceRow> {
+  const validationError = validateEvidenceInput(params);
+  if (validationError) throw new Error(validationError);
+
+  const { data, error } = await supabase
+    .from('analysis_evidence_sources')
+    .insert({
+      workspace_id: params.workspace_id,
+      source_type: params.source_type,
+      source_name: params.source_name,
+      source_date: params.source_date ?? null,
+      description: params.description ?? null,
+      file_reference: params.file_reference ?? null,
+      verification_status: params.verification_status ?? 'unverified',
+      entered_by: params.entered_by,
+    })
+    .select()
+    .single();
+  if (error) {
+    logDbError({ fn: 'createEvidenceSource', error });
+    throw error;
+  }
+  return data;
+}
+
+export async function updateEvidenceSource(
+  evidenceId: string,
+  updates: Partial<Omit<AnalysisEvidenceSourceRow, 'id' | 'workspace_id' | 'entered_by' | 'created_at'>>
+): Promise<AnalysisEvidenceSourceRow> {
+  const { data, error } = await supabase
+    .from('analysis_evidence_sources')
+    .update(updates)
+    .eq('id', evidenceId)
+    .select()
+    .single();
+  if (error) {
+    logDbError({ fn: 'updateEvidenceSource', error });
+    throw error;
+  }
+  return data;
+}
+
+export async function deleteEvidenceSource(evidenceId: string): Promise<void> {
+  const { error } = await supabase
+    .from('analysis_evidence_sources')
+    .delete()
+    .eq('id', evidenceId);
+  if (error) {
+    logDbError({ fn: 'deleteEvidenceSource', error });
     throw error;
   }
 }

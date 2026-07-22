@@ -544,5 +544,95 @@ export type WorkspaceWithDetails = AnalysisWorkspaceRow & {
   goals: AnalysisOutcomeGoalRow[];
   metrics: AnalysisOutcomeMetricRow[];
   notes: AnalysisNoteRow[];
+  utilizationRecords: ProgramUtilizationRecordRow[];
+  resourceGaps: AnalysisResourceGapRow[];
+  evidenceSources: AnalysisEvidenceSourceRow[];
   assessment_instance?: Pick<AssessmentInstanceRow, 'id' | 'status' | 'overall_score' | 'primary_opportunity'> | null;
+};
+
+// ============================================================
+// Programs, Utilization, Resource Gaps, Evidence Sources
+// ============================================================
+
+export type ProgramStatus = 'active' | 'paused' | 'discontinued' | 'planned';
+export type ProgramSourceType = 'client_reported' | 'analyst_entered' | 'verified' | 'estimated';
+export type UtilizationStatus = 'not_measured' | 'low' | 'moderate' | 'high' | 'unknown';
+export type GapCategory = 'program_gap' | 'population_gap' | 'access_gap' | 'resource_gap' | 'data_gap' | 'other';
+export type GapEvidenceSource = 'manual' | 'utilization_data' | 'assessment_finding' | 'client_input' | 'benchmark';
+export type GapSeverity = 'low' | 'medium' | 'high' | 'critical';
+export type GapConfidence = 'low' | 'medium' | 'high';
+export type GapStatus = 'open' | 'confirmed' | 'addressed' | 'dismissed';
+export type EvidenceSourceType = 'assessment_data' | 'utilization_report' | 'client_document' | 'benchmark_data' | 'stakeholder_interview' | 'third_party_report' | 'other';
+export type VerificationStatus = 'unverified' | 'verified' | 'disputed';
+
+export type ClientProgramRow = {
+  id: string;
+  client_organization_id: string;
+  program_name: string;
+  provider_name: string | null;
+  program_category: string;
+  description: string | null;
+  target_population: string | null;
+  eligibility_summary: string | null;
+  access_method: string | null;
+  communication_channels: string | null;
+  incentive_connected: boolean;
+  status: ProgramStatus;
+  start_date: string | null;
+  end_date: string | null;
+  source_type: ProgramSourceType;
+  source_note: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ProgramUtilizationRecordRow = {
+  id: string;
+  workspace_id: string;
+  client_program_id: string;
+  measurement_start: string | null;
+  measurement_end: string | null;
+  eligible_population: number | null;
+  registered_count: number | null;
+  active_user_count: number | null;
+  completion_count: number | null;
+  utilization_rate: number | null;
+  repeat_engagement_rate: number | null;
+  benchmark_value: string | null;
+  benchmark_source: string | null;
+  utilization_status: UtilizationStatus;
+  data_quality: DataQualityLevel;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AnalysisResourceGapRow = {
+  id: string;
+  workspace_id: string;
+  gap_category: GapCategory;
+  title: string;
+  description: string;
+  affected_population: string | null;
+  evidence_source: GapEvidenceSource;
+  severity: GapSeverity;
+  confidence: GapConfidence;
+  status: GapStatus;
+  user_confirmed: boolean;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AnalysisEvidenceSourceRow = {
+  id: string;
+  workspace_id: string;
+  source_type: EvidenceSourceType;
+  source_name: string;
+  source_date: string | null;
+  description: string | null;
+  file_reference: string | null;
+  verification_status: VerificationStatus;
+  entered_by: string;
+  created_at: string;
 };

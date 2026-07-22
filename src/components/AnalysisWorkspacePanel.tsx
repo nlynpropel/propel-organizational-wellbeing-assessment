@@ -10,6 +10,10 @@ import {
   UserCog,
   ClipboardCheck,
   AlertCircle,
+  Package,
+  Activity,
+  AlertTriangle,
+  BookOpen,
 } from 'lucide-react';
 import Button from './ui/Button';
 import Card from './ui/Card';
@@ -55,6 +59,43 @@ import {
   validateMetricInput,
   validateNoteInput,
   validateWorkspaceInput,
+  fetchProgramsForClient,
+  createProgram,
+  updateProgram,
+  deleteProgram,
+  createUtilizationRecord,
+  updateUtilizationRecord,
+  deleteUtilizationRecord,
+  createResourceGap,
+  updateResourceGap,
+  deleteResourceGap,
+  createEvidenceSource,
+  updateEvidenceSource,
+  deleteEvidenceSource,
+  validateProgramInput,
+  validateUtilizationInput,
+  validateGapInput,
+  validateEvidenceInput,
+  PROGRAM_STATUSES,
+  PROGRAM_SOURCE_TYPES,
+  PROGRAM_STATUS_LABELS,
+  PROGRAM_SOURCE_TYPE_LABELS,
+  UTILIZATION_STATUSES,
+  UTILIZATION_STATUS_LABELS,
+  GAP_CATEGORIES,
+  GAP_EVIDENCE_SOURCES,
+  GAP_SEVERITIES,
+  GAP_CONFIDENCES,
+  GAP_STATUSES,
+  GAP_CATEGORY_LABELS,
+  GAP_EVIDENCE_SOURCE_LABELS,
+  GAP_SEVERITY_LABELS,
+  GAP_CONFIDENCE_LABELS,
+  GAP_STATUS_LABELS,
+  EVIDENCE_SOURCE_TYPES,
+  VERIFICATION_STATUSES,
+  EVIDENCE_SOURCE_TYPE_LABELS,
+  VERIFICATION_STATUS_LABELS,
 } from '../services/analysisWorkspace';
 import type {
   WorkspaceWithDetails,
@@ -70,6 +111,20 @@ import type {
   AnalysisNoteVisibility,
   AnalysisNoteImportance,
   OrganizationCapability,
+  ClientProgramRow,
+  ProgramStatus,
+  ProgramSourceType,
+  ProgramUtilizationRecordRow,
+  UtilizationStatus,
+  AnalysisResourceGapRow,
+  GapCategory,
+  GapEvidenceSource,
+  GapSeverity,
+  GapConfidence,
+  GapStatus,
+  AnalysisEvidenceSourceRow,
+  EvidenceSourceType,
+  VerificationStatus,
 } from '../lib/database.types';
 import type { InstanceWithTemplate } from '../services/organizations';
 
@@ -321,9 +376,16 @@ function WorkspaceDetail({
   onDelete: () => void;
 }) {
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [programs, setPrograms] = useState<ClientProgramRow[]>([]);
   const editable = canEditWorkspace(capabilities, workspace.status);
   const canApprove = canApproveWorkspace(capabilities);
   const isFinalized = workspace.status === 'finalized';
+
+  useEffect(() => {
+    fetchProgramsForClient(workspace.client_organization_id)
+      .then(setPrograms)
+      .catch(() => { /* error handled by parent */ });
+  }, [workspace.client_organization_id]);
 
   const statusVariant = (status: WorkspaceStatus) => {
     const map: Record<WorkspaceStatus, 'neutral' | 'info' | 'progress' | 'success' | 'warning' | 'danger'> = {
@@ -368,7 +430,9 @@ function WorkspaceDetail({
                 }}
                 className="rounded-sm border border-neutral-border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green/40"
               >
-                {(Object.keys(WORKSPACE_STATUS_LABELS) as WorkspaceStatus[]).map((s) => (
+                {(Object.keys(WORKSPACE_STATUS_LABELS) as WorkspaceStatus[])
+                  .filter((s) => s !== 'analysis_generated')
+                  .map((s) => (
                   <option key={s} value={s}>{WORKSPACE_STATUS_LABELS[s]}</option>
                 ))}
               </select>
@@ -440,6 +504,41 @@ function WorkspaceDetail({
         metrics={workspace.metrics}
         goals={workspace.goals}
         editable={editable}
+        onRefresh={onRefresh}
+      />
+
+      {/* Programs and Resources */}
+      <ProgramsSection
+        clientOrgId={workspace.client_organization_id}
+        programs={programs}
+        editable={editable}
+        onRefresh={onRefresh}
+      />
+
+      {/* Program Utilization */}
+      <UtilizationSection
+        workspaceId={workspace.id}
+        utilizationRecords={workspace.utilizationRecords}
+        programs={programs}
+        editable={editable}
+        onRefresh={onRefresh}
+      />
+
+      {/* Resource Gaps */}
+      <ResourceGapsSection
+        workspaceId={workspace.id}
+        gaps={workspace.resourceGaps}
+        editable={editable}
+        userId={userId}
+        onRefresh={onRefresh}
+      />
+
+      {/* Evidence Sources */}
+      <EvidenceSourcesSection
+        workspaceId={workspace.id}
+        evidenceSources={workspace.evidenceSources}
+        editable={editable}
+        userId={userId}
         onRefresh={onRefresh}
       />
 
@@ -1140,6 +1239,1016 @@ function NoteForm({
       )}
       <div className="flex gap-2">
         <Button type="submit" size="sm">{existingNote ? 'Update' : 'Add'} note</Button>
+        <Button type="button" variant="ghost" size="sm" onClick={onCancel}>Cancel</Button>
+      </div>
+    </form>
+  );
+}
+
+// ============================================================
+// Programs and Resources Section
+// ============================================================
+
+function ProgramsSection({
+  clientOrgId,
+  programs,
+  editable,
+  onRefresh,
+}: {
+  clientOrgId: string;
+  programs: ClientProgramRow[];
+  editable: boolean;
+  onRefresh: () => void;
+}) {
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  const handleDelete = async (programId: string) => {
+    try { await deleteProgram(programId); onRefresh(); } catch { /* */ }
+  };
+
+  return (
+    <Card>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Package className="w-5 h-5 text-navy/60" />
+          <span className="eyebrow">Programs and Resources</span>
+        </div>
+        {editable && !showForm && (
+          <Button size="sm" variant="ghost" onClick={() => setShowForm(true)}>
+            <Plus className="w-4 h-4" /> Add program
+          </Button>
+        )}
+      </div>
+
+      {showForm && (
+        <ProgramForm
+          clientOrgId={clientOrgId}
+          onSaved={() => { setShowForm(false); onRefresh(); }}
+          onCancel={() => setShowForm(false)}
+        />
+      )}
+
+      {editingId && (
+        <ProgramForm
+          clientOrgId={clientOrgId}
+          existingProgram={programs.find((p) => p.id === editingId)}
+          onSaved={() => { setEditingId(null); onRefresh(); }}
+          onCancel={() => setEditingId(null)}
+        />
+      )}
+
+      {programs.length === 0 && !showForm && !editingId ? (
+        <p className="text-sm text-neutral-muted py-4">No programs defined yet. Programs belong to the client and can be reused across workspaces.</p>
+      ) : (
+        <div className="space-y-3">
+          {programs.map((p) => (
+            <div key={p.id} className="rounded-md border border-neutral-border-soft p-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-semibold text-navy">{p.program_name}</span>
+                    <Badge variant="neutral">{p.program_category}</Badge>
+                    <Badge variant={p.status === 'active' ? 'success' : p.status === 'paused' ? 'warning' : 'neutral'}>
+                      {PROGRAM_STATUS_LABELS[p.status]}
+                    </Badge>
+                    {p.incentive_connected && <Badge variant="info">Incentive-linked</Badge>}
+                  </div>
+                  {p.provider_name && <p className="text-xs text-neutral-muted mt-0.5">Provider: {p.provider_name}</p>}
+                  {p.description && <p className="text-sm text-neutral-secondary mt-1">{p.description}</p>}
+                  <div className="flex gap-4 mt-2 text-xs text-neutral-muted flex-wrap">
+                    {p.target_population && <span>Population: {p.target_population}</span>}
+                    {p.access_method && <span>Access: {p.access_method}</span>}
+                    {p.start_date && <span>Started: {new Date(p.start_date).toLocaleDateString()}</span>}
+                  </div>
+                </div>
+                {editable && (
+                  <div className="flex gap-1 shrink-0">
+                    <button onClick={() => setEditingId(p.id)} className="text-neutral-muted hover:text-navy p-1">
+                      <FileText className="w-3.5 h-3.5" />
+                    </button>
+                    <button onClick={() => handleDelete(p.id)} className="text-neutral-muted hover:text-red p-1">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function ProgramForm({
+  clientOrgId,
+  existingProgram,
+  onSaved,
+  onCancel,
+}: {
+  clientOrgId: string;
+  existingProgram?: ClientProgramRow;
+  onSaved: () => void;
+  onCancel: () => void;
+}) {
+  const [programName, setProgramName] = useState(existingProgram?.program_name ?? '');
+  const [providerName, setProviderName] = useState(existingProgram?.provider_name ?? '');
+  const [programCategory, setProgramCategory] = useState(existingProgram?.program_category ?? '');
+  const [description, setDescription] = useState(existingProgram?.description ?? '');
+  const [targetPopulation, setTargetPopulation] = useState(existingProgram?.target_population ?? '');
+  const [eligibilitySummary, setEligibilitySummary] = useState(existingProgram?.eligibility_summary ?? '');
+  const [accessMethod, setAccessMethod] = useState(existingProgram?.access_method ?? '');
+  const [communicationChannels, setCommunicationChannels] = useState(existingProgram?.communication_channels ?? '');
+  const [incentiveConnected, setIncentiveConnected] = useState(existingProgram?.incentive_connected ?? false);
+  const [status, setStatus] = useState<ProgramStatus>(existingProgram?.status ?? 'active');
+  const [startDate, setStartDate] = useState(existingProgram?.start_date ?? '');
+  const [endDate, setEndDate] = useState(existingProgram?.end_date ?? '');
+  const [sourceType, setSourceType] = useState<ProgramSourceType>(existingProgram?.source_type ?? 'client_reported');
+  const [sourceNote, setSourceNote] = useState(existingProgram?.source_note ?? '');
+  const [validationError, setValidationError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const err = validateProgramInput({ program_name: programName, program_category: programCategory, status, source_type: sourceType });
+    if (err) { setValidationError(err); return; }
+
+    try {
+      if (existingProgram) {
+        await updateProgram(existingProgram.id, {
+          program_name: programName,
+          provider_name: providerName || null,
+          program_category: programCategory,
+          description: description || null,
+          target_population: targetPopulation || null,
+          eligibility_summary: eligibilitySummary || null,
+          access_method: accessMethod || null,
+          communication_channels: communicationChannels || null,
+          incentive_connected: incentiveConnected,
+          status,
+          start_date: startDate || null,
+          end_date: endDate || null,
+          source_type: sourceType,
+          source_note: sourceNote || null,
+        });
+      } else {
+        await createProgram({
+          client_organization_id: clientOrgId,
+          program_name: programName,
+          program_category: programCategory,
+          provider_name: providerName || undefined,
+          description: description || undefined,
+          target_population: targetPopulation || undefined,
+          eligibility_summary: eligibilitySummary || undefined,
+          access_method: accessMethod || undefined,
+          communication_channels: communicationChannels || undefined,
+          incentive_connected: incentiveConnected,
+          status,
+          start_date: startDate || undefined,
+          end_date: endDate || undefined,
+          source_type: sourceType,
+          source_note: sourceNote || undefined,
+        });
+      }
+      onSaved();
+    } catch (err) {
+      setValidationError(err instanceof Error ? err.message : 'Failed to save program.');
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="rounded-md border border-green/20 bg-green-tint/30 p-4 mb-3 space-y-3">
+      <div className="grid sm:grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-navy mb-1">Program Name *</label>
+          <input type="text" value={programName} onChange={(e) => setProgramName(e.target.value)}
+            className="w-full rounded-sm border border-neutral-border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green/40" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-navy mb-1">Provider</label>
+          <input type="text" value={providerName} onChange={(e) => setProviderName(e.target.value)}
+            className="w-full rounded-sm border border-neutral-border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green/40" />
+        </div>
+      </div>
+      <div className="grid sm:grid-cols-3 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-navy mb-1">Category *</label>
+          <input type="text" value={programCategory} onChange={(e) => setProgramCategory(e.target.value)}
+            placeholder="e.g. Wellness, EAP, Mental Health"
+            className="w-full rounded-sm border border-neutral-border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green/40" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-navy mb-1">Status</label>
+          <select value={status} onChange={(e) => setStatus(e.target.value as ProgramStatus)}
+            className="w-full rounded-sm border border-neutral-border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green/40">
+            {PROGRAM_STATUSES.map((s) => <option key={s} value={s}>{PROGRAM_STATUS_LABELS[s]}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-navy mb-1">Source Type</label>
+          <select value={sourceType} onChange={(e) => setSourceType(e.target.value as ProgramSourceType)}
+            className="w-full rounded-sm border border-neutral-border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green/40">
+            {PROGRAM_SOURCE_TYPES.map((s) => <option key={s} value={s}>{PROGRAM_SOURCE_TYPE_LABELS[s]}</option>)}
+          </select>
+        </div>
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-navy mb-1">Description</label>
+        <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2}
+          className="w-full rounded-sm border border-neutral-border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green/40" />
+      </div>
+      <div className="grid sm:grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-navy mb-1">Target Population</label>
+          <input type="text" value={targetPopulation} onChange={(e) => setTargetPopulation(e.target.value)}
+            className="w-full rounded-sm border border-neutral-border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green/40" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-navy mb-1">Eligibility Summary</label>
+          <input type="text" value={eligibilitySummary} onChange={(e) => setEligibilitySummary(e.target.value)}
+            className="w-full rounded-sm border border-neutral-border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green/40" />
+        </div>
+      </div>
+      <div className="grid sm:grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-navy mb-1">Access Method</label>
+          <input type="text" value={accessMethod} onChange={(e) => setAccessMethod(e.target.value)}
+            className="w-full rounded-sm border border-neutral-border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green/40" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-navy mb-1">Communication Channels</label>
+          <input type="text" value={communicationChannels} onChange={(e) => setCommunicationChannels(e.target.value)}
+            className="w-full rounded-sm border border-neutral-border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green/40" />
+        </div>
+      </div>
+      <div className="grid sm:grid-cols-3 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-navy mb-1">Start Date</label>
+          <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)}
+            className="w-full rounded-sm border border-neutral-border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green/40" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-navy mb-1">End Date</label>
+          <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)}
+            className="w-full rounded-sm border border-neutral-border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green/40" />
+        </div>
+        <div className="flex items-end">
+          <label className="flex items-center gap-2 text-sm text-navy">
+            <input type="checkbox" checked={incentiveConnected} onChange={(e) => setIncentiveConnected(e.target.checked)}
+              className="rounded border-neutral-border" />
+            Incentive-connected
+          </label>
+        </div>
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-navy mb-1">Source Note</label>
+        <input type="text" value={sourceNote} onChange={(e) => setSourceNote(e.target.value)}
+          className="w-full rounded-sm border border-neutral-border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green/40" />
+      </div>
+      {validationError && (
+        <p className="text-sm text-red flex items-center gap-1.5">
+          <AlertCircle className="w-4 h-4" /> {validationError}
+        </p>
+      )}
+      <div className="flex gap-2">
+        <Button type="submit" size="sm">{existingProgram ? 'Update' : 'Add'} program</Button>
+        <Button type="button" variant="ghost" size="sm" onClick={onCancel}>Cancel</Button>
+      </div>
+    </form>
+  );
+}
+
+// ============================================================
+// Program Utilization Section
+// ============================================================
+
+function UtilizationSection({
+  workspaceId,
+  utilizationRecords,
+  programs,
+  editable,
+  onRefresh,
+}: {
+  workspaceId: string;
+  utilizationRecords: ProgramUtilizationRecordRow[];
+  programs: ClientProgramRow[];
+  editable: boolean;
+  onRefresh: () => void;
+}) {
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  const handleDelete = async (recordId: string) => {
+    try { await deleteUtilizationRecord(recordId); onRefresh(); } catch { /* */ }
+  };
+
+  const programName = (id: string) => programs.find((p) => p.id === id)?.program_name ?? 'Unknown program';
+
+  return (
+    <Card>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Activity className="w-5 h-5 text-navy/60" />
+          <span className="eyebrow">Program Utilization</span>
+        </div>
+        {editable && !showForm && programs.length > 0 && (
+          <Button size="sm" variant="ghost" onClick={() => setShowForm(true)}>
+            <Plus className="w-4 h-4" /> Add utilization record
+          </Button>
+        )}
+      </div>
+
+      {showForm && (
+        <UtilizationForm
+          workspaceId={workspaceId}
+          programs={programs}
+          onSaved={() => { setShowForm(false); onRefresh(); }}
+          onCancel={() => setShowForm(false)}
+        />
+      )}
+
+      {editingId && (
+        <UtilizationForm
+          workspaceId={workspaceId}
+          programs={programs}
+          existingRecord={utilizationRecords.find((r) => r.id === editingId)}
+          onSaved={() => { setEditingId(null); onRefresh(); }}
+          onCancel={() => setEditingId(null)}
+        />
+      )}
+
+      {utilizationRecords.length === 0 && !showForm && !editingId ? (
+        <p className="text-sm text-neutral-muted py-4">
+          {programs.length === 0 ? 'Add programs first before recording utilization data.' : 'No utilization records yet.'}
+        </p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-neutral-border-soft text-left">
+                <th className="py-2 pr-4 font-medium text-neutral-muted">Program</th>
+                <th className="py-2 pr-4 font-medium text-neutral-muted">Eligible</th>
+                <th className="py-2 pr-4 font-medium text-neutral-muted">Active</th>
+                <th className="py-2 pr-4 font-medium text-neutral-muted">Rate</th>
+                <th className="py-2 pr-4 font-medium text-neutral-muted">Status</th>
+                <th className="py-2 pr-4 font-medium text-neutral-muted">Data Quality</th>
+                {editable && <th className="py-2"></th>}
+              </tr>
+            </thead>
+            <tbody>
+              {utilizationRecords.map((r) => (
+                <tr key={r.id} className="border-b border-neutral-border-soft">
+                  <td className="py-2 pr-4 font-medium text-navy">{programName(r.client_program_id)}</td>
+                  <td className="py-2 pr-4 text-navy">{r.eligible_population ?? '—'}</td>
+                  <td className="py-2 pr-4 text-navy">{r.active_user_count ?? '—'}</td>
+                  <td className="py-2 pr-4 text-navy">{r.utilization_rate != null ? `${r.utilization_rate}%` : '—'}</td>
+                  <td className="py-2 pr-4">
+                    <Badge variant={r.utilization_status === 'high' ? 'success' : r.utilization_status === 'low' ? 'warning' : 'neutral'}>
+                      {UTILIZATION_STATUS_LABELS[r.utilization_status]}
+                    </Badge>
+                  </td>
+                  <td className="py-2 pr-4">
+                    <Badge variant={r.data_quality === 'verified' ? 'success' : r.data_quality === 'incomplete' ? 'warning' : 'neutral'}>
+                      {DATA_QUALITY_LABELS[r.data_quality]}
+                    </Badge>
+                  </td>
+                  {editable && (
+                    <td className="py-2">
+                      <div className="flex gap-1">
+                        <button onClick={() => setEditingId(r.id)} className="text-neutral-muted hover:text-navy p-1">
+                          <FileText className="w-3.5 h-3.5" />
+                        </button>
+                        <button onClick={() => handleDelete(r.id)} className="text-neutral-muted hover:text-red p-1">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function UtilizationForm({
+  workspaceId,
+  programs,
+  existingRecord,
+  onSaved,
+  onCancel,
+}: {
+  workspaceId: string;
+  programs: ClientProgramRow[];
+  existingRecord?: ProgramUtilizationRecordRow;
+  onSaved: () => void;
+  onCancel: () => void;
+}) {
+  const [clientProgramId, setClientProgramId] = useState(existingRecord?.client_program_id ?? '');
+  const [measurementStart, setMeasurementStart] = useState(existingRecord?.measurement_start ?? '');
+  const [measurementEnd, setMeasurementEnd] = useState(existingRecord?.measurement_end ?? '');
+  const [eligiblePopulation, setEligiblePopulation] = useState(existingRecord?.eligible_population?.toString() ?? '');
+  const [registeredCount, setRegisteredCount] = useState(existingRecord?.registered_count?.toString() ?? '');
+  const [activeUserCount, setActiveUserCount] = useState(existingRecord?.active_user_count?.toString() ?? '');
+  const [completionCount, setCompletionCount] = useState(existingRecord?.completion_count?.toString() ?? '');
+  const [utilizationRate, setUtilizationRate] = useState(existingRecord?.utilization_rate?.toString() ?? '');
+  const [repeatEngagementRate, setRepeatEngagementRate] = useState(existingRecord?.repeat_engagement_rate?.toString() ?? '');
+  const [benchmarkValue, setBenchmarkValue] = useState(existingRecord?.benchmark_value ?? '');
+  const [benchmarkSource, setBenchmarkSource] = useState(existingRecord?.benchmark_source ?? '');
+  const [utilizationStatus, setUtilizationStatus] = useState<UtilizationStatus>(existingRecord?.utilization_status ?? 'not_measured');
+  const [dataQuality, setDataQuality] = useState<DataQualityLevel>(existingRecord?.data_quality ?? 'unknown');
+  const [notes, setNotes] = useState(existingRecord?.notes ?? '');
+  const [validationError, setValidationError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const err = validateUtilizationInput({ client_program_id: clientProgramId, utilization_status: utilizationStatus, data_quality: dataQuality });
+    if (err) { setValidationError(err); return; }
+
+    try {
+      const numOrUndef = (v: string) => v ? Number(v) : undefined;
+      if (existingRecord) {
+        await updateUtilizationRecord(existingRecord.id, {
+          measurement_start: measurementStart || null,
+          measurement_end: measurementEnd || null,
+          eligible_population: eligiblePopulation ? Number(eligiblePopulation) : null,
+          registered_count: registeredCount ? Number(registeredCount) : null,
+          active_user_count: activeUserCount ? Number(activeUserCount) : null,
+          completion_count: completionCount ? Number(completionCount) : null,
+          utilization_rate: utilizationRate ? Number(utilizationRate) : null,
+          repeat_engagement_rate: repeatEngagementRate ? Number(repeatEngagementRate) : null,
+          benchmark_value: benchmarkValue || null,
+          benchmark_source: benchmarkSource || null,
+          utilization_status: utilizationStatus,
+          data_quality: dataQuality,
+          notes: notes || null,
+        });
+      } else {
+        await createUtilizationRecord({
+          workspace_id: workspaceId,
+          client_program_id: clientProgramId,
+          measurement_start: measurementStart || undefined,
+          measurement_end: measurementEnd || undefined,
+          eligible_population: numOrUndef(eligiblePopulation),
+          registered_count: numOrUndef(registeredCount),
+          active_user_count: numOrUndef(activeUserCount),
+          completion_count: numOrUndef(completionCount),
+          utilization_rate: utilizationRate ? Number(utilizationRate) : undefined,
+          repeat_engagement_rate: repeatEngagementRate ? Number(repeatEngagementRate) : undefined,
+          benchmark_value: benchmarkValue || undefined,
+          benchmark_source: benchmarkSource || undefined,
+          utilization_status: utilizationStatus,
+          data_quality: dataQuality,
+          notes: notes || undefined,
+        });
+      }
+      onSaved();
+    } catch (err) {
+      setValidationError(err instanceof Error ? err.message : 'Failed to save utilization record.');
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="rounded-md border border-green/20 bg-green-tint/30 p-4 mb-3 space-y-3">
+      <div className="grid sm:grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-navy mb-1">Program *</label>
+          <select value={clientProgramId} onChange={(e) => setClientProgramId(e.target.value)}
+            className="w-full rounded-sm border border-neutral-border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green/40">
+            <option value="">Select a program…</option>
+            {programs.map((p) => <option key={p.id} value={p.id}>{p.program_name}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-navy mb-1">Utilization Status</label>
+          <select value={utilizationStatus} onChange={(e) => setUtilizationStatus(e.target.value as UtilizationStatus)}
+            className="w-full rounded-sm border border-neutral-border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green/40">
+            {UTILIZATION_STATUSES.map((s) => <option key={s} value={s}>{UTILIZATION_STATUS_LABELS[s]}</option>)}
+          </select>
+        </div>
+      </div>
+      <div className="grid sm:grid-cols-4 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-navy mb-1">Eligible Population</label>
+          <input type="number" value={eligiblePopulation} onChange={(e) => setEligiblePopulation(e.target.value)}
+            className="w-full rounded-sm border border-neutral-border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green/40" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-navy mb-1">Registered</label>
+          <input type="number" value={registeredCount} onChange={(e) => setRegisteredCount(e.target.value)}
+            className="w-full rounded-sm border border-neutral-border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green/40" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-navy mb-1">Active Users</label>
+          <input type="number" value={activeUserCount} onChange={(e) => setActiveUserCount(e.target.value)}
+            className="w-full rounded-sm border border-neutral-border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green/40" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-navy mb-1">Completions</label>
+          <input type="number" value={completionCount} onChange={(e) => setCompletionCount(e.target.value)}
+            className="w-full rounded-sm border border-neutral-border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green/40" />
+        </div>
+      </div>
+      <div className="grid sm:grid-cols-4 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-navy mb-1">Utilization Rate (%)</label>
+          <input type="number" step="0.01" value={utilizationRate} onChange={(e) => setUtilizationRate(e.target.value)}
+            className="w-full rounded-sm border border-neutral-border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green/40" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-navy mb-1">Repeat Engagement (%)</label>
+          <input type="number" step="0.01" value={repeatEngagementRate} onChange={(e) => setRepeatEngagementRate(e.target.value)}
+            className="w-full rounded-sm border border-neutral-border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green/40" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-navy mb-1">Measurement Start</label>
+          <input type="date" value={measurementStart} onChange={(e) => setMeasurementStart(e.target.value)}
+            className="w-full rounded-sm border border-neutral-border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green/40" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-navy mb-1">Measurement End</label>
+          <input type="date" value={measurementEnd} onChange={(e) => setMeasurementEnd(e.target.value)}
+            className="w-full rounded-sm border border-neutral-border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green/40" />
+        </div>
+      </div>
+      <div className="grid sm:grid-cols3 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-navy mb-1">Benchmark Value</label>
+          <input type="text" value={benchmarkValue} onChange={(e) => setBenchmarkValue(e.target.value)}
+            className="w-full rounded-sm border border-neutral-border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green/40" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-navy mb-1">Benchmark Source</label>
+          <input type="text" value={benchmarkSource} onChange={(e) => setBenchmarkSource(e.target.value)}
+            className="w-full rounded-sm border border-neutral-border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green/40" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-navy mb-1">Data Quality</label>
+          <select value={dataQuality} onChange={(e) => setDataQuality(e.target.value as DataQualityLevel)}
+            className="w-full rounded-sm border border-neutral-border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green/40">
+            {DATA_QUALITY_LEVELS.map((d) => <option key={d} value={d}>{DATA_QUALITY_LABELS[d]}</option>)}
+          </select>
+        </div>
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-navy mb-1">Notes</label>
+        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2}
+          className="w-full rounded-sm border border-neutral-border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green/40" />
+      </div>
+      {validationError && (
+        <p className="text-sm text-red flex items-center gap-1.5">
+          <AlertCircle className="w-4 h-4" /> {validationError}
+        </p>
+      )}
+      <div className="flex gap-2">
+        <Button type="submit" size="sm">{existingRecord ? 'Update' : 'Add'} utilization record</Button>
+        <Button type="button" variant="ghost" size="sm" onClick={onCancel}>Cancel</Button>
+      </div>
+    </form>
+  );
+}
+
+// ============================================================
+// Resource Gaps Section
+// ============================================================
+
+function ResourceGapsSection({
+  workspaceId,
+  gaps,
+  editable,
+  userId,
+  onRefresh,
+}: {
+  workspaceId: string;
+  gaps: AnalysisResourceGapRow[];
+  editable: boolean;
+  userId: string;
+  onRefresh: () => void;
+}) {
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  const handleDelete = async (gapId: string) => {
+    try { await deleteResourceGap(gapId); onRefresh(); } catch { /* */ }
+  };
+
+  return (
+    <Card>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <AlertTriangle className="w-5 h-5 text-navy/60" />
+          <span className="eyebrow">Resource Gaps</span>
+        </div>
+        {editable && !showForm && (
+          <Button size="sm" variant="ghost" onClick={() => setShowForm(true)}>
+            <Plus className="w-4 h-4" /> Add gap
+          </Button>
+        )}
+      </div>
+
+      {showForm && (
+        <GapForm
+          workspaceId={workspaceId}
+          userId={userId}
+          onSaved={() => { setShowForm(false); onRefresh(); }}
+          onCancel={() => setShowForm(false)}
+        />
+      )}
+
+      {editingId && (
+        <GapForm
+          workspaceId={workspaceId}
+          userId={userId}
+          existingGap={gaps.find((g) => g.id === editingId)}
+          onSaved={() => { setEditingId(null); onRefresh(); }}
+          onCancel={() => setEditingId(null)}
+        />
+      )}
+
+      {gaps.length === 0 && !showForm && !editingId ? (
+        <p className="text-sm text-neutral-muted py-4">No resource gaps identified yet. Gaps must be manually entered — underuse is not inferred automatically.</p>
+      ) : (
+        <div className="space-y-3">
+          {gaps.map((gap) => (
+            <div key={gap.id} className="rounded-md border border-neutral-border-soft p-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant="neutral">{GAP_CATEGORY_LABELS[gap.gap_category]}</Badge>
+                    <span className="text-sm font-semibold text-navy">{gap.title}</span>
+                    <Badge variant={gap.severity === 'critical' ? 'danger' : gap.severity === 'high' ? 'warning' : 'neutral'}>
+                      {GAP_SEVERITY_LABELS[gap.severity]}
+                    </Badge>
+                    <Badge variant="info">{GAP_CONFIDENCE_LABELS[gap.confidence]}</Badge>
+                    <Badge variant={gap.status === 'open' ? 'warning' : gap.status === 'confirmed' ? 'info' : 'success'}>
+                      {GAP_STATUS_LABELS[gap.status]}
+                    </Badge>
+                    {gap.user_confirmed && <Badge variant="success" dot>Confirmed</Badge>}
+                  </div>
+                  <p className="text-sm text-neutral-secondary mt-1">{gap.description}</p>
+                  <div className="flex gap-4 mt-2 text-xs text-neutral-muted flex-wrap">
+                    <span>Evidence: {GAP_EVIDENCE_SOURCE_LABELS[gap.evidence_source]}</span>
+                    {gap.affected_population && <span>Population: {gap.affected_population}</span>}
+                  </div>
+                </div>
+                {editable && (
+                  <div className="flex gap-1 shrink-0">
+                    <button onClick={() => setEditingId(gap.id)} className="text-neutral-muted hover:text-navy p-1">
+                      <FileText className="w-3.5 h-3.5" />
+                    </button>
+                    <button onClick={() => handleDelete(gap.id)} className="text-neutral-muted hover:text-red p-1">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function GapForm({
+  workspaceId,
+  userId,
+  existingGap,
+  onSaved,
+  onCancel,
+}: {
+  workspaceId: string;
+  userId: string;
+  existingGap?: AnalysisResourceGapRow;
+  onSaved: () => void;
+  onCancel: () => void;
+}) {
+  const [gapCategory, setGapCategory] = useState<GapCategory>(existingGap?.gap_category ?? 'program_gap');
+  const [title, setTitle] = useState(existingGap?.title ?? '');
+  const [description, setDescription] = useState(existingGap?.description ?? '');
+  const [affectedPopulation, setAffectedPopulation] = useState(existingGap?.affected_population ?? '');
+  const [evidenceSource, setEvidenceSource] = useState<GapEvidenceSource>(existingGap?.evidence_source ?? 'manual');
+  const [severity, setSeverity] = useState<GapSeverity>(existingGap?.severity ?? 'medium');
+  const [confidence, setConfidence] = useState<GapConfidence>(existingGap?.confidence ?? 'medium');
+  const [status, setStatus] = useState<GapStatus>(existingGap?.status ?? 'open');
+  const [userConfirmed, setUserConfirmed] = useState(existingGap?.user_confirmed ?? false);
+  const [validationError, setValidationError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const err = validateGapInput({ gap_category: gapCategory, title, description, severity, confidence, status, evidence_source: evidenceSource });
+    if (err) { setValidationError(err); return; }
+
+    try {
+      if (existingGap) {
+        await updateResourceGap(existingGap.id, {
+          gap_category: gapCategory,
+          title,
+          description,
+          affected_population: affectedPopulation || null,
+          evidence_source: evidenceSource,
+          severity,
+          confidence,
+          status,
+          user_confirmed: userConfirmed,
+        });
+      } else {
+        await createResourceGap({
+          workspace_id: workspaceId,
+          gap_category: gapCategory,
+          title,
+          description,
+          affected_population: affectedPopulation || undefined,
+          evidence_source: evidenceSource,
+          severity,
+          confidence,
+          status,
+          user_confirmed: userConfirmed,
+          created_by: userId,
+        });
+      }
+      onSaved();
+    } catch (err) {
+      setValidationError(err instanceof Error ? err.message : 'Failed to save gap.');
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="rounded-md border border-green/20 bg-green-tint/30 p-4 mb-3 space-y-3">
+      <div className="grid sm:grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-navy mb-1">Gap Category *</label>
+          <select value={gapCategory} onChange={(e) => setGapCategory(e.target.value as GapCategory)}
+            className="w-full rounded-sm border border-neutral-border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green/40">
+            {GAP_CATEGORIES.map((c) => <option key={c} value={c}>{GAP_CATEGORY_LABELS[c]}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-navy mb-1">Title *</label>
+          <input type="text" value={title} onChange={(e) => setTitle(e.target.value)}
+            className="w-full rounded-sm border border-neutral-border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green/40" />
+        </div>
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-navy mb-1">Description *</label>
+        <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2}
+          className="w-full rounded-sm border border-neutral-border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green/40" />
+      </div>
+      <div className="grid sm:grid-cols-4 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-navy mb-1">Severity</label>
+          <select value={severity} onChange={(e) => setSeverity(e.target.value as GapSeverity)}
+            className="w-full rounded-sm border border-neutral-border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green/40">
+            {GAP_SEVERITIES.map((s) => <option key={s} value={s}>{GAP_SEVERITY_LABELS[s]}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-navy mb-1">Confidence</label>
+          <select value={confidence} onChange={(e) => setConfidence(e.target.value as GapConfidence)}
+            className="w-full rounded-sm border border-neutral-border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green/40">
+            {GAP_CONFIDENCES.map((c) => <option key={c} value={c}>{GAP_CONFIDENCE_LABELS[c]}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-navy mb-1">Status</label>
+          <select value={status} onChange={(e) => setStatus(e.target.value as GapStatus)}
+            className="w-full rounded-sm border border-neutral-border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green/40">
+            {GAP_STATUSES.map((s) => <option key={s} value={s}>{GAP_STATUS_LABELS[s]}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-navy mb-1">Evidence Source</label>
+          <select value={evidenceSource} onChange={(e) => setEvidenceSource(e.target.value as GapEvidenceSource)}
+            className="w-full rounded-sm border border-neutral-border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green/40">
+            {GAP_EVIDENCE_SOURCES.map((s) => <option key={s} value={s}>{GAP_EVIDENCE_SOURCE_LABELS[s]}</option>)}
+          </select>
+        </div>
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-navy mb-1">Affected Population</label>
+        <input type="text" value={affectedPopulation} onChange={(e) => setAffectedPopulation(e.target.value)}
+          className="w-full rounded-sm border border-neutral-border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green/40" />
+      </div>
+      <label className="flex items-center gap-2 text-sm text-navy">
+        <input type="checkbox" checked={userConfirmed} onChange={(e) => setUserConfirmed(e.target.checked)}
+          className="rounded border-neutral-border" />
+        User-confirmed gap
+      </label>
+      {validationError && (
+        <p className="text-sm text-red flex items-center gap-1.5">
+          <AlertCircle className="w-4 h-4" /> {validationError}
+        </p>
+      )}
+      <div className="flex gap-2">
+        <Button type="submit" size="sm">{existingGap ? 'Update' : 'Add'} gap</Button>
+        <Button type="button" variant="ghost" size="sm" onClick={onCancel}>Cancel</Button>
+      </div>
+    </form>
+  );
+}
+
+// ============================================================
+// Evidence Sources Section
+// ============================================================
+
+function EvidenceSourcesSection({
+  workspaceId,
+  evidenceSources,
+  editable,
+  userId,
+  onRefresh,
+}: {
+  workspaceId: string;
+  evidenceSources: AnalysisEvidenceSourceRow[];
+  editable: boolean;
+  userId: string;
+  onRefresh: () => void;
+}) {
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  const handleDelete = async (evidenceId: string) => {
+    try { await deleteEvidenceSource(evidenceId); onRefresh(); } catch { /* */ }
+  };
+
+  return (
+    <Card>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <BookOpen className="w-5 h-5 text-navy/60" />
+          <span className="eyebrow">Evidence Sources</span>
+        </div>
+        {editable && !showForm && (
+          <Button size="sm" variant="ghost" onClick={() => setShowForm(true)}>
+            <Plus className="w-4 h-4" /> Add evidence
+          </Button>
+        )}
+      </div>
+
+      {showForm && (
+        <EvidenceForm
+          workspaceId={workspaceId}
+          userId={userId}
+          onSaved={() => { setShowForm(false); onRefresh(); }}
+          onCancel={() => setShowForm(false)}
+        />
+      )}
+
+      {editingId && (
+        <EvidenceForm
+          workspaceId={workspaceId}
+          userId={userId}
+          existingEvidence={evidenceSources.find((e) => e.id === editingId)}
+          onSaved={() => { setEditingId(null); onRefresh(); }}
+          onCancel={() => setEditingId(null)}
+        />
+      )}
+
+      {evidenceSources.length === 0 && !showForm && !editingId ? (
+        <p className="text-sm text-neutral-muted py-4">No evidence sources recorded yet.</p>
+      ) : (
+        <div className="space-y-3">
+          {evidenceSources.map((e) => (
+            <div key={e.id} className="rounded-md border border-neutral-border-soft p-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant="info">{EVIDENCE_SOURCE_TYPE_LABELS[e.source_type]}</Badge>
+                    <span className="text-sm font-semibold text-navy">{e.source_name}</span>
+                    <Badge variant={e.verification_status === 'verified' ? 'success' : e.verification_status === 'disputed' ? 'danger' : 'neutral'}>
+                      {VERIFICATION_STATUS_LABELS[e.verification_status]}
+                    </Badge>
+                  </div>
+                  {e.description && <p className="text-sm text-neutral-secondary mt-1">{e.description}</p>}
+                  <div className="flex gap-4 mt-2 text-xs text-neutral-muted flex-wrap">
+                    {e.source_date && <span>Date: {new Date(e.source_date).toLocaleDateString()}</span>}
+                    {e.file_reference && <span>Ref: {e.file_reference}</span>}
+                  </div>
+                </div>
+                {editable && (
+                  <div className="flex gap-1 shrink-0">
+                    <button onClick={() => setEditingId(e.id)} className="text-neutral-muted hover:text-navy p-1">
+                      <FileText className="w-3.5 h-3.5" />
+                    </button>
+                    <button onClick={() => handleDelete(e.id)} className="text-neutral-muted hover:text-red p-1">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function EvidenceForm({
+  workspaceId,
+  userId,
+  existingEvidence,
+  onSaved,
+  onCancel,
+}: {
+  workspaceId: string;
+  userId: string;
+  existingEvidence?: AnalysisEvidenceSourceRow;
+  onSaved: () => void;
+  onCancel: () => void;
+}) {
+  const [sourceType, setSourceType] = useState<EvidenceSourceType>(existingEvidence?.source_type ?? 'assessment_data');
+  const [sourceName, setSourceName] = useState(existingEvidence?.source_name ?? '');
+  const [sourceDate, setSourceDate] = useState(existingEvidence?.source_date ?? '');
+  const [description, setDescription] = useState(existingEvidence?.description ?? '');
+  const [fileReference, setFileReference] = useState(existingEvidence?.file_reference ?? '');
+  const [verificationStatus, setVerificationStatus] = useState<VerificationStatus>(existingEvidence?.verification_status ?? 'unverified');
+  const [validationError, setValidationError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const err = validateEvidenceInput({ source_type: sourceType, source_name: sourceName, verification_status: verificationStatus });
+    if (err) { setValidationError(err); return; }
+
+    try {
+      if (existingEvidence) {
+        await updateEvidenceSource(existingEvidence.id, {
+          source_type: sourceType,
+          source_name: sourceName,
+          source_date: sourceDate || null,
+          description: description || null,
+          file_reference: fileReference || null,
+          verification_status: verificationStatus,
+        });
+      } else {
+        await createEvidenceSource({
+          workspace_id: workspaceId,
+          source_type: sourceType,
+          source_name: sourceName,
+          source_date: sourceDate || undefined,
+          description: description || undefined,
+          file_reference: fileReference || undefined,
+          verification_status: verificationStatus,
+          entered_by: userId,
+        });
+      }
+      onSaved();
+    } catch (err) {
+      setValidationError(err instanceof Error ? err.message : 'Failed to save evidence source.');
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="rounded-md border border-green/20 bg-green-tint/30 p-4 mb-3 space-y-3">
+      <div className="grid sm:grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-navy mb-1">Source Type *</label>
+          <select value={sourceType} onChange={(e) => setSourceType(e.target.value as EvidenceSourceType)}
+            className="w-full rounded-sm border border-neutral-border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green/40">
+            {EVIDENCE_SOURCE_TYPES.map((t) => <option key={t} value={t}>{EVIDENCE_SOURCE_TYPE_LABELS[t]}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-navy mb-1">Source Name *</label>
+          <input type="text" value={sourceName} onChange={(e) => setSourceName(e.target.value)}
+            className="w-full rounded-sm border border-neutral-border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green/40" />
+        </div>
+      </div>
+      <div className="grid sm:grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-navy mb-1">Source Date</label>
+          <input type="date" value={sourceDate} onChange={(e) => setSourceDate(e.target.value)}
+            className="w-full rounded-sm border border-neutral-border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green/40" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-navy mb-1">Verification Status</label>
+          <select value={verificationStatus} onChange={(e) => setVerificationStatus(e.target.value as VerificationStatus)}
+            className="w-full rounded-sm border border-neutral-border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green/40">
+            {VERIFICATION_STATUSES.map((v) => <option key={v} value={v}>{VERIFICATION_STATUS_LABELS[v]}</option>)}
+          </select>
+        </div>
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-navy mb-1">Description</label>
+        <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2}
+          className="w-full rounded-sm border border-neutral-border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green/40" />
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-navy mb-1">File Reference</label>
+        <input type="text" value={fileReference} onChange={(e) => setFileReference(e.target.value)}
+          placeholder="e.g. filename, document ID, or link"
+          className="w-full rounded-sm border border-neutral-border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green/40" />
+      </div>
+      {validationError && (
+        <p className="text-sm text-red flex items-center gap-1.5">
+          <AlertCircle className="w-4 h-4" /> {validationError}
+        </p>
+      )}
+      <div className="flex gap-2">
+        <Button type="submit" size="sm">{existingEvidence ? 'Update' : 'Add'} evidence</Button>
         <Button type="button" variant="ghost" size="sm" onClick={onCancel}>Cancel</Button>
       </div>
     </form>
