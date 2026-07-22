@@ -1,15 +1,20 @@
 import { supabase } from '../lib/supabase';
 import type { BrokerNoteRow } from '../lib/database.types';
 
+/**
+ * Fetch notes for an organization via the neutral organization model.
+ * RLS policies enforce access via resolve_accessible_client_orgs.
+ * The brokerId parameter is retained for backward compatibility but no longer
+ * used as a client-side filter — RLS handles authorization.
+ */
 export async function fetchNotesForOrganization(
-  brokerId: string,
+  _brokerId: string,
   organizationId: string
 ): Promise<BrokerNoteRow[]> {
   const { data, error } = await supabase
     .from('broker_notes')
     .select('*')
     .eq('organization_id', organizationId)
-    .eq('broker_id', brokerId)
     .order('created_at', { ascending: false });
   if (error) throw error;
   return data ?? [];
@@ -34,7 +39,7 @@ export async function createNote(
 }
 
 export async function updateNote(
-  brokerId: string,
+  _brokerId: string,
   noteId: string,
   noteText: string
 ): Promise<BrokerNoteRow> {
@@ -42,19 +47,17 @@ export async function updateNote(
     .from('broker_notes')
     .update({ note_text: noteText })
     .eq('id', noteId)
-    .eq('broker_id', brokerId)
     .select()
     .single();
   if (error) throw error;
   return data;
 }
 
-export async function deleteNote(brokerId: string, noteId: string): Promise<void> {
+export async function deleteNote(_brokerId: string, noteId: string): Promise<void> {
   const { error } = await supabase
     .from('broker_notes')
     .delete()
-    .eq('id', noteId)
-    .eq('broker_id', brokerId);
+    .eq('id', noteId);
   if (error) throw error;
 }
 

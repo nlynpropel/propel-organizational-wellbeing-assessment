@@ -24,8 +24,29 @@ export type CreateOrganizationInput = {
   client_contact_email?: string;
 };
 
+/**
+ * Resolve the accessible client organization IDs for the current user
+ * via the neutral organization model (memberships + client relationships).
+ * Falls back to legacy broker_id ownership.
+ */
+export async function fetchAccessibleClientOrgIds(): Promise<string[]> {
+  const { data, error } = await supabase.rpc('resolve_accessible_client_orgs');
+  if (error) throw error;
+  return (data ?? []) as string[];
+}
+
+/**
+ * Resolve the service organization ID for the current user
+ * (their primary membership organization).
+ */
+export async function fetchServiceOrganizationId(): Promise<string | null> {
+  const { data, error } = await supabase.rpc('resolve_service_organization_id');
+  if (error) throw error;
+  return (data as string | null) ?? null;
+}
+
 export async function fetchOrganizations(
-  brokerId: string,
+  _brokerId: string,
   opts?: {
     search?: string;
     industry?: string;
@@ -34,8 +55,7 @@ export async function fetchOrganizations(
 ): Promise<OrganizationWithAssessment[]> {
   let query = supabase
     .from('organizations')
-    .select('*, assessment_instances(*)')
-    .eq('broker_id', brokerId);
+    .select('*, assessment_instances(*)');
 
   if (!opts?.includeArchived) {
     query = query.is('archived_at', null);
@@ -50,7 +70,6 @@ export async function fetchOrganizations(
   const { data, error } = await query.order('created_at', { ascending: false });
   if (error) throw error;
 
-  // Reduce nested assessment_instances array to the most recent one.
   return (data ?? []).map((org) => {
     const instances = (org.assessment_instances ?? []) as AssessmentInstanceRow[];
     const sorted = instances.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
@@ -62,14 +81,13 @@ export async function fetchOrganizations(
 }
 
 export async function fetchOrganizationById(
-  brokerId: string,
+  _brokerId: string,
   orgId: string
 ): Promise<OrganizationWithAssessment | null> {
   const { data, error } = await supabase
     .from('organizations')
     .select('*, assessment_instances(*)')
     .eq('id', orgId)
-    .eq('broker_id', brokerId)
     .maybeSingle();
   if (error) throw error;
   if (!data) return null;
@@ -88,7 +106,7 @@ export async function createOrganization(
 ): Promise<OrganizationRow> {
   const { data, error } = await supabase
     .from('organizations')
-    .insert({ ...input, broker_id: brokerId })
+    .insert({ ...input, broker_id: brokerId, organization_type: 'employer' })
     .select()
     .single();
   if (error) throw error;
@@ -105,21 +123,19 @@ export async function fetchInstancesForOrganization(_brokerId: string, orgId: st
   return (data ?? []) as unknown as InstanceWithTemplate[];
 }
 
-export async function archiveOrganization(brokerId: string, orgId: string): Promise<void> {
+export async function archiveOrganization(_brokerId: string, orgId: string): Promise<void> {
   const { error } = await supabase
     .from('organizations')
-    .update({ archived_at: new Date().toISOString() })
-    .eq('id', orgId)
-    .eq('broker_id', brokerId);
+    .update({ archived_at: new Date().toISOString(), status: 'archived' })
+    .eq('id', orgId);
   if (error) throw error;
 }
 
-export async function unarchiveOrganization(brokerId: string, orgId: string): Promise<void> {
+export async function unarchiveOrganization(_brokerId: string, orgId: string): Promise<void> {
   const { error } = await supabase
     .from('organizations')
-    .update({ archived_at: null })
-    .eq('id', orgId)
-    .eq('broker_id', brokerId);
+    .update({ archived_at: null, status: 'active' })
+    .eq('id', orgId);
   if (error) throw error;
 }
 

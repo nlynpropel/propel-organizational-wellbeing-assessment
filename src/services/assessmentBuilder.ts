@@ -69,15 +69,23 @@ export async function fetchTemplates(opts?: {
 }
 
 export async function fetchTemplatesForBroker(brokerId: string): Promise<AssessmentTemplateWithVersion[]> {
+  return fetchTemplatesForUser(brokerId);
+}
+
+/**
+ * Neutral-model template fetch. RLS policies enforce which templates
+ * the user can see. The userId is used only for the broker-owned filter.
+ */
+export async function fetchTemplatesForUser(userId: string): Promise<AssessmentTemplateWithVersion[]> {
   const { data, error } = await supabase
     .from('assessment_templates')
     .select('*, versions:assessment_versions!inner(*)')
-    .or(`owner_type.eq.propel,and(owner_type.eq.broker,owner_profile_id.eq.${brokerId})`)
+    .or(`owner_type.eq.propel,and(owner_type.eq.broker,owner_profile_id.eq.${userId})`)
     .neq('status', 'archived')
     .order('created_at', { ascending: false })
     .order('version_number', { ascending: false, referencedTable: 'assessment_versions' });
   if (error) {
-    logDbError({ fn: 'fetchTemplatesForBroker', route: '/assessments', error });
+    logDbError({ fn: 'fetchTemplatesForUser', route: '/assessments', error });
     throw error;
   }
   return (data ?? []).map((t) => ({

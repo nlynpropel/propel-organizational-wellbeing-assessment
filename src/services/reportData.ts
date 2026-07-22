@@ -49,7 +49,7 @@ export type ReportData = {
 
 export async function fetchReportData(
   instanceId: string,
-  brokerId: string,
+  _brokerId: string,
   isAdmin: boolean
 ): Promise<ReportData | null> {
   const { data: inst, error: instErr } = await supabase
@@ -64,8 +64,17 @@ export async function fetchReportData(
   }
   if (!inst) return null;
 
-  if (!isAdmin && inst.broker_id !== brokerId) {
-    return null;
+  // RLS enforces access via resolve_accessible_client_orgs.
+  // The legacy broker_id check is retained as a secondary fallback for
+  // backward compatibility during the migration period.
+  if (!isAdmin && inst.broker_id !== _brokerId) {
+    // If RLS returned the row, the user has access via the neutral model.
+    // If not, deny.
+    const { data: accessible } = await supabase.rpc('resolve_accessible_client_orgs');
+    const orgIds = (accessible ?? []) as string[];
+    if (!orgIds.includes(inst.organization_id)) {
+      return null;
+    }
   }
 
   const [orgResult, verResult, tmplResult, secsResult, respsResult, secScoresResult, resResult, bandsResult] = await Promise.all([

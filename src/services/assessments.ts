@@ -6,14 +6,19 @@ export type AssessmentWithOrganization = AssessmentInstanceRow & {
   organization: Pick<OrganizationRow, 'id' | 'organization_name' | 'industry'>;
 };
 
+/**
+ * Fetch assessments for the current user via the neutral organization model.
+ * RLS policies enforce access via resolve_accessible_client_orgs.
+ * The brokerId parameter is retained for backward compatibility but no longer
+ * used as a query filter — RLS handles authorization.
+ */
 export async function fetchAssessmentsForBroker(
-  brokerId: string,
+  _brokerId: string,
   opts?: { search?: string; status?: AssessmentInstanceStatus | 'all'; industry?: string }
 ): Promise<AssessmentWithOrganization[]> {
   let query = supabase
     .from('assessment_instances')
-    .select('*, organization:organizations(id, organization_name, industry)')
-    .eq('broker_id', brokerId);
+    .select('*, organization:organizations(id, organization_name, industry)');
 
   if (opts?.status && opts.status !== 'all') {
     query = query.eq('status', opts.status);
@@ -75,12 +80,11 @@ export async function createDraftAssessment(
 }
 
 export async function fetchAssessmentCountByStatus(
-  brokerId: string
+  _brokerId?: string
 ): Promise<Record<AssessmentInstanceStatus, number>> {
   const { data, error } = await supabase
     .from('assessment_instances')
-    .select('status')
-    .eq('broker_id', brokerId);
+    .select('status');
   if (error) throw error;
 
   const counts: Record<AssessmentInstanceStatus, number> = {
@@ -102,12 +106,11 @@ export async function fetchAssessmentCountByStatus(
 }
 
 export async function fetchReportsReady(
-  brokerId: string
+  _brokerId?: string
 ): Promise<AssessmentWithOrganization[]> {
   const { data, error } = await supabase
     .from('assessment_instances')
     .select('*, organization:organizations(id, organization_name, industry)')
-    .eq('broker_id', brokerId)
     .not('overall_score', 'is', null)
     .order('submitted_at', { ascending: false });
   if (error) throw error;
