@@ -225,7 +225,7 @@ export default function AdminPage() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <SummaryCard label="Total Users" value={usersLoading ? '—' : profiles.length} icon={Users} />
             <SummaryCard label="Active" value={usersLoading ? '—' : profiles.filter((p) => p.status === 'active').length} icon={CheckCircle2} />
-            <SummaryCard label="Brokers" value={usersLoading ? '—' : brokerCount ?? 0} icon={Building2} />
+            <SummaryCard label="Advisors" value={usersLoading ? '—' : brokerCount ?? 0} icon={Building2} />
             <SummaryCard label="Pending Setup" value={usersLoading ? '—' : profiles.filter((p) => !p.account_setup_complete).length} icon={Mail} />
           </div>
 

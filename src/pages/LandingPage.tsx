@@ -41,10 +41,10 @@ export default function LandingPage() {
               to="/login"
               className="inline-flex items-center gap-2 bg-green hover:bg-green-dark text-navy-deep font-semibold px-6 py-3 rounded-md transition shadow-md"
             >
-              Broker Sign In
+              Sign In
               <ArrowRight className="w-4 h-4" />
             </Link>
-            <span className="text-sm text-white/50">For employee-benefits brokers</span>
+            <span className="text-sm text-white/50">For benefits advisors and consultants</span>
           </div>
         </div>
       </section>

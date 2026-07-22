@@ -8,6 +8,7 @@ import {
   Shield,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { getLabel } from '../../lib/terminology';
 
 const navItems = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -34,8 +35,9 @@ function getDisplayName(profile: { first_name: string | null; last_name: string 
 }
 
 export default function BrokerSidebar() {
-  const { profile, role } = useAuth();
-  const isAdmin = role === 'admin';
+  const { profile, role, terminology, isPlatformAdminUser } = useAuth();
+  const isAdmin = isPlatformAdminUser || role === 'admin';
+  const orgLabel = profile?.brokerage_name ?? getLabel(terminology, 'userRoleLabel');
 
   return (
     <aside className="hidden lg:flex flex-col w-60 bg-navy text-white h-screen sticky top-0 shrink-0">
@@ -105,7 +107,7 @@ export default function BrokerSidebar() {
           </div>
           <div className="min-w-0">
             <p className="text-sm font-medium truncate">{getDisplayName(profile)}</p>
-            <p className="text-xs text-white/50 truncate">{profile?.brokerage_name ?? 'Broker'}</p>
+            <p className="text-xs text-white/50 truncate">{orgLabel}</p>
           </div>
         </div>
       </div>

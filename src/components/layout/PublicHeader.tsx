@@ -16,7 +16,7 @@ export default function PublicHeader() {
           to="/login"
           className="text-sm font-medium text-white/90 hover:text-white border border-white/20 hover:border-white/40 rounded-sm px-4 py-2 transition"
         >
-          Broker Sign In
+          Sign In
         </Link>
       </div>
     </header>

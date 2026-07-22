@@ -41,13 +41,17 @@ export async function completeAccountSetup(params: {
   return data as ProfileRow;
 }
 
-export async function fetchBrokerCount(): Promise<number> {
+export async function fetchAdvisorCount(): Promise<number> {
   const { count, error } = await supabase
     .from('profiles')
     .select('*', { count: 'exact', head: true })
     .eq('role', 'broker');
   if (error) throw error;
   return count ?? 0;
+}
+
+export async function fetchBrokerCount(): Promise<number> {
+  return fetchAdvisorCount();
 }
 
 export type { ProfileRow, ProfileRole, ProfileStatus };

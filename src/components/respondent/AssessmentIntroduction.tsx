@@ -40,7 +40,7 @@ export default function AssessmentIntroduction({
       {instance.broker_name && (
         <div className="rounded-md bg-blue-tint border border-blue/20 p-4 mt-5">
           <p className="text-sm text-blue">
-            <strong>Your broker:</strong> {instance.broker_name} will review your responses and
+            <strong>Your advisor:</strong> {instance.broker_name} will review your responses and
             prepare a personalized report.
           </p>
         </div>
@@ -49,7 +49,7 @@ export default function AssessmentIntroduction({
       {instance.broker_message && (
         <div className="rounded-md border border-neutral-border bg-neutral-bg/50 p-4 mt-4">
           <p className="text-xs font-medium text-neutral-muted uppercase tracking-wide">
-            Message from your broker
+            Message from your advisor
           </p>
           <p className="text-sm text-neutral-text mt-2 leading-relaxed whitespace-pre-wrap">
             {instance.broker_message}
@@ -66,7 +66,7 @@ export default function AssessmentIntroduction({
       )}
 
       <p className="text-xs text-neutral-muted mt-5 leading-relaxed">
-        Your responses are confidential and shared only with your broker. Individual answers are
+        Your responses are confidential and shared only with your advisor. Individual answers are
         never attributed to specific employees. This link is unique to you — please don&apos;t
         forward it.
       </p>

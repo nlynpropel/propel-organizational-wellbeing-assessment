@@ -282,7 +282,7 @@ export default function SendAssessmentPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-navy mb-1.5">Broker message (optional)</label>
+            <label className="block text-sm font-medium text-navy mb-1.5">Advisor message (optional)</label>
             <textarea
               value={brokerMessage}
               onChange={(e) => setBrokerMessage(e.target.value)}

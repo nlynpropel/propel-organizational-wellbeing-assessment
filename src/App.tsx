@@ -2,6 +2,7 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { Loader2, Clock, ShieldAlert, Sparkles } from 'lucide-react';
 import { FEATURE_FLAGS } from './lib/featureFlags';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { getLabel } from './lib/terminology';
 import LoginPage from './pages/LoginPage';
 import AuthCallbackPage from './pages/AuthCallbackPage';
 import DashboardPage from './pages/DashboardPage';
@@ -39,7 +40,7 @@ function AccessPendingScreen() {
         <h1 className="text-xl font-semibold text-navy">Access pending</h1>
         <p className="text-sm text-neutral-secondary mt-2">
           Your account has been created, but a Propel administrator still needs to activate it
-          before you can access the broker portal.
+          before you can access the platform.
         </p>
         {user?.email && (
           <p className="text-xs text-neutral-muted mt-3">Signed in as {user.email}</p>
@@ -80,17 +81,16 @@ function AccessRestrictedScreen() {
 }
 
 function NoProfileScreen() {
-  const { signOut } = useAuth();
+  const { signOut, terminology } = useAuth();
   return (
     <div className="min-h-screen bg-neutral-bg flex items-center justify-center px-6">
       <div className="max-w-md w-full bg-white rounded-lg shadow-md border border-neutral-border p-8 text-center">
         <div className="w-14 h-14 rounded-full bg-neutral-bg flex items-center justify-center mx-auto mb-4">
           <Sparkles className="w-7 h-7 text-navy/40" />
         </div>
-        <h1 className="text-xl font-semibold text-navy">No broker profile</h1>
+        <h1 className="text-xl font-semibold text-navy">{getLabel(terminology, 'noProfile')}</h1>
         <p className="text-sm text-neutral-secondary mt-2">
-          You're signed in, but no Propel broker profile is linked to your account. An
-          administrator must create and activate your profile.
+          {getLabel(terminology, 'noProfileDescription')}
         </p>
         <button
           onClick={signOut}
@@ -142,7 +142,7 @@ function ProtectedRoute({ children, adminOnly = false }: { children: React.React
   // Active users only from here.
   if (status !== 'active') return <AccessRestrictedScreen />;
 
-  // Admin-only routes: block brokers.
+  // Admin-only routes: block non-admin users.
   if (adminOnly && profile.role !== 'admin') {
     return <Navigate to="/dashboard" replace />;
   }
@@ -161,7 +161,7 @@ function AppRoutes() {
       {/* Account setup for new users */}
       <Route path="/new-account" element={<NewAccountPage />} />
 
-      {/* Authenticated broker */}
+      {/* Authenticated user */}
       <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
       <Route path="/clients" element={<ProtectedRoute><ClientsPage /></ProtectedRoute>} />
       <Route path="/clients/new" element={<ProtectedRoute><NewClientPage /></ProtectedRoute>} />

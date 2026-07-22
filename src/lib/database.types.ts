@@ -5,6 +5,26 @@ export type ProfileRole = 'admin' | 'broker';
 export type ProfileStatus = 'invited' | 'active' | 'suspended' | 'archived';
 export type AverageClientSize = 'small' | 'mid' | 'large';
 
+export type OrganizationType = 'propel' | 'brokerage' | 'employer' | 'consultancy' | 'partner' | 'other';
+export type OrganizationStatus = 'active' | 'archived';
+export type MembershipRole = 'platform_admin' | 'organization_admin' | 'advisor' | 'client_manager' | 'employer_admin' | 'viewer';
+export type MembershipStatus = 'active' | 'invited' | 'suspended';
+export type RelationshipType = 'advisor' | 'consultant' | 'broker' | 'internal';
+
+export type OrganizationCapability =
+  | 'manage_clients'
+  | 'create_assessments'
+  | 'publish_assessments'
+  | 'send_assessments'
+  | 'view_reports'
+  | 'edit_strategy_analysis'
+  | 'approve_strategy_analysis'
+  | 'manage_organization_playbook'
+  | 'generate_ai_analysis'
+  | 'manage_incentive_designs'
+  | 'manage_organization_members'
+  | 'access_admin_tools';
+
 export type ProfileRow = {
   id: string;
   email: string;
@@ -19,6 +39,32 @@ export type ProfileRow = {
   created_at: string;
   updated_at: string;
   last_login_at: string | null;
+};
+
+export type OrganizationMembershipRow = {
+  id: string;
+  organization_id: string;
+  profile_id: string;
+  role: MembershipRole;
+  status: MembershipStatus;
+  created_at: string;
+  updated_at: string;
+};
+
+export type OrganizationClientRelationshipRow = {
+  id: string;
+  service_organization_id: string;
+  client_organization_id: string;
+  relationship_type: RelationshipType;
+  status: OrganizationStatus;
+  created_at: string;
+  updated_at: string;
+};
+
+export type OrganizationRoleCapabilityRow = {
+  id: string;
+  role: string;
+  capability: string;
 };
 
 export type ApprovedDomainRow = {
@@ -46,6 +92,8 @@ export type OrganizationRow = {
   created_at: string;
   updated_at: string;
   archived_at: string | null;
+  organization_type: OrganizationType | null;
+  status: OrganizationStatus;
 };
 
 // ============================================================
@@ -247,6 +295,9 @@ export type BrokerNoteRow = {
   created_at: string;
   updated_at: string;
 };
+
+// Alias for neutral terminology. Same shape as BrokerNoteRow.
+export type AnalysisNoteRow = BrokerNoteRow;
 
 // ============================================================
 // Recommendation engine types

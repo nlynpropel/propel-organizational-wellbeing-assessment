@@ -569,7 +569,7 @@ export default function AssessmentBuilderPage() {
                 ))}
               </div>
               <p className="text-xs text-neutral-muted mt-1">
-                Propel-owned assessments are available to all brokers. Broker-owned are private to your account.
+                Propel-owned assessments are available to all advisors. Advisor-owned are private to your account.
               </p>
             </div>
           )}

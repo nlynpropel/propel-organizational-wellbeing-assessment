@@ -99,7 +99,7 @@ export default function BrokerNotesPanel({ organizationId }: { organizationId: s
     <div>
       <div className="flex items-center gap-2 mb-4">
         <StickyNote className="w-4 h-4 text-navy" />
-        <span className="text-sm font-semibold text-navy">Broker notes</span>
+        <span className="text-sm font-semibold text-navy">Analysis Notes</span>
         <span className="text-xs text-neutral-muted ml-1">({notes.length})</span>
       </div>
 

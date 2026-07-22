@@ -75,7 +75,7 @@ export default function LoginPage() {
                   icon={Lock}
                   variant="warning"
                   title="Access restricted"
-                  message="This email isn't on the approved broker list. Contact your Propel administrator if you believe this is an error."
+                  message="This email isn't on the approved list. Contact your Propel administrator if you believe this is an error."
                 />
               )}
               {state === 'expired' && (

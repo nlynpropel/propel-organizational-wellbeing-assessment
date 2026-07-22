@@ -55,7 +55,7 @@ export default function NewAccountPage() {
           <div className="flex items-center gap-2.5 mb-8">
             <img src="/Propel_Logo_2020_v4-3.png" alt="Propel" className="h-8 w-auto" style={{ filter: 'brightness(0) invert(1)' }} />
             <div>
-              <span className="text-xs text-white/50 block leading-none mt-1">Broker portal</span>
+              <span className="text-xs text-white/50 block leading-none mt-1">Platform</span>
             </div>
           </div>
 
@@ -67,7 +67,7 @@ export default function NewAccountPage() {
               <h1 className="font-display text-2xl font-semibold text-navy">Welcome to Propel</h1>
             </div>
             <p className="text-sm text-neutral-secondary mt-2 ml-[52px]">
-              Let's set up your broker profile. This information helps us tailor your dashboard experience.
+              Let's set up your profile. This information helps us tailor your dashboard experience.
             </p>
 
             {error && (

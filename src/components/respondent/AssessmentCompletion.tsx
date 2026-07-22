@@ -20,7 +20,7 @@ export default function AssessmentCompletion({
       <h1 className="font-display text-2xl font-semibold text-navy mt-5">Assessment complete</h1>
       <p className="text-sm text-neutral-secondary mt-3 leading-relaxed max-w-md mx-auto">
         {version.completion_message ||
-          `Thank you for completing the ${template.name}. Your responses have been securely submitted and your broker will follow up with a personalized report.`}
+          `Thank you for completing the ${template.name}. Your responses have been securely submitted and your advisor will follow up with a personalized report.`}
       </p>
 
       {showResults && (
@@ -52,7 +52,7 @@ export default function AssessmentCompletion({
 
       <div className="mt-6 rounded-md bg-blue-tint border border-blue/20 p-4">
         <p className="text-sm text-blue">
-          <strong>What happens next?</strong> {assessment.instance.broker_name || 'Your broker'} will
+          <strong>What happens next?</strong> {assessment.instance.broker_name || 'Your advisor'} will
           review your responses and prepare a personalized report.
         </p>
       </div>

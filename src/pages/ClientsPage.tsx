@@ -181,7 +181,7 @@ export default function ClientsPage() {
     <BrokerLayout title="Clients">
       <PageHeader
         title="Clients"
-        subtitle="All employer clients in your book of business"
+        subtitle="All client organizations"
         actions={
           <Button to="/clients/new">
             <Plus className="w-4 h-4" />

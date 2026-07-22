@@ -72,7 +72,7 @@ export default function AdminAssessmentsPage() {
     <BrokerLayout title="Admin: Assessments">
       <PageHeader
         title="Assessment Management"
-        subtitle="Manage all Propel and broker-created assessments."
+        subtitle="Manage all Propel and advisor-created assessments."
         breadcrumbs={[{ label: 'Admin', to: '/admin' }, { label: 'Assessments' }]}
         actions={<Button variant="primary" size="sm" to="/assessments/builder"><Plus className="w-4 h-4" /> Create Propel assessment</Button>}
       />

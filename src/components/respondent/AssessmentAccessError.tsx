@@ -28,7 +28,7 @@ export default function AssessmentAccessError({
         {message}
       </p>
       <p className="text-xs text-neutral-muted mt-6">
-        Contact your broker if you believe this is an error.
+        Contact your advisor if you believe this is an error.
       </p>
     </div>
   );
