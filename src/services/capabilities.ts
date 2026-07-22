@@ -26,7 +26,10 @@ export async function fetchUserOrganizations(userId: string): Promise<UserOrgani
     .order('created_at', { ascending: true });
 
   if (error) throw error;
-  return (data ?? []) as unknown as UserOrganization[];
+  return (data ?? []).map((row: Record<string, unknown>) => ({
+    membership: row,
+    organization: row.organization,
+  })) as unknown as UserOrganization[];
 }
 
 export async function fetchUserCapabilities(userId: string): Promise<Set<OrganizationCapability>> {
