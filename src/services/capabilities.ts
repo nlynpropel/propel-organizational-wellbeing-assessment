@@ -64,15 +64,18 @@ export function hasCapability(
 }
 
 export function isPlatformAdmin(
-  memberships: OrganizationMembershipRow[]
+  memberships: (OrganizationMembershipRow | null | undefined)[]
 ): boolean {
-  return memberships.some((m) => m.role === 'platform_admin' && m.status === 'active');
+  return memberships.some(
+    (m) => m != null && m.role === 'platform_admin' && m.status === 'active'
+  );
 }
 
 export function getPrimaryMembershipRole(
-  memberships: OrganizationMembershipRow[]
+  memberships: (OrganizationMembershipRow | null | undefined)[]
 ): MembershipRole | null {
-  if (memberships.length === 0) return null;
+  const valid = memberships.filter((m): m is OrganizationMembershipRow => m != null);
+  if (valid.length === 0) return null;
   const priority: MembershipRole[] = [
     'platform_admin',
     'organization_admin',
@@ -82,8 +85,8 @@ export function getPrimaryMembershipRole(
     'viewer',
   ];
   for (const role of priority) {
-    const m = memberships.find((m) => m.role === role && m.status === 'active');
+    const m = valid.find((m) => m.role === role && m.status === 'active');
     if (m) return m.role;
   }
-  return memberships[0].role;
+  return valid[0].role;
 }
