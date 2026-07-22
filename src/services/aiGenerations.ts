@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { logDbError } from '../lib/logger';
+import { isFeatureEnabled } from '../lib/featureFlags';
 import type {
   AnalysisGenerationRow,
   GenerationType,
@@ -67,6 +68,10 @@ export async function createGeneration(
 ): Promise<AnalysisGenerationRow> {
   const validationError = validateGenerationInput(input);
   if (validationError) throw new Error(validationError);
+
+  if (!isFeatureEnabled('ENABLE_AI_ANALYSIS')) {
+    throw new Error('AI analysis is not enabled. Contact your platform administrator.');
+  }
 
   const { data: snapshot, error: snapErr } = await supabase
     .from('analysis_input_snapshots')
@@ -163,6 +168,7 @@ export async function deleteGeneration(generationId: string): Promise<void> {
 export function canCreateGeneration(
   snapshot: AnalysisInputSnapshotRow | null
 ): boolean {
+  if (!isFeatureEnabled('ENABLE_AI_ANALYSIS')) return false;
   if (!snapshot) return false;
   const level = snapshot.completeness_level as string;
   return level === 'sufficient' || level === 'strong';
