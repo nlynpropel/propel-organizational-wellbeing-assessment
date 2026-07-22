@@ -15,6 +15,36 @@ export type UserOrganization = {
   };
 };
 
+type RawMembershipRow = Record<string, unknown> & {
+  id: string;
+  organization_id: string;
+  profile_id: string;
+  role: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  organization?: unknown;
+};
+
+function normalizeOrganization(org: unknown): UserOrganization['organization'] | null {
+  if (!org) return null;
+  if (Array.isArray(org)) {
+    const first = org[0] as Record<string, unknown> | undefined;
+    if (!first) return null;
+    return {
+      id: first.id as string,
+      organization_name: first.organization_name as string,
+      organization_type: (first.organization_type as OrganizationType) ?? null,
+    };
+  }
+  const o = org as Record<string, unknown>;
+  return {
+    id: o.id as string,
+    organization_name: o.organization_name as string,
+    organization_type: (o.organization_type as OrganizationType) ?? null,
+  };
+}
+
 export async function fetchUserOrganizations(userId: string): Promise<UserOrganization[]> {
   const { data, error } = await supabase
     .from('organization_memberships')
@@ -26,10 +56,15 @@ export async function fetchUserOrganizations(userId: string): Promise<UserOrgani
     .order('created_at', { ascending: true });
 
   if (error) throw error;
-  return (data ?? []).map((row: Record<string, unknown>) => ({
-    membership: row,
-    organization: row.organization,
-  })) as unknown as UserOrganization[];
+
+  return ((data ?? []) as RawMembershipRow[])
+    .map((row) => {
+      const organization = normalizeOrganization(row.organization);
+      if (!organization) return null;
+      const { organization: _org, ...membership } = row;
+      return { membership, organization } as UserOrganization;
+    })
+    .filter((o): o is UserOrganization => o !== null);
 }
 
 export async function fetchUserCapabilities(userId: string): Promise<Set<OrganizationCapability>> {

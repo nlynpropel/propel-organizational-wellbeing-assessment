@@ -28,7 +28,6 @@ type AuthContextValue = {
   role: ProfileRole | null;
   status: ProfileStatus | null;
   loading: boolean;
-  // Neutral organization model
   organizations: UserOrganization[];
   primaryOrganization: UserOrganization | null;
   organizationType: OrganizationType | null;
@@ -36,11 +35,10 @@ type AuthContextValue = {
   capabilities: Set<OrganizationCapability>;
   isPlatformAdminUser: boolean;
   terminology: TerminologyContext;
+  orgLoadError: boolean;
   refreshProfile: () => Promise<void>;
-  // Existing email/password flow (preserved for backward compatibility)
   signUp: (email: string, password: string) => Promise<{ error: AuthError }>;
   signIn: (email: string, password: string) => Promise<{ error: AuthError }>;
-  // Magic-link flow
   sendMagicLink: (email: string) => Promise<{ error: AuthError }>;
   signOut: () => Promise<void>;
 };
@@ -53,6 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [organizations, setOrganizations] = useState<UserOrganization[]>([]);
   const [capabilities, setCapabilities] = useState<Set<OrganizationCapability>>(new Set());
   const [loading, setLoading] = useState(true);
+  const [orgLoadError, setOrgLoadError] = useState(false);
 
   const loadOrgData = async (userId: string) => {
     try {
@@ -62,9 +61,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       ]);
       setOrganizations(orgs);
       setCapabilities(caps);
-    } catch {
+      setOrgLoadError(false);
+    } catch (err) {
+      const route = window.location.pathname;
+      console.error('[AuthContext] Organization loading failed', {
+        route,
+        errorName: err instanceof Error ? err.name : 'Unknown',
+        message: err instanceof Error ? err.message : String(err),
+      });
       setOrganizations([]);
       setCapabilities(new Set());
+      setOrgLoadError(true);
     }
   };
 
@@ -81,13 +88,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setProfile(null);
       setOrganizations([]);
       setCapabilities(new Set());
+      setOrgLoadError(false);
       if (newSession?.user) {
         (async () => {
           try {
             const p = await fetchProfile(newSession.user.id);
             setProfile(p);
             await loadOrgData(newSession.user.id);
-          } catch {
+          } catch (err) {
+            const route = window.location.pathname;
+            console.error('[AuthContext] Profile loading failed', {
+              route,
+              errorName: err instanceof Error ? err.name : 'Unknown',
+              message: err instanceof Error ? err.message : String(err),
+            });
             setProfile(null);
           } finally {
             setLoading(false);
@@ -129,6 +143,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(null);
     setOrganizations([]);
     setCapabilities(new Set());
+    setOrgLoadError(false);
   };
 
   const refreshProfile = async () => {
@@ -138,7 +153,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const p = await fetchProfile(uid);
       setProfile(p);
       await loadOrgData(uid);
-    } catch {
+    } catch (err) {
+      const route = window.location.pathname;
+      console.error('[AuthContext] Profile refresh failed', {
+        route,
+        errorName: err instanceof Error ? err.name : 'Unknown',
+        message: err instanceof Error ? err.message : String(err),
+      });
       setProfile(null);
     }
   };
@@ -174,6 +195,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         capabilities,
         isPlatformAdminUser,
         terminology,
+        orgLoadError,
         refreshProfile,
         signUp,
         signIn,

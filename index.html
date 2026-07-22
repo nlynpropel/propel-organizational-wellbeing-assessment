@@ -23,6 +23,18 @@
   <body>
     <div id="root"></div>
     <script>
+      // Stale-build recovery: if the browser cached an old index.html that
+      // references a JS chunk that no longer exists on the server, Vite throws
+      // a "preloadError". Reload once (clearing cache) to pick up the new build.
+      // Guard against infinite reload loops with sessionStorage.
+      window.addEventListener('vite:preloadError', function () {
+        var key = 'vite_preload_reload';
+        if (!sessionStorage.getItem(key)) {
+          sessionStorage.setItem(key, '1');
+          window.location.reload();
+        }
+      });
+
       window.addEventListener('error', function (e) {
         var root = document.getElementById('root');
         if (root && !root.innerHTML) {

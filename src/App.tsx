@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
-import { Loader2, Clock, ShieldAlert, Sparkles } from 'lucide-react';
+import { Loader2, Clock, ShieldAlert, Sparkles, AlertTriangle, RotateCcw, LogOut } from 'lucide-react';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { FEATURE_FLAGS } from './lib/featureFlags';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { getLabel } from './lib/terminology';
@@ -103,6 +105,48 @@ function NoProfileScreen() {
   );
 }
 
+function OrgLoadErrorScreen() {
+  const { refreshProfile, signOut } = useAuth();
+  const [retrying, setRetrying] = useState(false);
+
+  const handleRetry = async () => {
+    setRetrying(true);
+    await refreshProfile();
+    setRetrying(false);
+  };
+
+  return (
+    <div className="min-h-screen bg-neutral-bg flex items-center justify-center px-6">
+      <div className="max-w-md w-full bg-white rounded-lg shadow-md border border-neutral-border p-8 text-center">
+        <div className="w-14 h-14 rounded-full bg-red-tint flex items-center justify-center mx-auto mb-4">
+          <AlertTriangle className="w-7 h-7 text-red" />
+        </div>
+        <h1 className="text-xl font-semibold text-navy">Couldn't load your organization</h1>
+        <p className="text-sm text-neutral-secondary mt-2">
+          We signed you in but couldn't load your organization data. This may be a temporary issue.
+        </p>
+        <div className="flex gap-3 justify-center mt-6">
+          <button
+            onClick={handleRetry}
+            disabled={retrying}
+            className="inline-flex items-center gap-2 text-sm font-medium text-white bg-navy hover:bg-navy-mid disabled:opacity-60 px-4 py-2 rounded-sm transition"
+          >
+            {retrying ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />}
+            Retry
+          </button>
+          <button
+            onClick={signOut}
+            className="inline-flex items-center gap-2 text-sm font-medium text-navy hover:text-navy-mid px-4 py-2 rounded-sm border border-neutral-border transition"
+          >
+            <LogOut className="w-4 h-4" />
+            Sign out
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function RootRedirect() {
   const { user, profile, status, loading } = useAuth();
   if (loading) return <FullScreenLoader />;
@@ -117,7 +161,7 @@ function RootRedirect() {
 }
 
 function ProtectedRoute({ children, adminOnly = false }: { children: React.ReactNode; adminOnly?: boolean }) {
-  const { user, profile, status, loading } = useAuth();
+  const { user, profile, status, loading, orgLoadError } = useAuth();
   const location = useLocation();
 
   if (loading) return <FullScreenLoader />;
@@ -142,12 +186,15 @@ function ProtectedRoute({ children, adminOnly = false }: { children: React.React
   // Active users only from here.
   if (status !== 'active') return <AccessRestrictedScreen />;
 
+  // Organization data failed to load — show recoverable error instead of crashing.
+  if (orgLoadError) return <OrgLoadErrorScreen />;
+
   // Admin-only routes: block non-admin users.
   if (adminOnly && profile.role !== 'admin') {
     return <Navigate to="/dashboard" replace />;
   }
 
-  return <>{children}</>;
+  return <ErrorBoundary>{children}</ErrorBoundary>;
 }
 
 function AppRoutes() {
