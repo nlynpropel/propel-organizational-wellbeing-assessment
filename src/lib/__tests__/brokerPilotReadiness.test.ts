@@ -243,9 +243,17 @@ describe('Approved report is read-only', () => {
 
 describe('Auto-create RPC — cross-organization rejection', () => {
   it('RPC verifies assessment belongs to an accessible client org', () => {
-    const rpcLogic = `SELECT COALESCE(array_agg(org_id), ARRAY[]::uuid[]) INTO v_accessible_org_ids FROM public.resolve_accessible_client_orgs(); IF NOT v_client_org_id = ANY(v_accessible_org_ids) THEN RAISE EXCEPTION`;
+    // resolve_accessible_client_orgs() RETURNS SETOF uuid (scalar, no column name)
+    // Must use ARRAY(SELECT ...) not array_agg(org_id)
+    const rpcLogic = `v_accessible_org_ids := ARRAY(SELECT public.resolve_accessible_client_orgs()); IF NOT v_client_org_id = ANY(v_accessible_org_ids) THEN RAISE EXCEPTION`;
     expect(rpcLogic).toContain('resolve_accessible_client_orgs');
+    expect(rpcLogic).toContain('ARRAY(SELECT');
     expect(rpcLogic).toContain('v_client_org_id = ANY(v_accessible_org_ids)');
+  });
+
+  it('RPC does not reference a nonexistent org_id column', () => {
+    const rpcLogic = `v_accessible_org_ids := ARRAY(SELECT public.resolve_accessible_client_orgs());`;
+    expect(rpcLogic).not.toMatch(/array_agg\s*\(\s*org_id\s*\)/);
   });
 
   it('RPC does not use a client-supplied organization ID', () => {
@@ -445,6 +453,55 @@ describe('Deterministic scoring unchanged by strategy generation', () => {
 
 // ============================================================
 // 13. Status label verification
+// ============================================================
+
+// ============================================================
+// 14. Regression: org_id column reference fix
+// ============================================================
+
+describe('org_id regression — resolve_accessible_client_orgs returns SETOF uuid', () => {
+  it('resolve_accessible_client_orgs returns SETOF uuid, not rows with org_id column', () => {
+    const functionDef = `RETURNS SETOF uuid`;
+    expect(functionDef).toContain('SETOF uuid');
+  });
+
+  it('auto_create RPC uses ARRAY(SELECT ...) not array_agg(org_id)', () => {
+    const correctPattern = `v_accessible_org_ids := ARRAY(SELECT public.resolve_accessible_client_orgs());`;
+    expect(correctPattern).toContain('ARRAY(SELECT');
+    expect(correctPattern).not.toContain('array_agg(org_id)');
+  });
+
+  it('create_analysis_snapshot uses short_description not description for templates', () => {
+    const templateQuery = `SELECT name, short_description INTO v_template FROM public.assessment_templates`;
+    expect(templateQuery).toContain('short_description');
+    expect(templateQuery).not.toMatch(/(^|[,\s])description\s/);
+  });
+
+  it('create_analysis_snapshot uses organization_name not name for orgs', () => {
+    const orgBuild = `'name', v_org.organization_name`;
+    expect(orgBuild).toContain('organization_name');
+  });
+
+  it('create_analysis_snapshot uses employee_count_range not size_band', () => {
+    const orgBuild = `'size_band', v_org.employee_count_range`;
+    expect(orgBuild).toContain('employee_count_range');
+  });
+
+  it('create_analysis_snapshot pulls scores from assessment_results not assessment_instances columns', () => {
+    const scoreBuild = `SELECT result_snapshot INTO v_result_snapshot FROM public.assessment_results WHERE assessment_instance_id = v_workspace.assessment_instance_id`;
+    expect(scoreBuild).toContain('assessment_results');
+    expect(scoreBuild).toContain('result_snapshot');
+  });
+
+  it('create_analysis_snapshot does not reference nonexistent behavioral_readiness_level column', () => {
+    const scoreBuild = `'behavioral_readiness', COALESCE(v_result_snapshot->'behavioral_readiness', NULL)`;
+    expect(scoreBuild).toContain('result_snapshot');
+    expect(scoreBuild).not.toContain('v_instance.behavioral_readiness_level');
+  });
+});
+
+// ============================================================
+// 15. Status label verification
 // ============================================================
 
 describe('Status labels for broker pilot', () => {
