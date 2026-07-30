@@ -13,7 +13,7 @@ import { getLabel } from '../../lib/terminology';
 const navItems = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/clients', label: 'Clients', icon: Users },
-  { to: '/assessments', label: 'Assessment Library', icon: ClipboardList },
+  { to: '/assessments', label: 'Assessments', icon: ClipboardList },
   { to: '/reports', label: 'Reports', icon: FileText },
   { to: '/settings', label: 'Settings', icon: Settings },
 ];

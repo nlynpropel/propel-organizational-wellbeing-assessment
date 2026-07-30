@@ -21,12 +21,12 @@ export const GENERATION_STATUSES: GenerationStatus[] = [
 ];
 
 export const GENERATION_STATUS_LABELS: Record<GenerationStatus, string> = {
-  queued: 'Queued',
+  queued: 'Generating',
   generating: 'Generating',
-  draft_generated: 'Draft Generated',
-  failed: 'Failed',
+  draft_generated: 'Draft',
+  failed: 'Generation failed',
   approved: 'Approved',
-  rejected: 'Rejected',
+  rejected: 'Draft rejected',
 };
 
 export const GENERATION_STATUS_VARIANTS: Record<GenerationStatus, 'neutral' | 'info' | 'progress' | 'success' | 'warning' | 'danger'> = {
@@ -327,4 +327,96 @@ export function normalizeEvidencePath(path: string): string {
 
 export function getDisplayOutput(gen: AnalysisGenerationRow): Record<string, unknown> | null {
   return gen.reviewed_output_json ?? gen.output_json ?? null;
+}
+
+// ============================================================
+// Broker-facing strategy generation (auto-create workspace + snapshot)
+// ============================================================
+
+export type AutoCreateResult = {
+  workspace_id: string;
+  snapshot_id: string;
+  snapshot_version: number;
+};
+
+export async function autoCreateWorkspaceAndSnapshot(
+  assessmentInstanceId: string,
+  createdBy: string
+): Promise<AutoCreateResult> {
+  const { data, error } = await supabase.rpc('auto_create_workspace_and_snapshot', {
+    p_assessment_instance_id: assessmentInstanceId,
+    p_created_by: createdBy,
+  });
+  if (error) {
+    logDbError({ fn: 'autoCreateWorkspaceAndSnapshot', error });
+    throw new Error(error.message || 'Failed to prepare strategy report.');
+  }
+  return data as AutoCreateResult;
+}
+
+export async function fetchGenerationsForAssessmentInstance(
+  assessmentInstanceId: string
+): Promise<AnalysisGenerationRow[]> {
+  const { data, error } = await supabase
+    .from('analysis_generations')
+    .select(`
+      *,
+      workspace:analysis_workspaces!inner(assessment_instance_id)
+    `)
+    .eq('workspace.assessment_instance_id', assessmentInstanceId)
+    .order('created_at', { ascending: false });
+  if (error) {
+    logDbError({ fn: 'fetchGenerationsForAssessmentInstance', error });
+    throw error;
+  }
+  return (data ?? []) as AnalysisGenerationRow[];
+}
+
+export async function generateStrategyReport(
+  assessmentInstanceId: string,
+  createdBy: string
+): Promise<AnalysisGenerationRow> {
+  if (!isFeatureEnabled('ENABLE_AI_ANALYSIS')) {
+    throw new Error('AI analysis is not enabled. Contact your platform administrator.');
+  }
+
+  const { workspace_id, snapshot_id } = await autoCreateWorkspaceAndSnapshot(
+    assessmentInstanceId,
+    createdBy
+  );
+
+  const generation = await createGeneration({
+    workspace_id,
+    snapshot_id,
+    created_by: createdBy,
+    model_name: 'gpt-4o',
+    prompt_version: 'strategy-poc-v2',
+  });
+
+  const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-strategy-poc`;
+  const { data: session } = await supabase.auth.getSession();
+  const token = session.session?.access_token;
+  if (!token) throw new Error('Not authenticated');
+
+  const response = await fetch(apiUrl, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+    },
+    body: JSON.stringify({
+      workspace_id,
+      snapshot_id,
+      generation_id: generation.id,
+    }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => '');
+    throw new Error(`Generation failed: ${response.status} ${body}`);
+  }
+
+  const refreshed = await fetchGenerationById(generation.id);
+  return refreshed ?? generation;
 }

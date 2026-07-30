@@ -8,7 +8,6 @@ import {
   LayoutGrid,
   ClipboardList,
   StickyNote,
-  Target,
   Plus,
   Copy,
   ExternalLink,
@@ -20,7 +19,6 @@ import StatusBadge from '../components/ui/StatusBadge';
 import Badge from '../components/ui/Badge';
 import Card from '../components/ui/Card';
 import BrokerNotesPanel from '../components/BrokerNotesPanel';
-import AnalysisWorkspacePanel from '../components/AnalysisWorkspacePanel';
 import ConfirmationModal from '../components/ui/ConfirmationModal';
 import EmptyState from '../components/ui/EmptyState';
 import LoadingState from '../components/ui/LoadingState';
@@ -35,12 +33,11 @@ import {
 import type { OrganizationWithAssessment, InstanceWithTemplate } from '../services/organizations';
 import { getFundingTypeLabel, getMonthLabel } from '../lib/sampleData';
 
-type TabKey = 'overview' | 'assessments' | 'notes' | 'analysis';
+type TabKey = 'overview' | 'assessments' | 'notes';
 
 const tabs: { key: TabKey; label: string; icon: typeof LayoutGrid }[] = [
   { key: 'overview', label: 'Overview', icon: LayoutGrid },
   { key: 'assessments', label: 'Assessments', icon: ClipboardList },
-  { key: 'analysis', label: 'Strategy Analysis', icon: Target },
   { key: 'notes', label: 'Notes', icon: StickyNote },
 ];
 
@@ -192,9 +189,6 @@ export default function ClientDetailPage() {
           onRegenerate={(inst) => setRegenTarget(inst)}
           onReload={load}
         />
-      )}
-      {activeTab === 'analysis' && (
-        <AnalysisWorkspacePanel clientOrgId={org.id} instances={instances} />
       )}
       {activeTab === 'notes' && (
         <Card>

@@ -13,6 +13,7 @@ import { getDimensionLabel, getDriverLabel, getEffortLabel, getImpactLabel, type
 import { roundForDisplay, CUSTOM_ASSESSMENT_DISCLAIMER, CUSTOM_SCORING_DISCLAIMER, getScoreBand } from '../lib/assessmentScoring';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { maturityColor, behavioralColor } from '../lib/scores';
+import StrategyReportSection from '../components/StrategyReportSection';
 
 export default function AssessmentReportPage() {
   const { instanceId } = useParams();
@@ -244,6 +245,9 @@ export default function AssessmentReportPage() {
           <Button variant="outline" size="md">Request Propel Strategy Review</Button>
         </div>
       )}
+
+      {/* Strategy Report Section — broker-facing generation, review, approve, print */}
+      <StrategyReportSection assessmentInstanceId={instanceId} />
     </BrokerLayout>
   );
 }

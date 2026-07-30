@@ -6,13 +6,10 @@ import {
   Save,
   Lock,
   AlertCircle,
-  Clock,
-  User,
-  Hash,
   FileText,
   RefreshCw,
   ChevronRight,
-  Link2,
+  Printer,
 } from 'lucide-react';
 import Button from './ui/Button';
 import Card from './ui/Card';
@@ -33,7 +30,6 @@ import {
   canApproveGeneration,
   canEditGeneration,
   isGenerationReadOnly,
-  normalizeEvidencePath,
   getDisplayOutput,
   GENERATION_STATUS_LABELS,
   GENERATION_STATUS_VARIANTS,
@@ -186,27 +182,8 @@ export default function GenerationReviewPanel({ workspaceId, onRefresh }: Props)
               )}
             </div>
             <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-muted mt-2">
-              <span className="inline-flex items-center gap-1">
-                <Hash className="w-3 h-3" /> {gen.model_name}
-              </span>
-              <span>Prompt {gen.prompt_version}</span>
-              <span>Snapshot v{gen.input_snapshot_version}</span>
-              <span className="inline-flex items-center gap-1">
-                <Clock className="w-3 h-3" /> {new Date(gen.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
-              </span>
-              {gen.total_tokens != null && (
-                <span>{gen.total_tokens} tokens</span>
-              )}
+              <span>{new Date(gen.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
             </div>
-            {gen.reviewed_at && (
-              <div className="flex items-center gap-1 text-xs text-neutral-muted mt-1">
-                <User className="w-3 h-3" />
-                Reviewed {new Date(gen.reviewed_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
-                {gen.rejection_reason && (
-                  <span className="text-red"> — {gen.rejection_reason}</span>
-                )}
-              </div>
-            )}
             {gen.error_message && (
               <p className="text-xs text-red mt-1">{gen.error_message}</p>
             )}
@@ -278,7 +255,7 @@ function GenerateButton({
 }
 
 // ============================================================
-// Draft Review Screen
+// Draft Review Screen — broker-facing, no technical metadata
 // ============================================================
 
 type PrioritizedBarrier = {
@@ -295,6 +272,7 @@ type PriorityRecommendation = {
   suggested_first_step: string;
   expected_strategic_impact: string;
   implementation_sequence: string;
+  rationale?: string;
   evidence_references: Array<{ path: string; label: string }>;
 };
 
@@ -361,22 +339,23 @@ function DraftReviewScreen({
   const canApproveGen = canApproveGeneration(capabilities);
   const canEditGen = canEditGeneration(capabilities);
 
+  const buildReviewedOutput = (): GenerationOutput => ({
+    executive_summary: execSummary,
+    maturity_interpretation: maturityInterp,
+    prioritized_barriers: barriers,
+    priority_recommendations: recommendations,
+    implementation_sequence: implSequence,
+    client_discussion_questions: questions,
+    limitations,
+    source_references: output?.source_references ?? [],
+    evidence_references: output?.evidence_references ?? [],
+  });
+
   const handleSaveEdits = async () => {
     setSaving(true);
     setError(null);
     try {
-      const reviewedOutput: GenerationOutput = {
-        executive_summary: execSummary,
-        maturity_interpretation: maturityInterp,
-        prioritized_barriers: barriers,
-        priority_recommendations: recommendations,
-        implementation_sequence: implSequence,
-        client_discussion_questions: questions,
-        limitations,
-        source_references: output?.source_references ?? [],
-        evidence_references: output?.evidence_references ?? [],
-      };
-      await saveReviewEdits(generation.id, reviewedOutput);
+      await saveReviewEdits(generation.id, buildReviewedOutput());
       setEditMode(false);
       onSaveEdits();
     } catch (err) {
@@ -390,18 +369,7 @@ function DraftReviewScreen({
     setApproving(true);
     setError(null);
     try {
-      const reviewedOutput: GenerationOutput = {
-        executive_summary: execSummary,
-        maturity_interpretation: maturityInterp,
-        prioritized_barriers: barriers,
-        priority_recommendations: recommendations,
-        implementation_sequence: implSequence,
-        client_discussion_questions: questions,
-        limitations,
-        source_references: output?.source_references ?? [],
-        evidence_references: output?.evidence_references ?? [],
-      };
-      await approveGeneration(generation.id, userId, reviewedOutput);
+      await approveGeneration(generation.id, userId, buildReviewedOutput());
       onApprove();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to approve.');
@@ -428,6 +396,10 @@ function DraftReviewScreen({
     }
   };
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   if (!output) {
     return (
       <Card>
@@ -438,15 +410,15 @@ function DraftReviewScreen({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 print-area">
       {/* Header */}
-      <Card>
+      <Card className="print:hidden">
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-3 flex-wrap">
             <button onClick={onBack} className="text-sm text-neutral-muted hover:text-navy">
               ← Back
             </button>
-            <h3 className="text-base font-semibold text-navy">Draft Review</h3>
+            <h3 className="text-base font-semibold text-navy">Strategy Report</h3>
             <Badge variant={GENERATION_STATUS_VARIANTS[generation.status]} dot>
               {GENERATION_STATUS_LABELS[generation.status]}
             </Badge>
@@ -477,32 +449,28 @@ function DraftReviewScreen({
                 </Button>
               </>
             )}
+            <Button size="sm" variant="outline" onClick={handlePrint}>
+              <Printer className="w-4 h-4" /> Print
+            </Button>
           </div>
-        </div>
-        <div className="mt-3 pt-3 border-t border-neutral-border-soft flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-muted">
-          <span className="inline-flex items-center gap-1"><Hash className="w-3 h-3" /> {generation.model_name}</span>
-          <span>Prompt {generation.prompt_version}</span>
-          <span>Snapshot v{generation.input_snapshot_version}</span>
-          {generation.total_tokens != null && (
-            <span>{generation.input_tokens ?? '—'} in / {generation.output_tokens ?? '—'} out / {generation.total_tokens} total tokens</span>
-          )}
-          {generation.reviewed_at && (
-            <span className="inline-flex items-center gap-1">
-              <User className="w-3 h-3" /> Reviewed {new Date(generation.reviewed_at).toLocaleString()}
-            </span>
-          )}
         </div>
       </Card>
 
       {error && (
-        <div className="rounded-md border border-red/30 bg-red/5 p-3">
+        <div className="rounded-md border border-red/30 bg-red/5 p-3 print:hidden">
           <p className="text-sm text-red flex items-center gap-1.5">
             <AlertCircle className="w-4 h-4" /> {error}
           </p>
         </div>
       )}
 
-      {/* Executive Summary */}
+      {/* Print header — only visible when printing */}
+      <div className="hidden print:block mb-8 pb-4 border-b-2 border-navy">
+        <img src="/Propel_Logo_2020_v4-3.png" alt="Propel" className="h-10 mb-2" />
+        <h1 className="text-xl font-bold text-navy">Strategy Report</h1>
+      </div>
+
+      {/* A. Executive Summary */}
       <Card>
         <span className="eyebrow">Executive Summary</span>
         {editMode ? (
@@ -517,7 +485,65 @@ function DraftReviewScreen({
         )}
       </Card>
 
-      {/* Priority Recommendations */}
+      {/* B. Current Maturity */}
+      <Card>
+        <span className="eyebrow">Current Maturity</span>
+        <div className="mt-3">
+          <span className="text-xs font-medium text-neutral-muted uppercase tracking-wide">Strategic Interpretation</span>
+          {editMode ? (
+            <textarea
+              value={maturityInterp}
+              onChange={(e) => setMaturityInterp(e.target.value)}
+              rows={3}
+              className="mt-1 w-full rounded-sm border border-neutral-border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green/40"
+            />
+          ) : (
+            <p className="text-sm text-neutral-secondary mt-1 leading-relaxed">{maturityInterp}</p>
+          )}
+        </div>
+      </Card>
+
+      {/* C. What Is Holding Impact Back */}
+      <Card>
+        <span className="eyebrow">What Is Holding Impact Back</span>
+        <div className="mt-3 space-y-3">
+          {barriers.map((barrier, idx) => (
+            <div key={idx} className="rounded-md border border-neutral-border-soft p-3">
+              {editMode ? (
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    value={barrier.title}
+                    onChange={(e) => {
+                      const next = [...barriers];
+                      next[idx] = { ...barrier, title: e.target.value };
+                      setBarriers(next);
+                    }}
+                    className="w-full rounded-sm border border-neutral-border px-2.5 py-1.5 text-sm font-semibold text-navy focus:outline-none focus:ring-2 focus:ring-green/40"
+                  />
+                  <textarea
+                    value={barrier.description}
+                    onChange={(e) => {
+                      const next = [...barriers];
+                      next[idx] = { ...barrier, description: e.target.value };
+                      setBarriers(next);
+                    }}
+                    rows={2}
+                    className="w-full rounded-sm border border-neutral-border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green/40"
+                  />
+                </div>
+              ) : (
+                <>
+                  <p className="text-sm font-semibold text-navy">{barrier.title}</p>
+                  <p className="text-sm text-neutral-secondary mt-1 leading-relaxed">{barrier.description}</p>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      {/* D. Priority Recommendations */}
       <Card>
         <span className="eyebrow">Priority Recommendations ({recommendations.length})</span>
         <div className="mt-3 space-y-4">
@@ -525,7 +551,7 @@ function DraftReviewScreen({
             <div key={idx} className="rounded-md border border-neutral-border-soft p-3">
               <div className="flex items-start gap-2">
                 <span className="text-xs font-bold text-neutral-muted mt-0.5">#{idx + 1}</span>
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 space-y-2">
                   {editMode ? (
                     <input
                       type="text"
@@ -541,58 +567,70 @@ function DraftReviewScreen({
                     <p className="text-sm font-semibold text-navy">{rec.title}</p>
                   )}
 
-                  <div className="mt-2">
-                    <span className="text-xs font-medium text-neutral-muted uppercase tracking-wide">Rationale</span>
-                    {editMode ? (
-                      <textarea
-                        value={rec.rationale}
-                        onChange={(e) => {
-                          const next = [...recommendations];
-                          next[idx] = { ...rec, rationale: e.target.value };
-                          setRecommendations(next);
-                        }}
-                        rows={2}
-                        className="mt-1 w-full rounded-sm border border-neutral-border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green/40"
-                      />
-                    ) : (
-                      <p className="text-sm text-neutral-secondary mt-0.5">{rec.rationale}</p>
-                    )}
-                  </div>
+                  <EditableField
+                    label="Why This Matters"
+                    value={rec.why_this_matters}
+                    editMode={editMode}
+                    onChange={(v) => {
+                      const next = [...recommendations];
+                      next[idx] = { ...rec, why_this_matters: v };
+                      setRecommendations(next);
+                    }}
+                  />
 
-                  <div className="mt-2">
-                    <span className="text-xs font-medium text-neutral-muted uppercase tracking-wide">Recommended Action</span>
-                    {editMode ? (
-                      <textarea
-                        value={rec.recommended_action}
-                        onChange={(e) => {
-                          const next = [...recommendations];
-                          next[idx] = { ...rec, recommended_action: e.target.value };
-                          setRecommendations(next);
-                        }}
-                        rows={2}
-                        className="mt-1 w-full rounded-sm border border-neutral-border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green/40"
-                      />
-                    ) : (
-                      <p className="text-sm text-neutral-secondary mt-0.5">{rec.recommended_action}</p>
-                    )}
-                  </div>
+                  <EditableField
+                    label="Recommended Action"
+                    value={rec.recommended_action}
+                    editMode={editMode}
+                    onChange={(v) => {
+                      const next = [...recommendations];
+                      next[idx] = { ...rec, recommended_action: v };
+                      setRecommendations(next);
+                    }}
+                  />
 
-                  {/* Evidence references (read-only) */}
-                  {rec.evidence_references && rec.evidence_references.length > 0 && (
-                    <div className="mt-2">
-                      <span className="text-xs font-medium text-neutral-muted uppercase tracking-wide">Evidence</span>
-                      <div className="mt-1 space-y-1">
-                        {rec.evidence_references.map((ref, rIdx) => {
-                          const canonical = normalizeEvidencePath(ref.path);
-                          return (
-                            <div key={rIdx} className="flex items-start gap-1.5 text-xs">
-                              <Link2 className="w-3 h-3 text-green mt-0.5 shrink-0" />
-                              <span className="text-neutral-secondary">{ref.label}</span>
-                              <code className="text-neutral-muted font-mono text-[11px]">{canonical}</code>
-                            </div>
-                          );
-                        })}
-                      </div>
+                  <EditableField
+                    label="Suggested First Step"
+                    value={rec.suggested_first_step}
+                    editMode={editMode}
+                    onChange={(v) => {
+                      const next = [...recommendations];
+                      next[idx] = { ...rec, suggested_first_step: v };
+                      setRecommendations(next);
+                    }}
+                  />
+
+                  <EditableField
+                    label="Expected Strategic Impact"
+                    value={rec.expected_strategic_impact}
+                    editMode={editMode}
+                    onChange={(v) => {
+                      const next = [...recommendations];
+                      next[idx] = { ...rec, expected_strategic_impact: v };
+                      setRecommendations(next);
+                    }}
+                  />
+
+                  <EditableField
+                    label="Implementation Order"
+                    value={rec.implementation_sequence}
+                    editMode={editMode}
+                    onChange={(v) => {
+                      const next = [...recommendations];
+                      next[idx] = { ...rec, implementation_sequence: v };
+                      setRecommendations(next);
+                    }}
+                  />
+
+                  {(rec.propel_knowledge_evidence || rec.assessment_evidence) && (
+                    <div>
+                      <span className="text-xs font-medium text-neutral-muted uppercase tracking-wide">Integrated Strategy Guidance</span>
+                      {rec.propel_knowledge_evidence && (
+                        <p className="text-sm text-neutral-secondary mt-0.5 leading-relaxed">{rec.propel_knowledge_evidence}</p>
+                      )}
+                      {rec.assessment_evidence && (
+                        <p className="text-sm text-neutral-secondary mt-1 leading-relaxed">{rec.assessment_evidence}</p>
+                      )}
                     </div>
                   )}
                 </div>
@@ -602,10 +640,10 @@ function DraftReviewScreen({
         </div>
       </Card>
 
-      {/* Implementation Sequence */}
+      {/* E. Recommended Implementation Sequence */}
       {implSequence.length > 0 && (
         <Card>
-          <span className="eyebrow">Implementation Sequence</span>
+          <span className="eyebrow">Recommended Implementation Sequence</span>
           <div className="mt-3 space-y-1.5">
             {implSequence.map((phase, idx) => (
               <div key={idx} className="flex items-start gap-2 text-sm">
@@ -630,35 +668,37 @@ function DraftReviewScreen({
         </Card>
       )}
 
-      {/* Client Discussion Questions */}
-      <Card>
-        <span className="eyebrow">Client Discussion Questions ({questions.length})</span>
-        <div className="mt-3 space-y-2">
-          {questions.map((q, idx) => (
-            <div key={idx} className="flex items-start gap-2">
-              <span className="text-xs font-bold text-neutral-muted mt-0.5">Q{idx + 1}</span>
-              {editMode ? (
-                <input
-                  type="text"
-                  value={q}
-                  onChange={(e) => {
-                    const next = [...questions];
-                    next[idx] = e.target.value;
-                    setQuestions(next);
-                  }}
-                  className="flex-1 rounded-sm border border-neutral-border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green/40"
-                />
-              ) : (
-                <p className="text-sm text-neutral-secondary flex-1">{q}</p>
-              )}
-            </div>
-          ))}
-        </div>
-      </Card>
+      {/* F. Client Discussion Questions */}
+      {questions.length > 0 && (
+        <Card>
+          <span className="eyebrow">Client Discussion Questions ({questions.length})</span>
+          <div className="mt-3 space-y-2">
+            {questions.map((q, idx) => (
+              <div key={idx} className="flex items-start gap-2">
+                <span className="text-xs font-bold text-neutral-muted mt-0.5">Q{idx + 1}</span>
+                {editMode ? (
+                  <input
+                    type="text"
+                    value={q}
+                    onChange={(e) => {
+                      const next = [...questions];
+                      next[idx] = e.target.value;
+                      setQuestions(next);
+                    }}
+                    className="flex-1 rounded-sm border border-neutral-border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green/40"
+                  />
+                ) : (
+                  <p className="text-sm text-neutral-secondary flex-1">{q}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
-      {/* Limitations */}
+      {/* G. Limitations and Missing Information */}
       <Card>
-        <span className="eyebrow">Limitations</span>
+        <span className="eyebrow">Limitations and Missing Information</span>
         {editMode ? (
           <textarea
             value={limitations}
@@ -669,43 +709,6 @@ function DraftReviewScreen({
         ) : (
           <p className="mt-2 text-sm text-neutral-secondary leading-relaxed">{limitations}</p>
         )}
-      </Card>
-
-      {/* Source References (Propel Knowledge) */}
-      {output.source_references && output.source_references.length > 0 && (
-        <Card>
-          <span className="eyebrow">Source References (Propel Knowledge)</span>
-          <div className="mt-3 space-y-1.5">
-            {output.source_references.map((ref, idx) => (
-              <div key={idx} className="flex items-start gap-2 text-sm">
-                <FileText className="w-4 h-4 text-green mt-0.5 shrink-0" />
-                <div>
-                  <span className="text-navy font-medium">{ref.source_title}</span>
-                  <span className="text-xs text-neutral-muted ml-2">{ref.source_type}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
-
-      {/* Top-level Evidence References */}
-      <Card>
-        <span className="eyebrow">Evidence References</span>
-        <div className="mt-3 space-y-1.5">
-          {output.evidence_references?.map((ref, idx) => {
-            const canonical = normalizeEvidencePath(ref.path);
-            return (
-              <div key={idx} className="flex items-start gap-2 text-sm">
-                <Link2 className="w-4 h-4 text-green mt-0.5 shrink-0" />
-                <div>
-                  <span className="text-navy font-medium">{ref.label}</span>
-                  <code className="block text-xs text-neutral-muted font-mono mt-0.5">{canonical}</code>
-                </div>
-              </div>
-            );
-          })}
-        </div>
       </Card>
 
       {/* Rejection reason modal */}
@@ -734,6 +737,34 @@ function DraftReviewScreen({
         onCancel={() => { setRejectOpen(false); setRejectReason(''); }}
         onConfirm={handleReject}
       />
+    </div>
+  );
+}
+
+function EditableField({
+  label,
+  value,
+  editMode,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  editMode: boolean;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div>
+      <span className="text-xs font-medium text-neutral-muted uppercase tracking-wide">{label}</span>
+      {editMode ? (
+        <textarea
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          rows={2}
+          className="mt-1 w-full rounded-sm border border-neutral-border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green/40"
+        />
+      ) : (
+        <p className="text-sm text-neutral-secondary mt-0.5 leading-relaxed">{value}</p>
+      )}
     </div>
   );
 }
