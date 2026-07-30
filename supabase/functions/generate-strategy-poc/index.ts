@@ -577,6 +577,7 @@ type RetrievalMetadata = {
   citation_annotations: CitationAnnotation[];
   catalog_verified_files: string[];
   catalog_unverified_files: string[];
+  blocked_files: string[];
   knowledge_enabled: boolean;
 };
 
@@ -696,7 +697,7 @@ function validateCitations(
   citationAnnotations: CitationAnnotation[],
   catalog: CatalogEntry[],
   knowledgeEnabled: boolean
-): { verified: string[]; unverified: string[]; metadata: RetrievalMetadata } {
+): { verified: string[]; unverified: string[]; blockedFileIds: Set<string>; metadata: RetrievalMetadata } {
   const catalogMap = new Map(catalog.map((c) => [c.openai_file_id, c]));
   const retrievedFileIds = new Set(fileSearchResults.map((r) => r.file_id));
   const retrievedFilenames = new Set(fileSearchResults.map((r) => r.filename));
@@ -708,11 +709,13 @@ function validateCitations(
     return {
       verified: [],
       unverified: [],
+      blockedFileIds: new Set<string>(),
       metadata: {
         file_search_results: [],
         citation_annotations: [],
         catalog_verified_files: [],
         catalog_unverified_files: [],
+        blocked_files: [],
         knowledge_enabled: false,
       },
     };
@@ -742,7 +745,7 @@ function validateCitations(
         verified.push(fileId);
       }
     } else {
-      verified.push(fileId);
+      unverified.push(fileId);
     }
   }
 
@@ -758,7 +761,7 @@ function validateCitations(
             unverified.push(result.file_id);
           }
         } else {
-          verified.push(result.file_id);
+          unverified.push(result.file_id);
         }
       }
     } else {
@@ -766,14 +769,23 @@ function validateCitations(
     }
   }
 
+  const blockedFileIds = new Set<string>();
+  for (const id of unverified) {
+    if (!id.startsWith("title:")) {
+      blockedFileIds.add(id);
+    }
+  }
+
   return {
     verified,
     unverified,
+    blockedFileIds,
     metadata: {
       file_search_results: fileSearchResults,
       citation_annotations: citationAnnotations,
       catalog_verified_files: verified,
       catalog_unverified_files: unverified,
+      blocked_files: [...blockedFileIds],
       knowledge_enabled: true,
     },
   };
@@ -791,6 +803,31 @@ function stripInternalIds(
       ...ref,
       file_id: null,
     })),
+  };
+}
+
+function stripBlockedSources(
+  output: StrategyPocOutput,
+  blockedFileIds: Set<string>,
+  fileSearchResults: FileSearchResult[]
+): StrategyPocOutput {
+  if (blockedFileIds.size === 0) return output;
+
+  const blockedFilenames = new Set(
+    fileSearchResults
+      .filter((r) => blockedFileIds.has(r.file_id))
+      .map((r) => r.filename)
+  );
+
+  const filtered = (output.source_references ?? []).filter((ref) => {
+    if (ref.file_id && blockedFileIds.has(ref.file_id)) return false;
+    if (ref.source_title && blockedFilenames.has(ref.source_title)) return false;
+    return true;
+  });
+
+  return {
+    ...output,
+    source_references: filtered,
   };
 }
 
@@ -1444,7 +1481,12 @@ Respond with ONLY the JSON object. No markdown, no code fences.`;
 
     // ── 21. Normalize evidence paths and strip internal IDs ──
     const normalizedOutput = normalizeEvidencePathsInOutput(validation.output);
-    const strippedOutput = stripInternalIds(normalizedOutput);
+    const blockedStripped = stripBlockedSources(
+      normalizedOutput,
+      citationValidation.blockedFileIds,
+      fileSearchResults
+    );
+    const strippedOutput = stripInternalIds(blockedStripped);
 
     // ── 22. Save successful result ──
     const { error: saveError } = await supabase

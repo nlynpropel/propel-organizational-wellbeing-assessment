@@ -154,6 +154,7 @@ export type RetrievalMetadata = {
   citation_annotations: CitationAnnotation[];
   catalog_verified_files: string[];
   catalog_unverified_files: string[];
+  blocked_files: string[];
   knowledge_enabled: boolean;
 };
 
@@ -434,6 +435,7 @@ export type CatalogEntry = {
 export type CitationValidationResult = {
   verified: string[];
   unverified: string[];
+  blockedFileIds: Set<string>;
   metadata: RetrievalMetadata;
 };
 
@@ -457,11 +459,13 @@ export function validateCitations(
     return {
       verified: [],
       unverified: [],
+      blockedFileIds: new Set<string>(),
       metadata: {
         file_search_results: [],
         citation_annotations: [],
         catalog_verified_files: [],
         catalog_unverified_files: [],
+        blocked_files: [],
         knowledge_enabled: false,
       },
     };
@@ -476,7 +480,7 @@ export function validateCitations(
     if (ref.source_title) referencedTitles.add(ref.source_title);
   }
 
-  for (const rec of output.priority_recommendations ?? []) {
+  for (const _rec of output.priority_recommendations ?? []) {
     // Extract file_ids from propel_knowledge_evidence text if they appear
     // (model may embed filenames, not file_ids, so we rely on source_references)
   }
@@ -500,9 +504,8 @@ export function validateCitations(
         verified.push(fileId);
       }
     } else {
-      // File was retrieved but not in catalog — allow if retrieved
-      // (catalog may be incomplete during POC)
-      verified.push(fileId);
+      // File was retrieved but not in catalog — block it
+      unverified.push(fileId);
     }
   }
 
@@ -520,7 +523,7 @@ export function validateCitations(
             unverified.push(result.file_id);
           }
         } else {
-          verified.push(result.file_id);
+          unverified.push(result.file_id);
         }
       }
     } else if (!unverified.some((id) => {
@@ -532,14 +535,23 @@ export function validateCitations(
     }
   }
 
+  const blockedFileIds = new Set<string>();
+  for (const id of unverified) {
+    if (!id.startsWith("title:")) {
+      blockedFileIds.add(id);
+    }
+  }
+
   return {
     verified,
     unverified,
+    blockedFileIds,
     metadata: {
       file_search_results: fileSearchResults,
       citation_annotations: citationAnnotations,
       catalog_verified_files: verified,
       catalog_unverified_files: unverified,
+      blocked_files: [...blockedFileIds],
       knowledge_enabled: true,
     },
   };
@@ -559,6 +571,31 @@ export function stripInternalIds(
     })),
   };
   return stripped;
+}
+
+export function stripBlockedSources(
+  output: StrategyPocOutput,
+  blockedFileIds: Set<string>,
+  fileSearchResults: FileSearchResult[]
+): StrategyPocOutput {
+  if (blockedFileIds.size === 0) return output;
+
+  const blockedFilenames = new Set(
+    fileSearchResults
+      .filter((r) => blockedFileIds.has(r.file_id))
+      .map((r) => r.filename)
+  );
+
+  const filtered = (output.source_references ?? []).filter((ref) => {
+    if (ref.file_id && blockedFileIds.has(ref.file_id)) return false;
+    if (ref.source_title && blockedFilenames.has(ref.source_title)) return false;
+    return true;
+  });
+
+  return {
+    ...output,
+    source_references: filtered,
+  };
 }
 
 // ============================================================

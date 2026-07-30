@@ -598,7 +598,7 @@ describe("Edge Function — citation validation", () => {
     expect(result.metadata.knowledge_enabled).toBe(false);
   });
 
-  it("allows retrieved file not in catalog (POC grace)", () => {
+  it("blocks retrieved file not in catalog (no grace)", () => {
     const output: StrategyPocOutput = {
       ...VALID_OUTPUT,
       source_references: [
@@ -610,7 +610,10 @@ describe("Edge Function — citation validation", () => {
       { file_id: "file-new789", filename: "new_doc.pdf", score: 0.8 },
     ];
     const result = validateCitations(output, results, [], catalog, true);
-    expect(result.verified).toContain("file-new789");
+    expect(result.verified).not.toContain("file-new789");
+    expect(result.unverified).toContain("file-new789");
+    expect(result.blockedFileIds.has("file-new789")).toBe(true);
+    expect(result.metadata.blocked_files).toContain("file-new789");
   });
 
   it("records metadata for audit", () => {
