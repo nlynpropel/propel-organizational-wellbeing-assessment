@@ -1233,6 +1233,8 @@ Deno.serve(async (req: Request) => {
     }
 
     // ── 11. Reject snapshots below sufficient readiness ──
+    // assessment_only snapshots are sufficient when the assessment has all
+    // required deterministic results, even without broker-entered workspace data
     const completeness = snapshot.completeness_level as string;
     if (completeness !== "sufficient" && completeness !== "strong") {
       await supabase

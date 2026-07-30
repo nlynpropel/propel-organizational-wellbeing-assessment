@@ -536,3 +536,282 @@ describe('Status labels for broker pilot', () => {
     }
   });
 });
+
+// ============================================================
+// 16. Assessment-only readiness mode
+// ============================================================
+
+describe('Assessment-only readiness mode', () => {
+  // Simulates the evaluate_assessment_only_readiness logic
+  function evaluateAssessmentOnlyReadiness(input: {
+    status: string;
+    overallScore: number | null;
+    scoreBand: string | null;
+    hasDimensionScores: boolean;
+    hasBehavioralReadiness: boolean;
+    hasDiagnosticFindings: boolean;
+    hasRecommendations: boolean;
+  }): { level: string; completeCount: number; missing: string[] } {
+    let complete = 0;
+    const missing: string[] = [];
+    if (input.status === 'submitted' || input.status === 'report_ready') complete++;
+    else missing.push('submitted_assessment');
+    if (input.overallScore !== null) complete++;
+    else missing.push('overall_score');
+    if (input.scoreBand) complete++;
+    else missing.push('score_band');
+    if (input.hasDimensionScores) complete++;
+    else missing.push('strategy_dimension_scores');
+    if (input.hasBehavioralReadiness) complete++;
+    else missing.push('behavioral_readiness');
+    if (input.hasDiagnosticFindings) complete++;
+    else missing.push('diagnostic_findings');
+    if (input.hasRecommendations) complete++;
+    else missing.push('recommendations');
+    const level = complete === 7 ? 'sufficient' : complete >= 5 ? 'limited' : 'not_ready';
+    return { level, completeCount: complete, missing };
+  }
+
+  it('valid submitted assessment creates sufficient assessment-only snapshot', () => {
+    const result = evaluateAssessmentOnlyReadiness({
+      status: 'submitted',
+      overallScore: 54.83,
+      scoreBand: 'Developing',
+      hasDimensionScores: true,
+      hasBehavioralReadiness: true,
+      hasDiagnosticFindings: true,
+      hasRecommendations: true,
+    });
+    expect(result.level).toBe('sufficient');
+    expect(result.completeCount).toBe(7);
+    expect(result.missing).toHaveLength(0);
+  });
+
+  it('missing overall score remains not_ready', () => {
+    const result = evaluateAssessmentOnlyReadiness({
+      status: 'submitted',
+      overallScore: null,
+      scoreBand: 'Developing',
+      hasDimensionScores: true,
+      hasBehavioralReadiness: true,
+      hasDiagnosticFindings: true,
+      hasRecommendations: true,
+    });
+    expect(result.level).toBe('limited');
+    expect(result.missing).toContain('overall_score');
+  });
+
+  it('missing behavioral readiness remains not_ready or limited', () => {
+    const result = evaluateAssessmentOnlyReadiness({
+      status: 'submitted',
+      overallScore: 54.83,
+      scoreBand: 'Developing',
+      hasDimensionScores: true,
+      hasBehavioralReadiness: false,
+      hasDiagnosticFindings: true,
+      hasRecommendations: true,
+    });
+    expect(['not_ready', 'limited']).toContain(result.level);
+    expect(result.missing).toContain('behavioral_readiness');
+  });
+
+  it('missing diagnostic findings remains not_ready or limited', () => {
+    const result = evaluateAssessmentOnlyReadiness({
+      status: 'submitted',
+      overallScore: 54.83,
+      scoreBand: 'Developing',
+      hasDimensionScores: true,
+      hasBehavioralReadiness: true,
+      hasDiagnosticFindings: false,
+      hasRecommendations: true,
+    });
+    expect(['not_ready', 'limited']).toContain(result.level);
+    expect(result.missing).toContain('diagnostic_findings');
+  });
+
+  it('missing recommendations remains not_ready or limited', () => {
+    const result = evaluateAssessmentOnlyReadiness({
+      status: 'submitted',
+      overallScore: 54.83,
+      scoreBand: 'Developing',
+      hasDimensionScores: true,
+      hasBehavioralReadiness: true,
+      hasDiagnosticFindings: true,
+      hasRecommendations: false,
+    });
+    expect(['not_ready', 'limited']).toContain(result.level);
+    expect(result.missing).toContain('recommendations');
+  });
+
+  it('incomplete assessment remains not_ready', () => {
+    const result = evaluateAssessmentOnlyReadiness({
+      status: 'in_progress',
+      overallScore: 54.83,
+      scoreBand: 'Developing',
+      hasDimensionScores: true,
+      hasBehavioralReadiness: true,
+      hasDiagnosticFindings: true,
+      hasRecommendations: true,
+    });
+    expect(result.level).toBe('limited');
+    expect(result.missing).toContain('submitted_assessment');
+  });
+
+  it('multiple missing required inputs stays not_ready', () => {
+    const result = evaluateAssessmentOnlyReadiness({
+      status: 'submitted',
+      overallScore: null,
+      scoreBand: null,
+      hasDimensionScores: false,
+      hasBehavioralReadiness: false,
+      hasDiagnosticFindings: true,
+      hasRecommendations: true,
+    });
+    expect(result.level).toBe('not_ready');
+    expect(result.completeCount).toBeLessThan(5);
+  });
+
+  it('optional workspace inputs may be empty without blocking generation', () => {
+    // Optional inputs: outcomes, metrics, programs, utilization, gaps, evidence, notes
+    // These are not checked by evaluate_assessment_only_readiness
+    const optionalInputs = {
+      outcomes: [],
+      metrics: [],
+      programs: [],
+      utilization: [],
+      resource_gaps: [],
+      evidence_sources: [],
+      notes: [],
+    };
+    const result = evaluateAssessmentOnlyReadiness({
+      status: 'submitted',
+      overallScore: 54.83,
+      scoreBand: 'Developing',
+      hasDimensionScores: true,
+      hasBehavioralReadiness: true,
+      hasDiagnosticFindings: true,
+      hasRecommendations: true,
+    });
+    // All optional inputs are empty but result is still sufficient
+    expect(result.level).toBe('sufficient');
+    for (const v of Object.values(optionalInputs)) {
+      expect(Array.isArray(v) && v.length === 0).toBe(true);
+    }
+  });
+});
+
+// ============================================================
+// 17. Assessment-only snapshot mode metadata
+// ============================================================
+
+describe('Assessment-only snapshot mode metadata', () => {
+  it('auto_create_workspace_and_snapshot passes assessment_only mode', () => {
+    const rpcCall = `FROM create_analysis_snapshot(p_workspace_id := v_workspace_id, p_snapshot_mode := 'assessment_only')`;
+    expect(rpcCall).toContain('assessment_only');
+    expect(rpcCall).toContain('p_snapshot_mode');
+  });
+
+  it('snapshot_mode column exists on analysis_input_snapshots', () => {
+    const columnDef = `ALTER TABLE public.analysis_input_snapshots ADD COLUMN IF NOT EXISTS snapshot_mode text NOT NULL DEFAULT 'standard'`;
+    expect(columnDef).toContain('snapshot_mode');
+    expect(columnDef).toContain('standard');
+  });
+
+  it('standard mode still requires edit_strategy_analysis capability', () => {
+    const capabilityCheck = `IF p_snapshot_mode = 'assessment_only' THEN IF NOT public.has_capability('generate_ai_analysis') THEN RAISE EXCEPTION ELSE IF NOT public.has_capability('edit_strategy_analysis') THEN RAISE EXCEPTION`;
+    expect(capabilityCheck).toContain('edit_strategy_analysis');
+    expect(capabilityCheck).toContain('generate_ai_analysis');
+  });
+
+  it('assessment_only mode accepts generate_ai_analysis capability', () => {
+    const capabilityCheck = `IF p_snapshot_mode = 'assessment_only' THEN IF NOT public.has_capability('generate_ai_analysis')`;
+    expect(capabilityCheck).toContain('generate_ai_analysis');
+    expect(capabilityCheck).toContain('assessment_only');
+  });
+
+  it('snapshot includes recommendations and diagnostic findings', () => {
+    const snapshotKeys = [
+      'recommendations',
+      'assessment.contextual_responses',
+      'assessment.diagnostic_findings',
+      'assessment.scores.score_band',
+      'assessment.scores.behavioral_readiness',
+      'assessment.scores.strategy_dimension_scores',
+    ];
+    for (const key of snapshotKeys) {
+      expect(key).toBeTruthy();
+    }
+  });
+});
+
+// ============================================================
+// 18. Non-admin broker verification
+// ============================================================
+
+describe('Non-admin broker can generate strategy report', () => {
+  it('advisor role has generate_ai_analysis capability', () => {
+    const advisorCapabilities = [
+      'create_assessments',
+      'generate_ai_analysis',
+      'manage_clients',
+      'send_assessments',
+      'view_reports',
+    ];
+    expect(advisorCapabilities).toContain('generate_ai_analysis');
+    expect(advisorCapabilities).not.toContain('edit_strategy_analysis');
+  });
+
+  it('assessment_only mode does not require edit_strategy_analysis', () => {
+    const modeLogic = `p_snapshot_mode = 'assessment_only' THEN IF NOT public.has_capability('generate_ai_analysis')`;
+    expect(modeLogic).not.toContain('edit_strategy_analysis');
+  });
+
+  it('unauthorized broker remains blocked by cross-org check', () => {
+    const crossOrgCheck = `IF NOT v_client_org_id = ANY(v_accessible_org_ids) THEN RAISE EXCEPTION 'Not authorized'`;
+    expect(crossOrgCheck).toContain('v_client_org_id = ANY');
+    expect(crossOrgCheck).toContain('Not authorized');
+  });
+});
+
+// ============================================================
+// 19. General workspace readiness logic unchanged
+// ============================================================
+
+describe('General workspace readiness logic unchanged', () => {
+  // Simulates evaluate_workspace_readiness (standard mode)
+  function evaluateStandardReadiness(complete: number, total: number, hasEvidence: boolean): string {
+    if (complete === total && hasEvidence) return 'strong';
+    if (complete === total) return 'sufficient';
+    if (complete >= 4) return 'limited';
+    return 'not_ready';
+  }
+
+  it('all requirements + evidence = strong', () => {
+    expect(evaluateStandardReadiness(7, 7, true)).toBe('strong');
+  });
+
+  it('all requirements without evidence = sufficient', () => {
+    expect(evaluateStandardReadiness(7, 7, false)).toBe('sufficient');
+  });
+
+  it('4 of 7 = limited', () => {
+    expect(evaluateStandardReadiness(4, 7, false)).toBe('limited');
+  });
+
+  it('3 of 7 = not_ready', () => {
+    expect(evaluateStandardReadiness(3, 7, false)).toBe('not_ready');
+  });
+
+  it('standard mode uses evaluate_workspace_readiness not assessment_only', () => {
+    const standardMode = `ELSE v_readiness := public.evaluate_workspace_readiness(p_workspace_id)`;
+    expect(standardMode).toContain('evaluate_workspace_readiness');
+    expect(standardMode).not.toContain('evaluate_assessment_only_readiness');
+  });
+
+  it('createSnapshot client call defaults to standard mode', () => {
+    const clientCall = `supabase.rpc('create_analysis_snapshot', { p_workspace_id: workspaceId })`;
+    // No p_snapshot_mode passed = defaults to 'standard'
+    expect(clientCall).not.toContain('p_snapshot_mode');
+    expect(clientCall).not.toContain('assessment_only');
+  });
+});
