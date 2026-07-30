@@ -197,14 +197,30 @@ export function isGenerationReadOnly(status: GenerationStatus): boolean {
 
 export type ReviewedOutput = {
   executive_summary: string;
+  maturity_interpretation: string;
+  prioritized_barriers: Array<{
+    title: string;
+    description: string;
+  }>;
   priority_recommendations: Array<{
     title: string;
-    rationale: string;
+    why_this_matters: string;
+    assessment_evidence: string;
+    propel_knowledge_evidence: string;
     recommended_action: string;
+    suggested_first_step: string;
+    expected_strategic_impact: string;
+    implementation_sequence: string;
     evidence_references: Array<{ path: string; label: string }>;
   }>;
+  implementation_sequence: string[];
   client_discussion_questions: string[];
   limitations: string;
+  source_references: Array<{
+    source_title: string;
+    source_type: "propel_knowledge";
+    file_id: string | null;
+  }>;
   evidence_references: Array<{ path: string; label: string }>;
 };
 

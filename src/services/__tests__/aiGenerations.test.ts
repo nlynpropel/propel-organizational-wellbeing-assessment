@@ -78,7 +78,7 @@ function makeGen(overrides: Partial<AnalysisGenerationRow> = {}): AnalysisGenera
     generation_type: 'strategy_poc',
     status: 'draft_generated',
     model_name: 'gpt-4o',
-    prompt_version: 'strategy-poc-v1',
+    prompt_version: 'strategy-poc-v2',
     input_snapshot_version: 1,
     output_json: { executive_summary: 'test' },
     original_output_json: { executive_summary: 'test' },
@@ -89,6 +89,8 @@ function makeGen(overrides: Partial<AnalysisGenerationRow> = {}): AnalysisGenera
     input_tokens: 100,
     output_tokens: 200,
     total_tokens: 300,
+    retrieval_metadata: null,
+    knowledge_enabled: false,
     created_by: 'user-1',
     reviewed_by: null,
     reviewed_at: null,
@@ -148,9 +150,13 @@ describe('aiGenerations review workflow', () => {
 
     await saveReviewEdits('gen-1', {
       executive_summary: 'edited',
+      maturity_interpretation: '',
+      prioritized_barriers: [],
       priority_recommendations: [],
+      implementation_sequence: [],
       client_discussion_questions: [],
       limitations: 'edited limitations',
+      source_references: [],
       evidence_references: [],
     });
 
@@ -171,9 +177,13 @@ describe('aiGenerations review workflow', () => {
     await expect(
       saveReviewEdits('gen-1', {
         executive_summary: 'edited',
+        maturity_interpretation: '',
+        prioritized_barriers: [],
         priority_recommendations: [],
+        implementation_sequence: [],
         client_discussion_questions: [],
         limitations: '',
+        source_references: [],
         evidence_references: [],
       })
     ).rejects.toThrow('edit_strategy_analysis');
@@ -197,9 +207,13 @@ describe('aiGenerations review workflow', () => {
 
     const reviewedOutput = {
       executive_summary: 'approved summary',
+      maturity_interpretation: '',
+      prioritized_barriers: [],
       priority_recommendations: [],
+      implementation_sequence: [],
       client_discussion_questions: [],
       limitations: 'approved limitations',
+      source_references: [],
       evidence_references: [],
     };
 
@@ -300,7 +314,7 @@ describe('aiGenerations review workflow', () => {
         snapshot_id: 'snap-1',
         created_by: 'user-1',
         model_name: 'gpt-4o',
-        prompt_version: 'strategy-poc-v1',
+        prompt_version: 'strategy-poc-v2',
       })
     ).rejects.toThrow('An active generation already exists');
   });
@@ -317,7 +331,7 @@ describe('aiGenerations review workflow', () => {
         snapshot_id: 'snap-1',
         created_by: 'user-1',
         model_name: 'gpt-4o',
-        prompt_version: 'strategy-poc-v1',
+        prompt_version: 'strategy-poc-v2',
       })
     ).rejects.toThrow('below sufficient');
   });
@@ -372,9 +386,13 @@ describe('aiGenerations review workflow', () => {
     mockRpc.mockResolvedValueOnce({ data: { success: true }, error: null });
     await saveReviewEdits('gen-1', {
       executive_summary: 'x',
+      maturity_interpretation: '',
+      prioritized_barriers: [],
       priority_recommendations: [],
+      implementation_sequence: [],
       client_discussion_questions: [],
       limitations: '',
+      source_references: [],
       evidence_references: [],
     });
     expect(chainable.update).not.toHaveBeenCalled();

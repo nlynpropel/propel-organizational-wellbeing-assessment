@@ -252,7 +252,7 @@ function GenerateButton({
         snapshot_id: snapshotId,
         created_by: createdBy,
         model_name: 'gpt-4o',
-        prompt_version: 'strategy-poc-v1',
+        prompt_version: 'strategy-poc-v2',
       });
       onCreated();
     } catch (err) {
@@ -281,18 +281,38 @@ function GenerateButton({
 // Draft Review Screen
 // ============================================================
 
+type PrioritizedBarrier = {
+  title: string;
+  description: string;
+};
+
 type PriorityRecommendation = {
   title: string;
-  rationale: string;
+  why_this_matters: string;
+  assessment_evidence: string;
+  propel_knowledge_evidence: string;
   recommended_action: string;
+  suggested_first_step: string;
+  expected_strategic_impact: string;
+  implementation_sequence: string;
   evidence_references: Array<{ path: string; label: string }>;
+};
+
+type SourceReference = {
+  source_title: string;
+  source_type: 'propel_knowledge';
+  file_id: string | null;
 };
 
 type GenerationOutput = {
   executive_summary: string;
+  maturity_interpretation: string;
+  prioritized_barriers: PrioritizedBarrier[];
   priority_recommendations: PriorityRecommendation[];
+  implementation_sequence: string[];
   client_discussion_questions: string[];
   limitations: string;
+  source_references: SourceReference[];
   evidence_references: Array<{ path: string; label: string }>;
 };
 
@@ -330,7 +350,10 @@ function DraftReviewScreen({
 
   // Editable fields
   const [execSummary, setExecSummary] = useState(output?.executive_summary ?? '');
+  const [maturityInterp, setMaturityInterp] = useState(output?.maturity_interpretation ?? '');
+  const [barriers, setBarriers] = useState<PrioritizedBarrier[]>(output?.prioritized_barriers ?? []);
   const [recommendations, setRecommendations] = useState<PriorityRecommendation[]>(output?.priority_recommendations ?? []);
+  const [implSequence, setImplSequence] = useState<string[]>(output?.implementation_sequence ?? []);
   const [questions, setQuestions] = useState<string[]>(output?.client_discussion_questions ?? []);
   const [limitations, setLimitations] = useState(output?.limitations ?? '');
 
@@ -344,9 +367,13 @@ function DraftReviewScreen({
     try {
       const reviewedOutput: GenerationOutput = {
         executive_summary: execSummary,
+        maturity_interpretation: maturityInterp,
+        prioritized_barriers: barriers,
         priority_recommendations: recommendations,
+        implementation_sequence: implSequence,
         client_discussion_questions: questions,
         limitations,
+        source_references: output?.source_references ?? [],
         evidence_references: output?.evidence_references ?? [],
       };
       await saveReviewEdits(generation.id, reviewedOutput);
@@ -365,9 +392,13 @@ function DraftReviewScreen({
     try {
       const reviewedOutput: GenerationOutput = {
         executive_summary: execSummary,
+        maturity_interpretation: maturityInterp,
+        prioritized_barriers: barriers,
         priority_recommendations: recommendations,
+        implementation_sequence: implSequence,
         client_discussion_questions: questions,
         limitations,
+        source_references: output?.source_references ?? [],
         evidence_references: output?.evidence_references ?? [],
       };
       await approveGeneration(generation.id, userId, reviewedOutput);
@@ -571,6 +602,34 @@ function DraftReviewScreen({
         </div>
       </Card>
 
+      {/* Implementation Sequence */}
+      {implSequence.length > 0 && (
+        <Card>
+          <span className="eyebrow">Implementation Sequence</span>
+          <div className="mt-3 space-y-1.5">
+            {implSequence.map((phase, idx) => (
+              <div key={idx} className="flex items-start gap-2 text-sm">
+                <span className="text-xs font-bold text-neutral-muted mt-0.5">{idx + 1}.</span>
+                {editMode ? (
+                  <input
+                    type="text"
+                    value={phase}
+                    onChange={(e) => {
+                      const next = [...implSequence];
+                      next[idx] = e.target.value;
+                      setImplSequence(next);
+                    }}
+                    className="flex-1 rounded-sm border border-neutral-border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green/40"
+                  />
+                ) : (
+                  <p className="text-neutral-secondary flex-1">{phase}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
       {/* Client Discussion Questions */}
       <Card>
         <span className="eyebrow">Client Discussion Questions ({questions.length})</span>
@@ -611,6 +670,24 @@ function DraftReviewScreen({
           <p className="mt-2 text-sm text-neutral-secondary leading-relaxed">{limitations}</p>
         )}
       </Card>
+
+      {/* Source References (Propel Knowledge) */}
+      {output.source_references && output.source_references.length > 0 && (
+        <Card>
+          <span className="eyebrow">Source References (Propel Knowledge)</span>
+          <div className="mt-3 space-y-1.5">
+            {output.source_references.map((ref, idx) => (
+              <div key={idx} className="flex items-start gap-2 text-sm">
+                <FileText className="w-4 h-4 text-green mt-0.5 shrink-0" />
+                <div>
+                  <span className="text-navy font-medium">{ref.source_title}</span>
+                  <span className="text-xs text-neutral-muted ml-2">{ref.source_type}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {/* Top-level Evidence References */}
       <Card>

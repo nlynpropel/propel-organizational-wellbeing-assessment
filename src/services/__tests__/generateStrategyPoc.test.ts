@@ -3,12 +3,19 @@ import {
   validateOutputStructure,
   validateEvidencePaths,
   buildFilteredPayload,
+  buildRetrievalFocus,
+  validateCitations,
+  stripInternalIds,
+  normalizeEvidencePathsInOutput,
   safeErrorMessage,
   SYSTEM_PROMPT,
   SYSTEM_PROMPT_VERSION,
   MAX_RECOMMENDATIONS,
   MAX_DISCUSSION_QUESTIONS,
+  MAX_BARRIERS,
   type StrategyPocOutput,
+  type FileSearchResult,
+  type CatalogEntry,
 } from "../generateStrategyPocLogic";
 
 // ============================================================
@@ -18,21 +25,35 @@ import {
 const VALID_OUTPUT: StrategyPocOutput = {
   executive_summary:
     "The client shows moderate wellbeing maturity with opportunities in communication and access.",
+  maturity_interpretation:
+    "The organization sits in the Established band, indicating solid program infrastructure but gaps in employee awareness and engagement.",
+  prioritized_barriers: [
+    { title: "Low program awareness", description: "Clarity of Value score of 72 indicates employees don't fully understand available programs." },
+  ],
   priority_recommendations: [
     {
       title: "Strengthen Program Communication",
-      rationale: "Clarity of Value score of 72 indicates moderate understanding.",
+      why_this_matters: "Employees cannot benefit from programs they don't know about.",
+      assessment_evidence: "Clarity of Value score of 72 indicates moderate understanding.",
+      propel_knowledge_evidence: "Propel framework recommends multi-channel communication strategies (communication_playbook.pdf).",
       recommended_action: "Launch a targeted communication campaign for EAP.",
+      suggested_first_step: "Audit current communication channels and identify gaps within 30 days.",
+      expected_strategic_impact: "Increased EAP utilization by 15-20% within 6 months.",
+      implementation_sequence: "Phase 1: Foundation",
       evidence_references: [
         { path: "assessment.behavioral_readiness.clarity_of_value", label: "Clarity of Value Score" },
         { path: "programs[0]", label: "EAP Program" },
       ],
     },
   ],
+  implementation_sequence: ["Phase 1: Foundation — communication and awareness", "Phase 2: Build — program optimization"],
   client_discussion_questions: [
     "How are employees currently learning about available programs?",
   ],
   limitations: "Based on a single assessment snapshot; limited utilization data.",
+  source_references: [
+    { source_title: "communication_playbook.pdf", source_type: "propel_knowledge", file_id: "file-abc123" },
+  ],
   evidence_references: [
     { path: "assessment.overall_score", label: "Overall Score" },
   ],
@@ -103,36 +124,68 @@ describe("Edge Function — validateOutputStructure", () => {
     const rec = VALID_OUTPUT.priority_recommendations[0];
     const bad = {
       ...VALID_OUTPUT,
-      priority_recommendations: [rec, rec, rec, rec],
+      priority_recommendations: [rec, rec, rec, rec, rec, rec],
     };
     const result = validateOutputStructure(bad);
     expect(result.valid).toBe(false);
-    expect(result.error).toContain("must not exceed 3");
+    expect(result.error).toContain("must not exceed 5");
   });
 
-  it("2d. rejects missing rationale", () => {
+  it("2d. rejects missing why_this_matters", () => {
     const bad = {
       ...VALID_OUTPUT,
       priority_recommendations: [
-        { title: "Test", rationale: "", recommended_action: "Do X", evidence_references: [] },
+        { ...VALID_OUTPUT.priority_recommendations[0], why_this_matters: "" },
       ],
     };
     const result = validateOutputStructure(bad);
     expect(result.valid).toBe(false);
-    expect(result.error).toContain("rationale");
+    expect(result.error).toContain("why_this_matters");
   });
 
   it("2e. rejects too many discussion questions", () => {
     const bad = {
       ...VALID_OUTPUT,
-      client_discussion_questions: ["q1", "q2", "q3", "q4"],
+      client_discussion_questions: ["q1", "q2", "q3", "q4", "q5", "q6"],
     };
     const result = validateOutputStructure(bad);
     expect(result.valid).toBe(false);
-    expect(result.error).toContain("must not exceed 3");
+    expect(result.error).toContain("must not exceed 5");
   });
 
-  it("2f. rejects non-array priority_recommendations", () => {
+  it("2f. rejects too many barriers", () => {
+    const barrier = VALID_OUTPUT.prioritized_barriers[0];
+    const bad = {
+      ...VALID_OUTPUT,
+      prioritized_barriers: [barrier, barrier, barrier, barrier, barrier, barrier],
+    };
+    const result = validateOutputStructure(bad);
+    expect(result.valid).toBe(false);
+    expect(result.error).toContain("must not exceed 5");
+  });
+
+  it("2g. rejects missing maturity_interpretation", () => {
+    const bad = { ...VALID_OUTPUT, maturity_interpretation: undefined };
+    const result = validateOutputStructure(bad);
+    expect(result.valid).toBe(false);
+    expect(result.error).toContain("maturity_interpretation");
+  });
+
+  it("2h. rejects missing implementation_sequence", () => {
+    const bad = { ...VALID_OUTPUT, implementation_sequence: undefined };
+    const result = validateOutputStructure(bad);
+    expect(result.valid).toBe(false);
+    expect(result.error).toContain("implementation_sequence");
+  });
+
+  it("2i. rejects missing source_references", () => {
+    const bad = { ...VALID_OUTPUT, source_references: undefined };
+    const result = validateOutputStructure(bad);
+    expect(result.valid).toBe(false);
+    expect(result.error).toContain("source_references");
+  });
+
+  it("2j. rejects non-array priority_recommendations", () => {
     const bad = { ...VALID_OUTPUT, priority_recommendations: "not array" };
     const result = validateOutputStructure(bad);
     expect(result.valid).toBe(false);
@@ -314,19 +367,24 @@ describe("Edge Function — safeErrorMessage", () => {
 
 describe("Edge Function — SYSTEM_PROMPT rules", () => {
   it("has a versioned system prompt", () => {
-    expect(SYSTEM_PROMPT_VERSION).toBe("strategy-poc-v1");
+    expect(SYSTEM_PROMPT_VERSION).toBe("strategy-poc-v2");
     expect(SYSTEM_PROMPT).toContain("JSON");
     expect(SYSTEM_PROMPT).toContain("evidence_references");
   });
 
-  it("enforces max 3 recommendations in prompt", () => {
-    expect(MAX_RECOMMENDATIONS).toBe(3);
-    expect(SYSTEM_PROMPT).toContain("at most 3 priority recommendations");
+  it("enforces max 5 recommendations in prompt", () => {
+    expect(MAX_RECOMMENDATIONS).toBe(5);
+    expect(SYSTEM_PROMPT).toContain("at most 5 priority recommendations");
   });
 
-  it("enforces max 3 discussion questions in prompt", () => {
-    expect(MAX_DISCUSSION_QUESTIONS).toBe(3);
-    expect(SYSTEM_PROMPT).toContain("at most 3 client discussion questions");
+  it("enforces max 5 discussion questions in prompt", () => {
+    expect(MAX_DISCUSSION_QUESTIONS).toBe(5);
+    expect(SYSTEM_PROMPT).toContain("at most 5 client discussion questions");
+  });
+
+  it("enforces max 5 barriers in prompt", () => {
+    expect(MAX_BARRIERS).toBe(5);
+    expect(SYSTEM_PROMPT).toContain("at most 5 prioritized barriers");
   });
 
   it("includes PII exclusion rule", () => {
@@ -340,10 +398,10 @@ describe("Edge Function — SYSTEM_PROMPT rules", () => {
     expect(SYSTEM_PROMPT).toContain("client_report_candidate");
   });
 
-  it("excludes strengths, quick wins, and high-impact moves", () => {
-    expect(SYSTEM_PROMPT).toContain("Do NOT generate strengths");
-    expect(SYSTEM_PROMPT).toContain("quick wins");
-    expect(SYSTEM_PROMPT).toContain("high-impact moves");
+  it("includes file_search tool instructions", () => {
+    expect(SYSTEM_PROMPT).toContain("file_search");
+    expect(SYSTEM_PROMPT).toContain("propel_knowledge_evidence");
+    expect(SYSTEM_PROMPT).toContain("source_references");
   });
 });
 
@@ -437,6 +495,16 @@ describe("Edge Function — error and access control scenarios", () => {
     expect(responseStr).not.toContain("Bearer");
   });
 
+  it("10f. stripped output has no file_id or vector_store_id", () => {
+    const stripped = stripInternalIds(VALID_OUTPUT);
+    const json = JSON.stringify(stripped);
+    expect(json).not.toContain("file-abc123");
+    expect(json).not.toContain("vector_store");
+    for (const ref of stripped.source_references) {
+      expect(ref.file_id).toBeNull();
+    }
+  });
+
   it("10b. Error response never contains API key", () => {
     const errorResponse = {
       error: safeErrorMessage(
@@ -461,5 +529,189 @@ describe("Edge Function — error and access control scenarios", () => {
     const result = validateOutputStructure("not json at all");
     expect(result.valid).toBe(false);
     expect(result.error).toContain("not an object");
+  });
+});
+
+// ============================================================
+// Citation validation tests
+// ============================================================
+
+describe("Edge Function — citation validation", () => {
+  const fileSearchResults: FileSearchResult[] = [
+    { file_id: "file-abc123", filename: "communication_playbook.pdf", score: 0.95 },
+    { file_id: "file-def456", filename: "engagement_framework.pdf", score: 0.88 },
+  ];
+
+  const catalog: CatalogEntry[] = [
+    { openai_file_id: "file-abc123", title: "communication_playbook.pdf", is_active: true, client_facing_eligible: true },
+    { openai_file_id: "file-def456", title: "engagement_framework.pdf", is_active: true, client_facing_eligible: true },
+  ];
+
+  it("verifies a file_id that was retrieved and is catalog-eligible", () => {
+    const result = validateCitations(VALID_OUTPUT, fileSearchResults, [], catalog, true);
+    expect(result.verified).toContain("file-abc123");
+    expect(result.unverified).toHaveLength(0);
+  });
+
+  it("marks file_id as unverified when not in retrieval results", () => {
+    const output: StrategyPocOutput = {
+      ...VALID_OUTPUT,
+      source_references: [
+        { source_title: "unknown.pdf", source_type: "propel_knowledge", file_id: "file-not-retrieved" },
+      ],
+    };
+    const result = validateCitations(output, fileSearchResults, [], catalog, true);
+    expect(result.unverified).toContain("file-not-retrieved");
+  });
+
+  it("marks file_id as unverified when catalog says inactive", () => {
+    const inactiveCatalog: CatalogEntry[] = [
+      { openai_file_id: "file-abc123", title: "communication_playbook.pdf", is_active: false, client_facing_eligible: true },
+    ];
+    const result = validateCitations(VALID_OUTPUT, fileSearchResults, [], inactiveCatalog, true);
+    expect(result.unverified).toContain("file-abc123");
+  });
+
+  it("marks file_id as unverified when not client-facing eligible", () => {
+    const ineligibleCatalog: CatalogEntry[] = [
+      { openai_file_id: "file-abc123", title: "communication_playbook.pdf", is_active: true, client_facing_eligible: false },
+    ];
+    const result = validateCitations(VALID_OUTPUT, fileSearchResults, [], ineligibleCatalog, true);
+    expect(result.unverified).toContain("file-abc123");
+  });
+
+  it("verifies by filename when file_id is null (title fallback)", () => {
+    const output: StrategyPocOutput = {
+      ...VALID_OUTPUT,
+      source_references: [
+        { source_title: "communication_playbook.pdf", source_type: "propel_knowledge", file_id: null },
+      ],
+    };
+    const result = validateCitations(output, fileSearchResults, [], catalog, true);
+    expect(result.verified).toContain("file-abc123");
+  });
+
+  it("returns empty results when knowledge is disabled", () => {
+    const result = validateCitations(VALID_OUTPUT, [], [], [], false);
+    expect(result.verified).toHaveLength(0);
+    expect(result.unverified).toHaveLength(0);
+    expect(result.metadata.knowledge_enabled).toBe(false);
+  });
+
+  it("allows retrieved file not in catalog (POC grace)", () => {
+    const output: StrategyPocOutput = {
+      ...VALID_OUTPUT,
+      source_references: [
+        { source_title: "new_doc.pdf", source_type: "propel_knowledge", file_id: "file-new789" },
+      ],
+    };
+    const results: FileSearchResult[] = [
+      ...fileSearchResults,
+      { file_id: "file-new789", filename: "new_doc.pdf", score: 0.8 },
+    ];
+    const result = validateCitations(output, results, [], catalog, true);
+    expect(result.verified).toContain("file-new789");
+  });
+
+  it("records metadata for audit", () => {
+    const result = validateCitations(VALID_OUTPUT, fileSearchResults, [], catalog, true);
+    expect(result.metadata.file_search_results).toHaveLength(2);
+    expect(result.metadata.knowledge_enabled).toBe(true);
+    expect(result.metadata.catalog_verified_files).toContain("file-abc123");
+  });
+});
+
+// ============================================================
+// Retrieval focus tests
+// ============================================================
+
+describe("Edge Function — buildRetrievalFocus", () => {
+  it("extracts industry and size from organization", () => {
+    const payload = buildFilteredPayload(MOCK_SNAPSHOT_DATA);
+    const focus = buildRetrievalFocus(payload);
+    expect(focus).toContain("Industry: Technology");
+    expect(focus).toContain("Employee size: 500-1000");
+  });
+
+  it("extracts weak dimensions when score < 60", () => {
+    const data = {
+      ...MOCK_SNAPSHOT_DATA,
+      assessment: {
+        ...MOCK_SNAPSHOT_DATA.assessment,
+        strategy_dimension_scores: [
+          { dimension_name: "Communication", score: 45 },
+          { dimension_name: "Leadership", score: 78 },
+        ],
+      },
+    };
+    const payload = buildFilteredPayload(data);
+    const focus = buildRetrievalFocus(payload);
+    expect(focus).toContain("Communication (45)");
+    expect(focus).not.toContain("Leadership");
+  });
+
+  it("returns fallback message when no focus can be extracted", () => {
+    const data = {
+      ...MOCK_SNAPSHOT_DATA,
+      client_organization: { name: "Test", type: "employer", industry: "", size_band: "" },
+      assessment: {},
+      recommendations: [],
+    };
+    const payload = buildFilteredPayload(data);
+    const focus = buildRetrievalFocus(payload);
+    expect(focus).toContain("No specific retrieval focus");
+  });
+});
+
+// ============================================================
+// Internal ID stripping tests
+// ============================================================
+
+describe("Edge Function — stripInternalIds", () => {
+  it("sets all file_id values to null in source_references", () => {
+    const stripped = stripInternalIds(VALID_OUTPUT);
+    for (const ref of stripped.source_references) {
+      expect(ref.file_id).toBeNull();
+    }
+  });
+
+  it("preserves all other fields", () => {
+    const stripped = stripInternalIds(VALID_OUTPUT);
+    expect(stripped.executive_summary).toBe(VALID_OUTPUT.executive_summary);
+    expect(stripped.priority_recommendations).toHaveLength(VALID_OUTPUT.priority_recommendations.length);
+    expect(stripped.source_references[0].source_title).toBe(VALID_OUTPUT.source_references[0].source_title);
+  });
+});
+
+// ============================================================
+// Evidence path normalization tests
+// ============================================================
+
+describe("Edge Function — normalizeEvidencePathsInOutput", () => {
+  it("adds assessment. prefix to nested keys in recommendations", () => {
+    const output: StrategyPocOutput = {
+      ...VALID_OUTPUT,
+      priority_recommendations: [{
+        ...VALID_OUTPUT.priority_recommendations[0],
+        evidence_references: [
+          { path: "behavioral_readiness.clarity_of_value", label: "Clarity" },
+        ],
+      }],
+    };
+    const normalized = normalizeEvidencePathsInOutput(output);
+    expect(normalized.priority_recommendations[0].evidence_references[0].path).toBe(
+      "assessment.behavioral_readiness.clarity_of_value"
+    );
+  });
+
+  it("does not double-prefix already canonical paths", () => {
+    const output: StrategyPocOutput = {
+      ...VALID_OUTPUT,
+      evidence_references: [
+        { path: "assessment.overall_score", label: "Score" },
+      ],
+    };
+    const normalized = normalizeEvidencePathsInOutput(output);
+    expect(normalized.evidence_references[0].path).toBe("assessment.overall_score");
   });
 });

@@ -798,8 +798,20 @@ export type AnalysisGenerationRow = {
   input_tokens: number | null;
   output_tokens: number | null;
   total_tokens: number | null;
+  retrieval_metadata: Record<string, unknown> | null;
+  knowledge_enabled: boolean;
   created_by: string;
   reviewed_by: string | null;
   reviewed_at: string | null;
+  created_at: string;
+};
+
+export type PropelKnowledgeCatalogRow = {
+  id: string;
+  openai_file_id: string;
+  title: string;
+  content_type: string;
+  is_active: boolean;
+  client_facing_eligible: boolean;
   created_at: string;
 };
