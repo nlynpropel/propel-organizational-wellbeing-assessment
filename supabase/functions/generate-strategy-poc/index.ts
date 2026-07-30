@@ -347,9 +347,10 @@ function buildRetrievalFocus(payload: FilteredPayload): string {
   if (org.industry) focusParts.push(`Industry: ${org.industry}`);
   if (org.size_band) focusParts.push(`Employee size: ${org.size_band}`);
 
-  const assessment = payload.assessment;
+  const assessment = payload.assessment as Record<string, unknown>;
+  const scores = (assessment.scores as Record<string, unknown>) ?? {};
   const dimensionScores =
-    assessment.strategy_dimension_scores as
+    scores.strategy_dimension_scores as
       | Array<Record<string, unknown>>
       | undefined;
   if (Array.isArray(dimensionScores)) {
@@ -366,7 +367,7 @@ function buildRetrievalFocus(payload: FilteredPayload): string {
   }
 
   const behavioral =
-    assessment.behavioral_readiness as Record<string, unknown> | undefined;
+    scores.behavioral_readiness as Record<string, unknown> | undefined;
   if (behavioral && typeof behavioral === "object") {
     const barriers = behavioral.barriers as
       | Array<Record<string, unknown>>
@@ -424,15 +425,20 @@ function buildRetrievalFocus(payload: FilteredPayload): string {
 // Evidence path validation
 // ============================================================
 const ASSESSMENT_NESTED_KEYS = new Set([
-  "strategy_dimension_scores",
-  "behavioral_readiness",
   "contextual_responses",
   "diagnostic_findings",
   "template_name",
   "template_description",
   "instance_status",
   "submitted_at",
+]);
+
+const SCORES_NESTED_KEYS = new Set([
+  "strategy_dimension_scores",
+  "behavioral_readiness",
   "overall_score",
+  "score_band",
+  "primary_opportunity",
   "maturity_band",
 ]);
 
@@ -479,8 +485,22 @@ function isValidEvidencePath(
 
   if (resolvePath(parts, root)) return true;
 
-  if (parts.length > 0 && ASSESSMENT_NESTED_KEYS.has(parts[0])) {
+  if (parts.length > 0 && ASSESSMENT_NESTED_KEYS.has(parts[0].replace(/\[.*$/, ""))) {
     return resolvePath(["assessment", ...parts], root);
+  }
+
+  if (parts.length > 0 && SCORES_NESTED_KEYS.has(parts[0].replace(/\[.*$/, ""))) {
+    return resolvePath(["assessment", "scores", ...parts], root);
+  }
+
+  // Model wrote "assessment.<scores_key>" but actual path is
+  // "assessment.scores.<scores_key>"
+  if (
+    parts.length >= 2 &&
+    parts[0] === "assessment" &&
+    SCORES_NESTED_KEYS.has(parts[1].replace(/\[.*$/, ""))
+  ) {
+    return resolvePath(["assessment", "scores", ...parts.slice(1)], root);
   }
 
   return false;
@@ -516,10 +536,20 @@ function validateEvidencePaths(
 // ============================================================
 function canonicalizePath(path: string): string {
   if (!path || typeof path !== "string") return path;
-  if (path.startsWith("assessment.")) return path;
+  if (path.startsWith("assessment.")) {
+    // Check if the second segment is a scores key that needs "scores." inserted
+    const secondSegment = path.split(".")[1]?.replace(/\[.*$/, "");
+    if (secondSegment && SCORES_NESTED_KEYS.has(secondSegment)) {
+      return `assessment.scores.${path.slice("assessment.".length)}`;
+    }
+    return path;
+  }
   const firstSegment = path.split(".")[0].replace(/\[.*$/, "");
   if (ASSESSMENT_NESTED_KEYS.has(firstSegment)) {
     return `assessment.${path}`;
+  }
+  if (SCORES_NESTED_KEYS.has(firstSegment)) {
+    return `assessment.scores.${path}`;
   }
   return path;
 }
