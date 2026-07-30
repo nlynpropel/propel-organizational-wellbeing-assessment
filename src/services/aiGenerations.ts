@@ -155,23 +155,6 @@ export async function createGeneration(
   return data as AnalysisGenerationRow;
 }
 
-export async function updateGenerationStatus(
-  generationId: string,
-  status: GenerationStatus,
-  extra?: { output_json?: Record<string, unknown> | null; error_message?: string | null }
-): Promise<AnalysisGenerationRow> {
-  const { data, error } = await supabase
-    .from('analysis_generations')
-    .update({ status, ...extra })
-    .eq('id', generationId)
-    .select()
-    .single();
-  if (error) {
-    logDbError({ fn: 'updateGenerationStatus', error });
-    throw error;
-  }
-  return data as AnalysisGenerationRow;
-}
 
 // ============================================================
 // Review workflow
@@ -182,15 +165,20 @@ export type ReviewableGeneration = AnalysisGenerationRow;
 export function canReviewGeneration(
   capabilities: Set<OrganizationCapability>
 ): boolean {
-  return hasCapability(capabilities, 'generate_ai_analysis') ||
+  return hasCapability(capabilities, 'edit_strategy_analysis') ||
     hasCapability(capabilities, 'approve_strategy_analysis');
 }
 
 export function canApproveGeneration(
   capabilities: Set<OrganizationCapability>
 ): boolean {
-  return hasCapability(capabilities, 'generate_ai_analysis') ||
-    hasCapability(capabilities, 'approve_strategy_analysis');
+  return hasCapability(capabilities, 'approve_strategy_analysis');
+}
+
+export function canEditGeneration(
+  capabilities: Set<OrganizationCapability>
+): boolean {
+  return hasCapability(capabilities, 'edit_strategy_analysis');
 }
 
 export function canRegenerate(
@@ -223,76 +211,51 @@ export type ReviewedOutput = {
 export async function saveReviewEdits(
   generationId: string,
   reviewedOutput: ReviewedOutput
-): Promise<AnalysisGenerationRow> {
-  const { data, error } = await supabase
-    .from('analysis_generations')
-    .update({
-      reviewed_output_json: reviewedOutput as unknown as Record<string, unknown>,
-    })
-    .eq('id', generationId)
-    .select()
-    .single();
+): Promise<void> {
+  const { error } = await supabase.rpc('save_generation_review_edits', {
+    p_generation_id: generationId,
+    p_reviewed_output: reviewedOutput as unknown as Record<string, unknown>,
+  });
   if (error) {
     logDbError({ fn: 'saveReviewEdits', error });
-    throw error;
+    throw new Error(error.message || 'Failed to save review edits.');
   }
-  return data as AnalysisGenerationRow;
 }
 
 export async function approveGeneration(
   generationId: string,
-  reviewerId: string,
+  _reviewerId: string,
   reviewedOutput?: ReviewedOutput
-): Promise<AnalysisGenerationRow> {
-  const updates: Record<string, unknown> = {
-    status: 'approved',
-    reviewed_by: reviewerId,
-    reviewed_at: new Date().toISOString(),
-    review_status: 'approved',
-  };
-  if (reviewedOutput) {
-    updates.reviewed_output_json = reviewedOutput as unknown as Record<string, unknown>;
-  }
-
-  const { data, error } = await supabase
-    .from('analysis_generations')
-    .update(updates)
-    .eq('id', generationId)
-    .select()
-    .single();
+): Promise<void> {
+  const { error } = await supabase.rpc('approve_generation', {
+    p_generation_id: generationId,
+    p_reviewed_output: reviewedOutput
+      ? (reviewedOutput as unknown as Record<string, unknown>)
+      : null,
+  });
   if (error) {
     logDbError({ fn: 'approveGeneration', error });
-    throw error;
+    throw new Error(error.message || 'Failed to approve generation.');
   }
-  return data as AnalysisGenerationRow;
 }
 
 export async function rejectGeneration(
   generationId: string,
-  reviewerId: string,
+  _reviewerId: string,
   rejectionReason: string
-): Promise<AnalysisGenerationRow> {
+): Promise<void> {
   if (!rejectionReason.trim()) {
     throw new Error('A rejection reason is required.');
   }
 
-  const { data, error } = await supabase
-    .from('analysis_generations')
-    .update({
-      status: 'rejected',
-      reviewed_by: reviewerId,
-      reviewed_at: new Date().toISOString(),
-      review_status: 'rejected',
-      rejection_reason: rejectionReason,
-    })
-    .eq('id', generationId)
-    .select()
-    .single();
+  const { error } = await supabase.rpc('reject_generation', {
+    p_generation_id: generationId,
+    p_rejection_reason: rejectionReason,
+  });
   if (error) {
     logDbError({ fn: 'rejectGeneration', error });
-    throw error;
+    throw new Error(error.message || 'Failed to reject generation.');
   }
-  return data as AnalysisGenerationRow;
 }
 
 export async function deleteGeneration(generationId: string): Promise<void> {

@@ -31,6 +31,7 @@ import {
   canRegenerate,
   canReviewGeneration,
   canApproveGeneration,
+  canEditGeneration,
   isGenerationReadOnly,
   normalizeEvidencePath,
   getDisplayOutput,
@@ -335,6 +336,7 @@ function DraftReviewScreen({
 
   const readOnly = isGenerationReadOnly(generation.status);
   const canApproveGen = canApproveGeneration(capabilities);
+  const canEditGen = canEditGeneration(capabilities);
 
   const handleSaveEdits = async () => {
     setSaving(true);
@@ -424,7 +426,7 @@ function DraftReviewScreen({
             )}
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            {!readOnly && !editMode && canApproveGen && (
+            {!readOnly && !editMode && canEditGen && (
               <Button size="sm" variant="ghost" onClick={() => setEditMode(true)}>
                 <FileText className="w-4 h-4" /> Edit
               </Button>

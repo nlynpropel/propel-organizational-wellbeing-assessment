@@ -1,19 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Use vi.hoisted so mock variables are available when vi.mock factories run
-const {
-  mockSelect,
-  mockEq,
-  mockOrder,
-  mockMaybeSingle,
-  mockSingle,
-  mockInsert,
-  mockUpdate,
-  mockIn,
-  mockDelete,
-  mockRpc,
-  chainable,
-} = vi.hoisted(() => {
+const { mockRpc, mockFrom, chainable } = vi.hoisted(() => {
+  const mockRpc = vi.fn();
   const mockSelect = vi.fn();
   const mockEq = vi.fn();
   const mockOrder = vi.fn();
@@ -23,7 +12,6 @@ const {
   const mockUpdate = vi.fn();
   const mockIn = vi.fn();
   const mockDelete = vi.fn();
-  const mockRpc = vi.fn();
 
   const chainable = {
     select: mockSelect,
@@ -41,24 +29,14 @@ const {
     (fn as ReturnType<typeof vi.fn>).mockReturnValue(chainable);
   });
 
-  return {
-    mockSelect,
-    mockEq,
-    mockOrder,
-    mockMaybeSingle,
-    mockSingle,
-    mockInsert,
-    mockUpdate,
-    mockIn,
-    mockDelete,
-    mockRpc,
-    chainable,
-  };
+  const mockFrom = vi.fn(() => chainable);
+
+  return { mockRpc, mockFrom, chainable };
 });
 
 vi.mock('../../lib/supabase', () => ({
   supabase: {
-    from: vi.fn(() => chainable),
+    from: mockFrom,
     rpc: mockRpc,
   },
 }));
@@ -79,6 +57,7 @@ vi.mock('../capabilities', () => ({
 import {
   canReviewGeneration,
   canApproveGeneration,
+  canEditGeneration,
   canRegenerate,
   isGenerationReadOnly,
   normalizeEvidencePath,
@@ -121,15 +100,14 @@ function makeGen(overrides: Partial<AnalysisGenerationRow> = {}): AnalysisGenera
 describe('aiGenerations review workflow', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Re-establish return values after clearAllMocks
     Object.values(chainable).forEach((fn) => {
       (fn as ReturnType<typeof vi.fn>).mockReturnValue(chainable);
     });
   });
 
   // ── Authorized reviewer access ──
-  it('canReviewGeneration returns true for users with generate_ai_analysis', () => {
-    const caps = new Set(['generate_ai_analysis']) as Set<never>;
+  it('canReviewGeneration returns true for users with edit_strategy_analysis', () => {
+    const caps = new Set(['edit_strategy_analysis']) as Set<never>;
     expect(canReviewGeneration(caps)).toBe(true);
   });
 
@@ -144,14 +122,29 @@ describe('aiGenerations review workflow', () => {
     expect(canReviewGeneration(caps)).toBe(false);
   });
 
-  it('canApproveGeneration returns false for users without approval capabilities', () => {
-    const caps = new Set(['view_reports']) as Set<never>;
+  it('canApproveGeneration returns false for users with only edit_strategy_analysis', () => {
+    const caps = new Set(['edit_strategy_analysis']) as Set<never>;
     expect(canApproveGeneration(caps)).toBe(false);
   });
 
-  // ── Original output remains immutable ──
-  it('saveReviewEdits only updates reviewed_output_json, not output_json or original_output_json', async () => {
-    mockSingle.mockResolvedValueOnce({ data: makeGen(), error: null });
+  it('canApproveGeneration returns true for users with approve_strategy_analysis', () => {
+    const caps = new Set(['approve_strategy_analysis']) as Set<never>;
+    expect(canApproveGeneration(caps)).toBe(true);
+  });
+
+  it('canEditGeneration returns true for users with edit_strategy_analysis', () => {
+    const caps = new Set(['edit_strategy_analysis']) as Set<never>;
+    expect(canEditGeneration(caps)).toBe(true);
+  });
+
+  it('canEditGeneration returns false for users with only approve_strategy_analysis', () => {
+    const caps = new Set(['approve_strategy_analysis']) as Set<never>;
+    expect(canEditGeneration(caps)).toBe(false);
+  });
+
+  // ── saveReviewEdits calls RPC, not direct table update ──
+  it('saveReviewEdits calls save_generation_review_edits RPC', async () => {
+    mockRpc.mockResolvedValueOnce({ data: { success: true }, error: null });
 
     await saveReviewEdits('gen-1', {
       executive_summary: 'edited',
@@ -161,51 +154,46 @@ describe('aiGenerations review workflow', () => {
       evidence_references: [],
     });
 
-    expect(mockUpdate).toHaveBeenCalledWith({
-      reviewed_output_json: expect.objectContaining({ executive_summary: 'edited' }),
+    expect(mockRpc).toHaveBeenCalledWith('save_generation_review_edits', {
+      p_generation_id: 'gen-1',
+      p_reviewed_output: expect.objectContaining({ executive_summary: 'edited' }),
     });
-    const updateCall = mockUpdate.mock.calls[0][0] as Record<string, unknown>;
-    expect(updateCall).not.toHaveProperty('output_json');
-    expect(updateCall).not.toHaveProperty('original_output_json');
+    // Must NOT call direct table update
+    expect(chainable.update).not.toHaveBeenCalled();
   });
 
-  // ── Reviewed output saves separately ──
-  it('getDisplayOutput prefers reviewed_output_json over output_json', () => {
-    const gen = makeGen({
-      output_json: { executive_summary: 'original' },
-      reviewed_output_json: { executive_summary: 'reviewed' },
+  it('saveReviewEdits throws on RPC error', async () => {
+    mockRpc.mockResolvedValueOnce({
+      data: null,
+      error: { message: 'Not authorized: edit_strategy_analysis capability required' },
     });
-    const result = getDisplayOutput(gen);
-    expect(result).toEqual({ executive_summary: 'reviewed' });
+
+    await expect(
+      saveReviewEdits('gen-1', {
+        executive_summary: 'edited',
+        priority_recommendations: [],
+        client_discussion_questions: [],
+        limitations: '',
+        evidence_references: [],
+      })
+    ).rejects.toThrow('edit_strategy_analysis');
   });
 
-  it('getDisplayOutput falls back to output_json when no reviewed output', () => {
-    const gen = makeGen({
-      output_json: { executive_summary: 'original' },
-      reviewed_output_json: null,
-    });
-    const result = getDisplayOutput(gen);
-    expect(result).toEqual({ executive_summary: 'original' });
-  });
-
-  // ── Approval transition ──
-  it('approveGeneration sets status to approved, reviewed_by, reviewed_at, review_status', async () => {
-    mockSingle.mockResolvedValueOnce({ data: makeGen({ status: 'approved' }), error: null });
+  // ── approveGeneration calls RPC, not direct table update ──
+  it('approveGeneration calls approve_generation RPC', async () => {
+    mockRpc.mockResolvedValueOnce({ data: { success: true }, error: null });
 
     await approveGeneration('gen-1', 'reviewer-1');
 
-    expect(mockUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        status: 'approved',
-        reviewed_by: 'reviewer-1',
-        review_status: 'approved',
-        reviewed_at: expect.any(String),
-      })
-    );
+    expect(mockRpc).toHaveBeenCalledWith('approve_generation', {
+      p_generation_id: 'gen-1',
+      p_reviewed_output: null,
+    });
+    expect(chainable.update).not.toHaveBeenCalled();
   });
 
-  it('approveGeneration with reviewedOutput saves it to reviewed_output_json', async () => {
-    mockSingle.mockResolvedValueOnce({ data: makeGen({ status: 'approved' }), error: null });
+  it('approveGeneration with reviewedOutput passes it to RPC', async () => {
+    mockRpc.mockResolvedValueOnce({ data: { success: true }, error: null });
 
     const reviewedOutput = {
       executive_summary: 'approved summary',
@@ -217,12 +205,36 @@ describe('aiGenerations review workflow', () => {
 
     await approveGeneration('gen-1', 'reviewer-1', reviewedOutput);
 
-    const updateCall = mockUpdate.mock.calls[0][0] as Record<string, unknown>;
-    expect(updateCall['reviewed_output_json']).toBeDefined();
-    expect(updateCall['status']).toBe('approved');
+    expect(mockRpc).toHaveBeenCalledWith('approve_generation', {
+      p_generation_id: 'gen-1',
+      p_reviewed_output: expect.objectContaining({ executive_summary: 'approved summary' }),
+    });
   });
 
-  // ── Rejection transition and required reason ──
+  it('approveGeneration throws on RPC error (capability denied)', async () => {
+    mockRpc.mockResolvedValueOnce({
+      data: null,
+      error: { message: 'Not authorized: approve_strategy_analysis capability required' },
+    });
+
+    await expect(approveGeneration('gen-1', 'reviewer-1')).rejects.toThrow(
+      'approve_strategy_analysis'
+    );
+  });
+
+  // ── rejectGeneration calls RPC, not direct table update ──
+  it('rejectGeneration calls reject_generation RPC', async () => {
+    mockRpc.mockResolvedValueOnce({ data: { success: true }, error: null });
+
+    await rejectGeneration('gen-1', 'reviewer-1', 'Quality issues');
+
+    expect(mockRpc).toHaveBeenCalledWith('reject_generation', {
+      p_generation_id: 'gen-1',
+      p_rejection_reason: 'Quality issues',
+    });
+    expect(chainable.update).not.toHaveBeenCalled();
+  });
+
   it('rejectGeneration throws if rejection reason is empty', async () => {
     await expect(rejectGeneration('gen-1', 'reviewer-1', '')).rejects.toThrow(
       'A rejection reason is required.'
@@ -232,19 +244,14 @@ describe('aiGenerations review workflow', () => {
     );
   });
 
-  it('rejectGeneration sets status to rejected with reason and reviewer', async () => {
-    mockSingle.mockResolvedValueOnce({ data: makeGen({ status: 'rejected' }), error: null });
+  it('rejectGeneration throws on RPC error (capability denied)', async () => {
+    mockRpc.mockResolvedValueOnce({
+      data: null,
+      error: { message: 'Not authorized: approve_strategy_analysis capability required' },
+    });
 
-    await rejectGeneration('gen-1', 'reviewer-1', 'Quality issues');
-
-    expect(mockUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        status: 'rejected',
-        reviewed_by: 'reviewer-1',
-        review_status: 'rejected',
-        rejection_reason: 'Quality issues',
-        reviewed_at: expect.any(String),
-      })
+    await expect(rejectGeneration('gen-1', 'reviewer-1', 'Bad quality')).rejects.toThrow(
+      'approve_strategy_analysis'
     );
   });
 
@@ -262,7 +269,7 @@ describe('aiGenerations review workflow', () => {
     expect(isGenerationReadOnly('draft_generated')).toBe(false);
   });
 
-  // ── Regeneration creates a new record ──
+  // ── Regeneration creates a new record, never overwrites ──
   it('canRegenerate returns false when an active generation exists', () => {
     const gens = [makeGen({ status: 'queued' })];
     const caps = new Set(['generate_ai_analysis']) as Set<never>;
@@ -283,14 +290,9 @@ describe('aiGenerations review workflow', () => {
 
   // ── Duplicate active generation blocked ──
   it('createGeneration throws if an active generation already exists for the snapshot', async () => {
-    mockMaybeSingle.mockResolvedValueOnce({
-      data: { snapshot_version: 1, completeness_level: 'sufficient' },
-      error: null,
-    });
-    mockMaybeSingle.mockResolvedValueOnce({
-      data: { id: 'existing-gen', status: 'queued' },
-      error: null,
-    });
+    chainable.maybeSingle
+      .mockResolvedValueOnce({ data: { snapshot_version: 1, completeness_level: 'sufficient' }, error: null })
+      .mockResolvedValueOnce({ data: { id: 'existing-gen', status: 'queued' }, error: null });
 
     await expect(
       createGeneration({
@@ -304,7 +306,7 @@ describe('aiGenerations review workflow', () => {
   });
 
   it('createGeneration throws if snapshot readiness is below sufficient', async () => {
-    mockMaybeSingle.mockResolvedValueOnce({
+    chainable.maybeSingle.mockResolvedValueOnce({
       data: { snapshot_version: 1, completeness_level: 'limited' },
       error: null,
     });
@@ -320,7 +322,7 @@ describe('aiGenerations review workflow', () => {
     ).rejects.toThrow('below sufficient');
   });
 
-  // ── Canonical evidence paths stored ──
+  // ── Canonical evidence paths ──
   it('normalizeEvidencePath adds assessment. prefix for nested keys', () => {
     expect(normalizeEvidencePath('contextual_responses[1]')).toBe('assessment.contextual_responses[1]');
     expect(normalizeEvidencePath('behavioral_readiness.clarity_of_value')).toBe('assessment.behavioral_readiness.clarity_of_value');
@@ -334,7 +336,6 @@ describe('aiGenerations review workflow', () => {
   });
 
   it('normalizeEvidencePath does not double-prefix already canonical paths', () => {
-    // 'assessment' is not in ASSESSMENT_NESTED_KEYS, so already-canonical paths pass through unchanged
     expect(normalizeEvidencePath('assessment.contextual_responses[1]')).toBe('assessment.contextual_responses[1]');
     expect(normalizeEvidencePath('assessment.overall_score')).toBe('assessment.overall_score');
   });
@@ -354,24 +355,54 @@ describe('aiGenerations review workflow', () => {
     expect(gen.total_tokens).toBeNull();
   });
 
-  // ── No AI output published into deterministic report ──
-  it('approveGeneration does not update any report or assessment tables', async () => {
-    mockSingle.mockResolvedValueOnce({ data: makeGen({ status: 'approved' }), error: null });
-
+  // ── No direct table updates for review actions ──
+  it('approveGeneration does not call supabase.from().update()', async () => {
+    mockRpc.mockResolvedValueOnce({ data: { success: true }, error: null });
     await approveGeneration('gen-1', 'reviewer-1');
+    expect(chainable.update).not.toHaveBeenCalled();
+  });
 
-    const updateCall = mockUpdate.mock.calls[0][0] as Record<string, unknown>;
-    expect(updateCall['status']).toBe('approved');
-    expect(updateCall).not.toHaveProperty('report_data');
-    expect(updateCall).not.toHaveProperty('assessment_result');
-    expect(updateCall).not.toHaveProperty('published_report');
+  it('rejectGeneration does not call supabase.from().update()', async () => {
+    mockRpc.mockResolvedValueOnce({ data: { success: true }, error: null });
+    await rejectGeneration('gen-1', 'reviewer-1', 'reason');
+    expect(chainable.update).not.toHaveBeenCalled();
+  });
+
+  it('saveReviewEdits does not call supabase.from().update()', async () => {
+    mockRpc.mockResolvedValueOnce({ data: { success: true }, error: null });
+    await saveReviewEdits('gen-1', {
+      executive_summary: 'x',
+      priority_recommendations: [],
+      client_discussion_questions: [],
+      limitations: '',
+      evidence_references: [],
+    });
+    expect(chainable.update).not.toHaveBeenCalled();
+  });
+
+  // ── getDisplayOutput ──
+  it('getDisplayOutput prefers reviewed_output_json over output_json', () => {
+    const gen = makeGen({
+      output_json: { executive_summary: 'original' },
+      reviewed_output_json: { executive_summary: 'reviewed' },
+    });
+    const result = getDisplayOutput(gen);
+    expect(result).toEqual({ executive_summary: 'reviewed' });
+  });
+
+  it('getDisplayOutput falls back to output_json when no reviewed output', () => {
+    const gen = makeGen({
+      output_json: { executive_summary: 'original' },
+      reviewed_output_json: null,
+    });
+    const result = getDisplayOutput(gen);
+    expect(result).toEqual({ executive_summary: 'original' });
   });
 
   // ── hasCapability integration ──
   it('hasCapability is called correctly for review checks', () => {
-    const caps = new Set(['generate_ai_analysis']) as Set<never>;
+    const caps = new Set(['edit_strategy_analysis']) as Set<never>;
     canReviewGeneration(caps);
-    // canReviewGeneration checks generate_ai_analysis first; since it's present, approve_strategy_analysis may not be called
-    expect(hasCapability).toHaveBeenCalledWith(caps, 'generate_ai_analysis');
+    expect(hasCapability).toHaveBeenCalledWith(caps, 'edit_strategy_analysis');
   });
 });

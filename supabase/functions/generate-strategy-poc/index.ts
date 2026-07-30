@@ -282,6 +282,67 @@ function validateEvidencePaths(
 }
 
 // ============================================================
+// Canonicalize evidence paths: prefix assessment-nested keys with "assessment."
+// so paths are stored in canonical form in both original_output_json and
+// reviewed_output_json — not just for display.
+// ============================================================
+const ASSESSMENT_NESTED_KEYS = new Set([
+  "strategy_dimension_scores",
+  "behavioral_readiness",
+  "contextual_responses",
+  "diagnostic_findings",
+  "template_name",
+  "template_description",
+  "instance_status",
+  "submitted_at",
+  "overall_score",
+  "maturity_band",
+]);
+
+function canonicalizePath(path: string): string {
+  if (!path || typeof path !== "string") return path;
+  if (path.startsWith("assessment.")) return path;
+  const firstSegment = path.split(".")[0].replace(/\[.*$/, "");
+  if (ASSESSMENT_NESTED_KEYS.has(firstSegment)) {
+    return `assessment.${path}`;
+  }
+  return path;
+}
+
+function normalizeEvidencePathsInOutput(
+  output: StrategyPocOutput
+): StrategyPocOutput {
+  const normalized = { ...output } as Record<string, unknown>;
+
+  if (Array.isArray(normalized.priority_recommendations)) {
+    normalized.priority_recommendations = (
+      normalized.priority_recommendations as Array<Record<string, unknown>>
+    ).map((rec) => ({
+      ...rec,
+      evidence_references: Array.isArray(rec.evidence_references)
+        ? (rec.evidence_references as Array<Record<string, unknown>>).map(
+            (ref) => ({
+              ...ref,
+              path: canonicalizePath(ref.path as string),
+            })
+          )
+        : rec.evidence_references,
+    }));
+  }
+
+  if (Array.isArray(normalized.evidence_references)) {
+    normalized.evidence_references = (
+      normalized.evidence_references as Array<Record<string, unknown>>
+    ).map((ref) => ({
+      ...ref,
+      path: canonicalizePath(ref.path as string),
+    }));
+  }
+
+  return normalized as unknown as StrategyPocOutput;
+}
+
+// ============================================================
 // Output validation
 // ============================================================
 function validateOutputStructure(
@@ -816,13 +877,16 @@ Respond with ONLY the JSON object. No markdown, no code fences.`;
     const outputTokens = usage?.completion_tokens ?? null;
     const totalTokens = usage?.total_tokens ?? null;
 
-    // ── 18. Save successful result ──
+    // ── 18. Normalize evidence paths to canonical form before saving ──
+    const normalizedOutput = normalizeEvidencePathsInOutput(validation.output);
+
+    // ── 19. Save successful result ──
     const { error: saveError } = await supabase
       .from("analysis_generations")
       .update({
         status: "draft_generated",
-        output_json: validation.output as Record<string, unknown>,
-        original_output_json: validation.output as Record<string, unknown>,
+        output_json: normalizedOutput as unknown as Record<string, unknown>,
+        original_output_json: normalizedOutput as unknown as Record<string, unknown>,
         error_message: null,
         input_tokens: inputTokens,
         output_tokens: outputTokens,
@@ -836,12 +900,12 @@ Respond with ONLY the JSON object. No markdown, no code fences.`;
       );
     }
 
-    // ── 18. Return result (no secrets exposed) ──
+    // ── 20. Return result (no secrets exposed) ──
     return new Response(
       JSON.stringify({
         generation_id,
         status: "draft_generated",
-        output: validation.output,
+        output: normalizedOutput,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
