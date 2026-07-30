@@ -696,9 +696,9 @@ function DraftReviewScreen({
         </Card>
       )}
 
-      {/* G. Limitations and Missing Information */}
+      {/* G. Limitations */}
       <Card>
-        <span className="eyebrow">Limitations and Missing Information</span>
+        <span className="eyebrow">Limitations</span>
         {editMode ? (
           <textarea
             value={limitations}

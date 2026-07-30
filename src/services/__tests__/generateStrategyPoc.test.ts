@@ -35,7 +35,7 @@ const VALID_OUTPUT: StrategyPocOutput = {
       title: "Strengthen Program Communication",
       why_this_matters: "Employees cannot benefit from programs they don't know about.",
       assessment_evidence: "Clarity of Value score of 72 indicates moderate understanding.",
-      propel_knowledge_evidence: "Propel framework recommends multi-channel communication strategies (communication_playbook.pdf).",
+      propel_knowledge_evidence: "Propel recommends multi-channel communication strategies because consistent messaging across channels increases program awareness and participation.",
       recommended_action: "Launch a targeted communication campaign for EAP.",
       suggested_first_step: "Audit current communication channels and identify gaps within 30 days.",
       expected_strategic_impact: "Increased EAP utilization by 15-20% within 6 months.",
@@ -52,7 +52,7 @@ const VALID_OUTPUT: StrategyPocOutput = {
   ],
   limitations: "Based on a single assessment snapshot; limited utilization data.",
   source_references: [
-    { source_title: "communication_playbook.pdf", source_type: "propel_knowledge", file_id: "file-abc123" },
+    { source_title: "Communication Strategy Guide", source_type: "propel_knowledge", file_id: "file-abc123" },
   ],
   evidence_references: [
     { path: "assessment.overall_score", label: "Overall Score" },
@@ -398,10 +398,10 @@ describe("Edge Function — SYSTEM_PROMPT rules", () => {
     expect(SYSTEM_PROMPT).toContain("client_report_candidate");
   });
 
-  it("includes file_search tool instructions", () => {
-    expect(SYSTEM_PROMPT).toContain("file_search");
+  it("includes knowledge synthesis instructions", () => {
     expect(SYSTEM_PROMPT).toContain("propel_knowledge_evidence");
     expect(SYSTEM_PROMPT).toContain("source_references");
+    expect(SYSTEM_PROMPT).toContain("Synthesize retrieved Propel knowledge");
   });
 });
 
@@ -500,9 +500,7 @@ describe("Edge Function — error and access control scenarios", () => {
     const json = JSON.stringify(stripped);
     expect(json).not.toContain("file-abc123");
     expect(json).not.toContain("vector_store");
-    for (const ref of stripped.source_references) {
-      expect(ref.file_id).toBeNull();
-    }
+    expect(stripped.source_references).toEqual([]);
   });
 
   it("10b. Error response never contains API key", () => {
@@ -538,12 +536,12 @@ describe("Edge Function — error and access control scenarios", () => {
 
 describe("Edge Function — citation validation", () => {
   const fileSearchResults: FileSearchResult[] = [
-    { file_id: "file-abc123", filename: "communication_playbook.pdf", score: 0.95 },
+    { file_id: "file-abc123", filename: "Communication Strategy Guide", score: 0.95 },
     { file_id: "file-def456", filename: "engagement_framework.pdf", score: 0.88 },
   ];
 
   const catalog: CatalogEntry[] = [
-    { openai_file_id: "file-abc123", title: "communication_playbook.pdf", is_active: true, client_facing_eligible: true },
+    { openai_file_id: "file-abc123", title: "Communication Strategy Guide", is_active: true, client_facing_eligible: true },
     { openai_file_id: "file-def456", title: "engagement_framework.pdf", is_active: true, client_facing_eligible: true },
   ];
 
@@ -566,7 +564,7 @@ describe("Edge Function — citation validation", () => {
 
   it("marks file_id as unverified when catalog says inactive", () => {
     const inactiveCatalog: CatalogEntry[] = [
-      { openai_file_id: "file-abc123", title: "communication_playbook.pdf", is_active: false, client_facing_eligible: true },
+      { openai_file_id: "file-abc123", title: "Communication Strategy Guide", is_active: false, client_facing_eligible: true },
     ];
     const result = validateCitations(VALID_OUTPUT, fileSearchResults, [], inactiveCatalog, true);
     expect(result.unverified).toContain("file-abc123");
@@ -574,7 +572,7 @@ describe("Edge Function — citation validation", () => {
 
   it("marks file_id as unverified when not client-facing eligible", () => {
     const ineligibleCatalog: CatalogEntry[] = [
-      { openai_file_id: "file-abc123", title: "communication_playbook.pdf", is_active: true, client_facing_eligible: false },
+      { openai_file_id: "file-abc123", title: "Communication Strategy Guide", is_active: true, client_facing_eligible: false },
     ];
     const result = validateCitations(VALID_OUTPUT, fileSearchResults, [], ineligibleCatalog, true);
     expect(result.unverified).toContain("file-abc123");
@@ -584,7 +582,7 @@ describe("Edge Function — citation validation", () => {
     const output: StrategyPocOutput = {
       ...VALID_OUTPUT,
       source_references: [
-        { source_title: "communication_playbook.pdf", source_type: "propel_knowledge", file_id: null },
+        { source_title: "Communication Strategy Guide", source_type: "propel_knowledge", file_id: null },
       ],
     };
     const result = validateCitations(output, fileSearchResults, [], catalog, true);
@@ -671,18 +669,15 @@ describe("Edge Function — buildRetrievalFocus", () => {
 // ============================================================
 
 describe("Edge Function — stripInternalIds", () => {
-  it("sets all file_id values to null in source_references", () => {
+  it("clears source_references to an empty array", () => {
     const stripped = stripInternalIds(VALID_OUTPUT);
-    for (const ref of stripped.source_references) {
-      expect(ref.file_id).toBeNull();
-    }
+    expect(stripped.source_references).toEqual([]);
   });
 
   it("preserves all other fields", () => {
     const stripped = stripInternalIds(VALID_OUTPUT);
     expect(stripped.executive_summary).toBe(VALID_OUTPUT.executive_summary);
     expect(stripped.priority_recommendations).toHaveLength(VALID_OUTPUT.priority_recommendations.length);
-    expect(stripped.source_references[0].source_title).toBe(VALID_OUTPUT.source_references[0].source_title);
   });
 });
 
@@ -716,5 +711,261 @@ describe("Edge Function — normalizeEvidencePathsInOutput", () => {
     };
     const normalized = normalizeEvidencePathsInOutput(output);
     expect(normalized.evidence_references[0].path).toBe("assessment.overall_score");
+  });
+});
+
+// ============================================================
+// Assessment-only visible-output sanitization tests
+// ============================================================
+
+import {
+  sanitizeVisibleOutput,
+  validateNoForbiddenContent,
+} from "../generateStrategyPocLogic";
+
+describe("Assessment-only visible-output sanitization", () => {
+  const BAD_OUTPUT: StrategyPocOutput = {
+    ...VALID_OUTPUT,
+    executive_summary: "The client shows moderate maturity. See guidance in Propel_Wellbeing_Strategy_Knowledge_Master_v1.docx for details.",
+    maturity_interpretation: "The organization sits in the Established band. According to the document, communication could be improved. CLARITY-004 recommends targeted campaigns.",
+    limitations: "Apollo's readiness flags show missing utilization data, program inventory, and defined outcomes, which reduce precision. The Propel materials used are the internal Strategy Knowledge Master and Recommendation Bank retrieved for this analysis.",
+    priority_recommendations: [
+      {
+        ...VALID_OUTPUT.priority_recommendations[0],
+        propel_knowledge_evidence: "See guidance in Propel_Wellbeing_Strategy_Knowledge_Master_v1.docx. The Recommendation Bank suggests multi-channel communication.",
+        assessment_evidence: "Source: file-abc123def456. Clarity of Value score of 72.",
+      },
+    ],
+    source_references: [
+      { source_title: "Propel_Wellbeing_Strategy_Knowledge_Master_v1.docx", source_type: "propel_knowledge", file_id: "file-abc123def456" },
+    ],
+  };
+
+  // ── Filenames never appear ──
+  it("removes filenames from all visible report fields", () => {
+    const sanitized = sanitizeVisibleOutput(BAD_OUTPUT, true);
+    const allText = JSON.stringify(sanitized);
+    expect(allText).not.toMatch(/\.docx/i);
+    expect(allText).not.toMatch(/\.pdf/i);
+    expect(allText).not.toMatch(/\.txt/i);
+  });
+
+  // ── Recommendation IDs never appear ──
+  it("removes recommendation IDs (e.g. CLARITY-004) from visible fields", () => {
+    const sanitized = sanitizeVisibleOutput(BAD_OUTPUT, true);
+    expect(JSON.stringify(sanitized)).not.toMatch(/\b[A-Z]{3,}-\d{3,}\b/);
+  });
+
+  // ── File IDs and vector-store IDs never appear ──
+  it("removes file IDs and vector-store IDs from visible fields", () => {
+    const sanitized = sanitizeVisibleOutput(BAD_OUTPUT, true);
+    expect(JSON.stringify(sanitized)).not.toMatch(/file-[A-Za-z0-9_-]{10,}/i);
+    expect(JSON.stringify(sanitized)).not.toMatch(/vs_[A-Za-z0-9_-]{10,}/i);
+  });
+
+  // ── Source references cleared ──
+  it("clears source_references to empty array", () => {
+    const sanitized = sanitizeVisibleOutput(BAD_OUTPUT, true);
+    expect(sanitized.source_references).toEqual([]);
+  });
+
+  // ── Strategy Knowledge Master never appears ──
+  it("removes 'Strategy Knowledge Master' from all visible fields", () => {
+    const sanitized = sanitizeVisibleOutput(BAD_OUTPUT, true);
+    expect(JSON.stringify(sanitized)).not.toMatch(/Strategy Knowledge Master/i);
+  });
+
+  // ── Recommendation Bank never appears ──
+  it("removes 'Recommendation Bank' from all visible fields", () => {
+    const sanitized = sanitizeVisibleOutput(BAD_OUTPUT, true);
+    expect(JSON.stringify(sanitized)).not.toMatch(/Recommendation Bank/i);
+  });
+
+  // ── Propel knowledge sources never appears ──
+  it("removes 'Propel knowledge sources' from all visible fields", () => {
+    const sanitized = sanitizeVisibleOutput(BAD_OUTPUT, true);
+    expect(JSON.stringify(sanitized)).not.toMatch(/Propel knowledge sources/i);
+  });
+
+  // ── Materials used never appears ──
+  it("removes 'materials used' from all visible fields", () => {
+    const sanitized = sanitizeVisibleOutput(BAD_OUTPUT, true);
+    expect(JSON.stringify(sanitized)).not.toMatch(/materials used/i);
+  });
+
+  // ── Readiness flags never appear ──
+  it("removes 'readiness flags' from all visible fields", () => {
+    const sanitized = sanitizeVisibleOutput(BAD_OUTPUT, true);
+    expect(JSON.stringify(sanitized)).not.toMatch(/readiness flags/i);
+  });
+
+  // ── Completeness level never appears ──
+  it("removes 'completeness_level' from all visible fields", () => {
+    const sanitized = sanitizeVisibleOutput(BAD_OUTPUT, true);
+    expect(JSON.stringify(sanitized)).not.toMatch(/completeness_level/i);
+  });
+
+  // ── Missing requirements never appears ──
+  it("removes 'missing requirements' from all visible fields", () => {
+    const sanitized = sanitizeVisibleOutput(BAD_OUTPUT, true);
+    expect(JSON.stringify(sanitized)).not.toMatch(/missing requirements/i);
+  });
+
+  // ── Missing utilization data never appears as a deficiency ──
+  it("removes 'missing utilization data' from visible fields", () => {
+    const sanitized = sanitizeVisibleOutput(BAD_OUTPUT, true);
+    expect(JSON.stringify(sanitized)).not.toMatch(/missing utilization data/i);
+  });
+
+  // ── Missing program inventory never appears ──
+  it("removes 'missing program inventory' from visible fields", () => {
+    const sanitized = sanitizeVisibleOutput(BAD_OUTPUT, true);
+    expect(JSON.stringify(sanitized)).not.toMatch(/missing program inventory/i);
+  });
+
+  // ── Missing outcomes never appears ──
+  it("removes 'undefined outcomes' from visible fields", () => {
+    const sanitized = sanitizeVisibleOutput(BAD_OUTPUT, true);
+    expect(JSON.stringify(sanitized)).not.toMatch(/undefined outcomes/i);
+  });
+
+  // ── Missing cohort definitions never appears ──
+  it("removes 'missing cohort definitions' from visible fields", () => {
+    const sanitized = sanitizeVisibleOutput(BAD_OUTPUT, true);
+    expect(JSON.stringify(sanitized)).not.toMatch(/missing cohort definitions/i);
+  });
+
+  // ── Missing baseline definitions never appears ──
+  it("removes 'missing baseline definitions' from visible fields", () => {
+    const sanitized = sanitizeVisibleOutput(BAD_OUTPUT, true);
+    expect(JSON.stringify(sanitized)).not.toMatch(/missing baseline/i);
+  });
+
+  // ── Source: prefix never appears ──
+  it("removes 'Source:' prefixes from visible fields", () => {
+    const sanitized = sanitizeVisibleOutput(BAD_OUTPUT, true);
+    expect(JSON.stringify(sanitized)).not.toMatch(/Source:\s*/i);
+    expect(JSON.stringify(sanitized)).not.toMatch(/Sources:\s*/i);
+  });
+
+  // ── "according to the document" never appears ──
+  it("removes 'according to the document' from visible fields", () => {
+    const sanitized = sanitizeVisibleOutput(BAD_OUTPUT, true);
+    expect(JSON.stringify(sanitized)).not.toMatch(/according to the document/i);
+  });
+
+  // ── "see guidance in" never appears ──
+  it("removes 'see guidance in' from visible fields", () => {
+    const sanitized = sanitizeVisibleOutput(BAD_OUTPUT, true);
+    expect(JSON.stringify(sanitized)).not.toMatch(/see guidance in/i);
+  });
+
+  // ── "from the knowledge base" never appears ──
+  it("removes 'from the knowledge base' from visible fields", () => {
+    const sanitized = sanitizeVisibleOutput(BAD_OUTPUT, true);
+    expect(JSON.stringify(sanitized)).not.toMatch(/from the knowledge base/i);
+  });
+
+  // ── "retrieved materials" never appears ──
+  it("removes 'retrieved materials' from visible fields", () => {
+    const sanitized = sanitizeVisibleOutput(BAD_OUTPUT, true);
+    expect(JSON.stringify(sanitized)).not.toMatch(/retrieved materials/i);
+  });
+
+  // ── Assessment-only reports still produce useful limitations ──
+  it("preserves clean limitation text that does not reference forbidden terms", () => {
+    const cleanOutput: StrategyPocOutput = {
+      ...VALID_OUTPUT,
+      limitations: "This assessment reflects reported organizational practices and should be validated through stakeholder discussion before implementation.",
+    };
+    const sanitized = sanitizeVisibleOutput(cleanOutput, true);
+    expect(sanitized.limitations).toContain("reported organizational practices");
+    expect(sanitized.limitations).toContain("stakeholder discussion");
+  });
+
+  // ── Exact bad example is transformed ──
+  it("transforms the exact bad example limitations into clean language", () => {
+    const sanitized = sanitizeVisibleOutput(BAD_OUTPUT, true);
+    expect(sanitized.limitations).not.toMatch(/readiness flags|missing utilization|Strategy Knowledge Master|Recommendation Bank|materials used/i);
+    // The sanitized limitations should not contain broken sentences
+    expect(sanitized.limitations).not.toMatch(/^\s*[,.;]/);
+  });
+
+  // ── Print output remains source-free ──
+  it("print output (all visible fields) remains source-free after sanitization", () => {
+    const sanitized = sanitizeVisibleOutput(BAD_OUTPUT, true);
+    const visibleFields = [
+      sanitized.executive_summary,
+      sanitized.maturity_interpretation,
+      sanitized.limitations,
+      ...(sanitized.prioritized_barriers ?? []).flatMap(b => [b.title, b.description]),
+      ...(sanitized.priority_recommendations ?? []).flatMap(r => [
+        r.title, r.why_this_matters, r.assessment_evidence, r.propel_knowledge_evidence,
+        r.recommended_action, r.suggested_first_step, r.expected_strategic_impact,
+        r.implementation_sequence,
+      ]),
+      ...(sanitized.client_discussion_questions ?? []),
+      ...(sanitized.implementation_sequence ?? []),
+    ];
+    for (const field of visibleFields) {
+      expect(field).not.toMatch(/\.docx|\.pdf|\.txt|Strategy Knowledge Master|Recommendation Bank|readiness flags|materials used|retrieved materials|Source:/i);
+    }
+  });
+
+  // ── validateNoForbiddenContent catches remaining violations ──
+  it("validateNoForbiddenContent returns violations for unsanitized output", () => {
+    const violations = validateNoForbiddenContent(BAD_OUTPUT, true);
+    expect(violations.length).toBeGreaterThan(0);
+  });
+
+  it("validateNoForbiddenContent returns no violations for clean output", () => {
+    const cleanOutput: StrategyPocOutput = {
+      ...VALID_OUTPUT,
+      limitations: "This assessment reflects reported organizational practices and should be validated through stakeholder discussion before implementation.",
+      source_references: [],
+    };
+    const violations = validateNoForbiddenContent(cleanOutput, true);
+    expect(violations).toEqual([]);
+  });
+
+  // ── Assessment-only payload strips readiness ──
+  it("buildFilteredPayload for assessment_only strips readiness and empty legacy arrays", () => {
+    const snapshot = {
+      ...MOCK_SNAPSHOT_DATA,
+      snapshot_mode: "assessment_only",
+      outcomes: [],
+      metrics: [],
+      programs: [],
+      utilization: [],
+      resource_gaps: [],
+      evidence_sources: [],
+      readiness: { level: "sufficient", requirements: [], complete_count: 7, total_required: 7 },
+    };
+    const payload = buildFilteredPayload(snapshot);
+    expect(payload.readiness).toEqual({});
+    expect(payload.outcomes).toEqual([]);
+    expect(payload.utilization).toEqual([]);
+    expect(payload.resource_gaps).toEqual([]);
+  });
+
+  it("buildFilteredPayload for standard mode preserves readiness", () => {
+    const snapshot = {
+      ...MOCK_SNAPSHOT_DATA,
+      snapshot_mode: "standard",
+    };
+    const payload = buildFilteredPayload(snapshot);
+    expect(payload.readiness).toBeDefined();
+    expect(payload.readiness.level).toBe("sufficient");
+  });
+
+  // ── Non-assessment-only mode does not strip readiness deficiency language ──
+  it("standard mode sanitization does not strip assessment-only-specific terms", () => {
+    const output: StrategyPocOutput = {
+      ...VALID_OUTPUT,
+      limitations: "The readiness flags show some issues with the workspace data.",
+    };
+    const sanitized = sanitizeVisibleOutput(output, false);
+    // In standard mode, 'readiness flags' should still be stripped (it's in the general list)
+    expect(sanitized.limitations).not.toMatch(/readiness flags/i);
   });
 });

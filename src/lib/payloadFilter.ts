@@ -12,6 +12,7 @@ export type FilteredNote = {
 
 export type FilteredSnapshotPayload = {
   filter_version: number;
+  snapshot_mode: 'assessment_only' | 'standard';
   workspace_title: string;
   workspace_status: string;
   client_organization: {
@@ -77,9 +78,14 @@ export function buildFilteredPayload(
 ): FilteredSnapshotPayload {
   const assessment = (snapshot.assessment as Record<string, unknown>) ?? {};
   const notes = (snapshot.notes as Array<Record<string, unknown>>) ?? [];
+  const snapshotMode =
+    String(snapshot.snapshot_mode ?? 'standard') === 'assessment_only'
+      ? 'assessment_only'
+      : 'standard';
 
-  return {
+  const basePayload: FilteredSnapshotPayload = {
     filter_version: PAYLOAD_FILTER_VERSION,
+    snapshot_mode: snapshotMode,
     workspace_title: String(snapshot.workspace_title ?? ''),
     workspace_status: String(snapshot.workspace_status ?? ''),
     client_organization: {
@@ -111,6 +117,22 @@ export function buildFilteredPayload(
     notes: filterNotes(notes),
     readiness: (snapshot.readiness as Record<string, unknown>) ?? {},
   };
+
+  if (snapshotMode === 'assessment_only') {
+    const hasData = (arr: unknown[]): boolean =>
+      Array.isArray(arr) && arr.length > 0;
+    return {
+      ...basePayload,
+      outcomes: hasData(basePayload.outcomes) ? basePayload.outcomes : [],
+      metrics: hasData(basePayload.metrics) ? basePayload.metrics : [],
+      programs: hasData(basePayload.programs) ? basePayload.programs : [],
+      utilization: hasData(basePayload.utilization) ? basePayload.utilization : [],
+      resource_gaps: hasData(basePayload.resource_gaps) ? basePayload.resource_gaps : [],
+      evidence_sources: hasData(basePayload.evidence_sources) ? basePayload.evidence_sources : [],
+      readiness: {},
+    };
+  }
+  return basePayload;
 }
 
 export function getVisibilityDirective(

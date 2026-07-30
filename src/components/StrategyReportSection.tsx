@@ -378,10 +378,10 @@ function ReportContent({ output }: { output: GenerationOutput }) {
         </div>
       )}
 
-      {/* G. Limitations and Missing Information */}
+      {/* G. Limitations */}
       {output.limitations && (
         <div>
-          <h3 className="text-sm font-semibold text-navy mb-1.5">Limitations and Missing Information</h3>
+          <h3 className="text-sm font-semibold text-navy mb-1.5">Limitations</h3>
           <p className="text-sm text-neutral-secondary leading-relaxed">{output.limitations}</p>
         </div>
       )}

@@ -10,24 +10,36 @@ export const MAX_RECOMMENDATIONS = 5;
 export const MAX_DISCUSSION_QUESTIONS = 5;
 export const MAX_BARRIERS = 5;
 
-export const SYSTEM_PROMPT = `You are a workplace wellbeing strategy advisor. You analyze assessment data and produce a strategy proof-of-concept grounded in both the client's assessment results and the Propel knowledge base.
+export const SYSTEM_PROMPT = `You are a workplace wellbeing strategy advisor. You analyze assessment data and produce a strategy proof-of-concept grounded in both the client's assessment results and Propel's established strategy approach.
 
 STRICT RULES:
 1. Output ONLY valid JSON matching the specified schema. No markdown, no code fences, no commentary.
 2. Generate at most ${MAX_RECOMMENDATIONS} priority recommendations.
 3. Generate at most ${MAX_DISCUSSION_QUESTIONS} client discussion questions.
 4. Generate at most ${MAX_BARRIERS} prioritized barriers.
-5. Every evidence_references entry must use a "path" that refers to a real section in the provided data (e.g., "assessment.strategy_dimension_scores", "recommendations[0]", "utilization[0]", "notes[2]").
+5. Every evidence_references entry must use a "path" that refers to a real section in the provided data (e.g., "assessment.strategy_dimension_scores", "recommendations[0]", "notes[2]").
 6. Do NOT include PII, personal names, email addresses, or phone numbers.
 7. Do NOT include internal scoring formulas, driver mapping weights, or methodology details.
 8. "internal" notes may influence your analysis but must NEVER appear verbatim in output.
 9. "organization_team" notes may influence your analysis but must NOT appear verbatim unless explicitly approved.
 10. "client_report_candidate" notes may influence your analysis and may be paraphrased in output.
 11. Be concise, specific, and actionable. Use plain professional language.
-12. Use the file_search tool to retrieve relevant Propel knowledge. Cite retrieved knowledge in propel_knowledge_evidence and source_references using the human-readable filename from the retrieved results.
-13. Every priority recommendation must be grounded in BOTH assessment evidence (assessment_evidence) AND Propel knowledge (propel_knowledge_evidence) when knowledge retrieval is available.
-14. When knowledge retrieval is not available, set propel_knowledge_evidence to an empty array and note the limitation in the limitations field.
-15. source_references must use source_title matching the filename of retrieved documents. Set file_id to null if unknown.
+
+KNOWLEDGE SYNTHESIS RULES (apply to ALL output fields):
+12. Synthesize retrieved Propel knowledge into direct, actionable guidance. Express it as your own professional advice (e.g., "Propel recommends making privacy language explicit because trust and clarity can reduce participation friction").
+13. NEVER mention document titles, filenames, file extensions, file IDs, vector-store IDs, citation labels, recommendation-bank IDs, or internal knowledge asset names in any output field.
+14. NEVER write phrases such as "according to the document," "see guidance in," "Source:", "Sources:", "materials used," "from the knowledge base," "Strategy Knowledge Master," "Recommendation Bank," "Propel knowledge sources," or "retrieved materials" in any output field.
+15. When knowledge retrieval is available, use it to inform your recommendations. The propel_knowledge_evidence field should contain synthesized strategy guidance written as direct professional advice, NOT source citations.
+16. When knowledge retrieval is not available, focus on assessment evidence only. Do NOT mention the absence of knowledge retrieval as a limitation.
+17. source_references must always be an empty array. Backend audit metadata is captured separately.
+
+ASSESSMENT-ONLY MODE RULES (when snapshot_mode is "assessment_only"):
+18. The following fields are OUT OF SCOPE for this analysis, not missing deficiencies: desired outcomes, outcome metrics, program inventory, utilization records, resource gaps, evidence sources, strategy notes, baseline definitions, cohort definitions, segment definitions, renewal information, and other broker-entered workspace context.
+19. Do NOT describe these fields as missing, absent, insufficient, or unavailable. Do NOT frame their absence as a limitation, readiness issue, or precision reduction.
+20. Do NOT use phrases such as "missing utilization data," "missing program inventory," "undefined outcomes," "readiness flags show," "missing requirements," "insufficient workspace data," or "reduced precision because optional inputs are absent."
+21. Do NOT mention readiness flags, completeness levels, snapshot modes, or internal validation status in any output field.
+22. Limitations may mention only genuine analytical constraints, such as: the assessment reflects reported organizational practices; findings should be validated through stakeholder discussion; the analysis does not establish causation. A limitation should only appear when it directly qualifies a claim made in the report.
+23. If no genuine limitation applies, set limitations to an empty string.
 
 JSON SCHEMA:
 {
@@ -44,7 +56,7 @@ JSON SCHEMA:
       "title": "string — short title",
       "why_this_matters": "string — why this matters for this client, grounded in the data",
       "assessment_evidence": "string — specific assessment findings that support this recommendation",
-      "propel_knowledge_evidence": "string — specific Propel knowledge that supports this recommendation, with filename cited",
+      "propel_knowledge_evidence": "string — synthesized strategy guidance from Propel's established approach, written as direct professional advice without citing source documents",
       "recommended_action": "string — specific next step",
       "suggested_first_step": "string — the first concrete action to take within 30 days",
       "expected_strategic_impact": "string — what strategic outcome this will produce and over what timeframe",
@@ -56,10 +68,8 @@ JSON SCHEMA:
   ],
   "implementation_sequence": ["string — ordered phase description"],
   "client_discussion_questions": ["string — open-ended question for the client"],
-  "limitations": "string — caveats about data quality, scope, confidence, or knowledge coverage",
-  "source_references": [
-    { "source_title": "string — filename of the Propel knowledge document", "source_type": "propel_knowledge", "file_id": "string or null" }
-  ],
+  "limitations": "string — concise, client-relevant caveats. Only mention genuine analytical constraints that directly qualify a claim in the report. Empty string if none apply.",
+  "source_references": [],
   "evidence_references": [
     { "path": "string — dot-path into the provided data", "label": "string — human-readable label" }
   ]
@@ -119,6 +129,7 @@ export type FilteredNote = {
 
 export type FilteredPayload = {
   filter_version: number;
+  snapshot_mode: "assessment_only" | "standard";
   workspace_title: string;
   workspace_status: string;
   client_organization: Record<string, unknown>;
@@ -217,9 +228,14 @@ export function buildFilteredPayload(
     (snapshot.notes as Array<Record<string, unknown>>) ?? [];
   const org =
     (snapshot.client_organization as Record<string, unknown>) ?? {};
+  const snapshotMode =
+    String(snapshot.snapshot_mode ?? "standard") === "assessment_only"
+      ? "assessment_only"
+      : "standard";
 
-  return {
+  const basePayload: FilteredPayload = {
     filter_version: PAYLOAD_FILTER_VERSION,
+    snapshot_mode: snapshotMode,
     workspace_title: String(snapshot.workspace_title ?? ""),
     workspace_status: String(snapshot.workspace_status ?? ""),
     client_organization: {
@@ -239,6 +255,29 @@ export function buildFilteredPayload(
     evidence_sources: (snapshot.evidence_sources as unknown[]) ?? [],
     notes: filterNotes(notes),
     readiness: (snapshot.readiness as Record<string, unknown>) ?? {},
+  };
+
+  if (snapshotMode === "assessment_only") {
+    return buildAssessmentOnlyPayload(basePayload);
+  }
+  return basePayload;
+}
+
+function buildAssessmentOnlyPayload(
+  base: FilteredPayload
+): FilteredPayload {
+  const hasData = (arr: unknown[]): boolean =>
+    Array.isArray(arr) && arr.length > 0;
+
+  return {
+    ...base,
+    outcomes: hasData(base.outcomes) ? base.outcomes : [],
+    metrics: hasData(base.metrics) ? base.metrics : [],
+    programs: hasData(base.programs) ? base.programs : [],
+    utilization: hasData(base.utilization) ? base.utilization : [],
+    resource_gaps: hasData(base.resource_gaps) ? base.resource_gaps : [],
+    evidence_sources: hasData(base.evidence_sources) ? base.evidence_sources : [],
+    readiness: {},
   };
 }
 
@@ -565,10 +604,7 @@ export function stripInternalIds(
 ): StrategyPocOutput {
   const stripped: StrategyPocOutput = {
     ...output,
-    source_references: (output.source_references ?? []).map((ref) => ({
-      ...ref,
-      file_id: null,
-    })),
+    source_references: [],
   };
   return stripped;
 }
@@ -596,6 +632,240 @@ export function stripBlockedSources(
     ...output,
     source_references: filtered,
   };
+}
+
+// ============================================================
+// Visible-output sanitizer — strips source refs, filenames, IDs,
+// readiness language, and removed-workspace deficiency language
+// from all broker-facing / client-facing narrative fields.
+// ============================================================
+
+const FORBIDDEN_PATTERNS: Array<{ regex: RegExp; replacement: string }> = [
+  // Filenames and extensions
+  { regex: /\b\w+\.docx\b/gi, replacement: "" },
+  { regex: /\b\w+\.pdf\b/gi, replacement: "" },
+  { regex: /\b\w+\.txt\b/gi, replacement: "" },
+  // File / vector-store IDs
+  { regex: /\bfile-[A-Za-z0-9_-]{10,}\b/gi, replacement: "" },
+  { regex: /\bvs_[A-Za-z0-9_-]{10,}\b/gi, replacement: "" },
+  // Recommendation IDs (e.g. CLARITY-004)
+  { regex: /\b[A-Z]{3,}-\d{3,}\b/g, replacement: "" },
+  // Source citation phrases
+  { regex: /Source:\s*/gi, replacement: "" },
+  { regex: /Sources:\s*/gi, replacement: "" },
+  { regex: /according to the document/gi, replacement: "" },
+  { regex: /see guidance in/gi, replacement: "" },
+  { regex: /from the knowledge base/gi, replacement: "" },
+  // Internal knowledge asset names
+  { regex: /Strategy Knowledge Master/gi, replacement: "Propel's established strategy approach" },
+  { regex: /Recommendation Bank/gi, replacement: "Propel's established strategy approach" },
+  { regex: /Propel knowledge sources?/gi, replacement: "Propel's established strategy approach" },
+  { regex: /materials used/gi, replacement: "" },
+  { regex: /retrieved materials/gi, replacement: "" },
+  // Readiness / completeness terminology
+  { regex: /readiness flags?/gi, replacement: "" },
+  { regex: /completeness_level/gi, replacement: "" },
+  { regex: /missing requirements?/gi, replacement: "" },
+  { regex: /insufficient workspace data/gi, replacement: "" },
+  // Removed-workspace deficiency language
+  { regex: /missing utilization data/gi, replacement: "" },
+  { regex: /missing program inventory/gi, replacement: "" },
+  { regex: /undefined outcomes/gi, replacement: "" },
+  { regex: /missing cohort definitions/gi, replacement: "" },
+  { regex: /missing baseline (definitions|information)/gi, replacement: "" },
+  { regex: /reduced precision because.*?(?:absent|missing|not supplied)/gi, replacement: "" },
+];
+
+const ASSESSMENT_ONLY_FORBIDDEN: Array<{ regex: RegExp; replacement: string }> = [
+  { regex: /missing desired outcomes/gi, replacement: "" },
+  { regex: /missing outcome metrics/gi, replacement: "" },
+  { regex: /missing resource gaps/gi, replacement: "" },
+  { regex: /missing evidence sources/gi, replacement: "" },
+  { regex: /missing strategy notes/gi, replacement: "" },
+  { regex: /missing segment definitions/gi, replacement: "" },
+  { regex: /missing renewal (information|data)/gi, replacement: "" },
+  { regex: /assessment-only mode/gi, replacement: "" },
+  { regex: /snapshot_mode/gi, replacement: "" },
+];
+
+function sanitizeText(text: string, assessmentOnly: boolean): string {
+  let result = text;
+  const allPatterns = assessmentOnly
+    ? [...FORBIDDEN_PATTERNS, ...ASSESSMENT_ONLY_FORBIDDEN]
+    : FORBIDDEN_PATTERNS;
+
+  for (const { regex, replacement } of allPatterns) {
+    result = result.replace(regex, replacement);
+  }
+
+  // Clean up artifacts: double spaces, orphaned punctuation, empty clauses
+  result = result
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/\s+,/g, ",")
+    .replace(/,\s*\./g, ".")
+    .replace(/\.\s*\./g, ".")
+    .replace(/\s+([.,;])/g, "$1")
+    .replace(/\(\s*\)/g, "")
+    .replace(/\[\s*\]/g, "")
+    .replace(/^\s*[-—]\s*$/gm, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+
+  return result;
+}
+
+const VISIBLE_STRING_FIELDS = new Set([
+  "executive_summary",
+  "maturity_interpretation",
+  "limitations",
+  "title",
+  "description",
+  "why_this_matters",
+  "assessment_evidence",
+  "propel_knowledge_evidence",
+  "recommended_action",
+  "suggested_first_step",
+  "expected_strategic_impact",
+  "implementation_sequence",
+]);
+
+export function sanitizeVisibleOutput(
+  output: StrategyPocOutput,
+  assessmentOnly: boolean
+): StrategyPocOutput {
+  const sanitized = { ...output } as Record<string, unknown>;
+
+  for (const key of VISIBLE_STRING_FIELDS) {
+    if (typeof sanitized[key] === "string") {
+      sanitized[key] = sanitizeText(sanitized[key] as string, assessmentOnly);
+    }
+  }
+
+  // Sanitize strings inside arrays of objects
+  if (Array.isArray(sanitized.prioritized_barriers)) {
+    sanitized.prioritized_barriers = (
+      sanitized.prioritized_barriers as Array<Record<string, unknown>>
+    ).map((barrier) => ({
+      ...barrier,
+      title:
+        typeof barrier.title === "string"
+          ? sanitizeText(barrier.title, assessmentOnly)
+          : barrier.title,
+      description:
+        typeof barrier.description === "string"
+          ? sanitizeText(barrier.description, assessmentOnly)
+          : barrier.description,
+    }));
+  }
+
+  if (Array.isArray(sanitized.priority_recommendations)) {
+    sanitized.priority_recommendations = (
+      sanitized.priority_recommendations as Array<Record<string, unknown>>
+    ).map((rec) => {
+      const updated: Record<string, unknown> = { ...rec };
+      for (const field of VISIBLE_STRING_FIELDS) {
+        if (typeof updated[field] === "string") {
+          updated[field] = sanitizeText(updated[field] as string, assessmentOnly);
+        }
+      }
+      return updated;
+    });
+  }
+
+  if (Array.isArray(sanitized.client_discussion_questions)) {
+    sanitized.client_discussion_questions = (
+      sanitized.client_discussion_questions as string[]
+    ).map((q) => sanitizeText(q, assessmentOnly));
+  }
+
+  if (Array.isArray(sanitized.implementation_sequence)) {
+    sanitized.implementation_sequence = (
+      sanitized.implementation_sequence as string[]
+    ).map((phase) => sanitizeText(phase, assessmentOnly));
+  }
+
+  // Always clear source_references from visible output
+  sanitized.source_references = [];
+
+  return sanitized as unknown as StrategyPocOutput;
+}
+
+export function validateNoForbiddenContent(
+  output: StrategyPocOutput,
+  assessmentOnly: boolean
+): string[] {
+  const violations: string[] = [];
+  const checkText = (text: string, field: string): void => {
+    if (typeof text !== "string") return;
+    const lower = text.toLowerCase();
+    const forbidden = [
+      ".docx", ".pdf", ".txt",
+      "file-", "vs_",
+      "source:", "sources:",
+      "according to the document",
+      "see guidance in",
+      "from the knowledge base",
+      "strategy knowledge master",
+      "recommendation bank",
+      "propel knowledge sources",
+      "materials used",
+      "retrieved materials",
+    ];
+    if (assessmentOnly) {
+      forbidden.push(
+        "readiness flags",
+        "completeness_level",
+        "missing requirements",
+        "insufficient workspace data",
+        "missing utilization data",
+        "missing program inventory",
+        "undefined outcomes",
+        "missing cohort definitions",
+        "missing baseline",
+        "assessment-only mode",
+        "snapshot_mode",
+      );
+    }
+    for (const term of forbidden) {
+      if (lower.includes(term)) {
+        violations.push(`'${field}' contains forbidden term: '${term}'`);
+      }
+    }
+    // Recommendation ID pattern
+    if (/\b[A-Z]{3,}-\d{3,}\b/.test(text)) {
+      violations.push(`'${field}' contains a recommendation ID pattern`);
+    }
+  };
+
+  checkText(output.executive_summary, "executive_summary");
+  checkText(output.maturity_interpretation, "maturity_interpretation");
+  checkText(output.limitations, "limitations");
+
+  for (const barrier of output.prioritized_barriers ?? []) {
+    checkText(barrier.title, "barrier.title");
+    checkText(barrier.description, "barrier.description");
+  }
+
+  for (const rec of output.priority_recommendations ?? []) {
+    checkText(rec.title, "rec.title");
+    checkText(rec.why_this_matters, "rec.why_this_matters");
+    checkText(rec.assessment_evidence, "rec.assessment_evidence");
+    checkText(rec.propel_knowledge_evidence, "rec.propel_knowledge_evidence");
+    checkText(rec.recommended_action, "rec.recommended_action");
+    checkText(rec.suggested_first_step, "rec.suggested_first_step");
+    checkText(rec.expected_strategic_impact, "rec.expected_strategic_impact");
+    checkText(rec.implementation_sequence, "rec.implementation_sequence");
+  }
+
+  for (const q of output.client_discussion_questions ?? []) {
+    checkText(q, "discussion_question");
+  }
+
+  for (const phase of output.implementation_sequence ?? []) {
+    checkText(phase, "implementation_sequence");
+  }
+
+  return violations;
 }
 
 // ============================================================
