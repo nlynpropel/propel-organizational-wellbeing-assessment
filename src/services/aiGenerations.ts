@@ -349,7 +349,13 @@ export async function autoCreateWorkspaceAndSnapshot(
     logDbError({ fn: 'autoCreateWorkspaceAndSnapshot', error });
     throw new Error(error.message || 'Failed to prepare strategy report.');
   }
-  return data as AutoCreateResult;
+  // PostgREST returns RETURNS TABLE functions as an array; take the single row
+  const rows = data as unknown as AutoCreateResult[];
+  const result = Array.isArray(rows) ? rows[0] : (data as AutoCreateResult);
+  if (!result?.workspace_id || !result?.snapshot_id) {
+    throw new Error('Failed to prepare strategy report: workspace or snapshot missing.');
+  }
+  return result;
 }
 
 export async function fetchGenerationsForAssessmentInstance(
