@@ -340,12 +340,10 @@ export type AutoCreateResult = {
 };
 
 export async function autoCreateWorkspaceAndSnapshot(
-  assessmentInstanceId: string,
-  createdBy: string
+  assessmentInstanceId: string
 ): Promise<AutoCreateResult> {
   const { data, error } = await supabase.rpc('auto_create_workspace_and_snapshot', {
     p_assessment_instance_id: assessmentInstanceId,
-    p_created_by: createdBy,
   });
   if (error) {
     logDbError({ fn: 'autoCreateWorkspaceAndSnapshot', error });
@@ -381,8 +379,7 @@ export async function generateStrategyReport(
   }
 
   const { workspace_id, snapshot_id } = await autoCreateWorkspaceAndSnapshot(
-    assessmentInstanceId,
-    createdBy
+    assessmentInstanceId
   );
 
   const generation = await createGeneration({

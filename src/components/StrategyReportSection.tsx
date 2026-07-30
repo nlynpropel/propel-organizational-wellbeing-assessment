@@ -7,6 +7,7 @@ import {
   Printer,
   AlertCircle,
   Loader2,
+  Lock,
 } from 'lucide-react';
 import Button from './ui/Button';
 import Card from './ui/Card';
@@ -16,9 +17,11 @@ import { useAuth } from '../context/AuthContext';
 import {
   fetchGenerationsForAssessmentInstance,
   generateStrategyReport,
+  approveGeneration,
   canReviewGeneration,
   canApproveGeneration,
   canEditGeneration,
+  isGenerationReadOnly,
   getDisplayOutput,
   GENERATION_STATUS_LABELS,
   GENERATION_STATUS_VARIANTS,
@@ -53,7 +56,9 @@ export default function StrategyReportSection({ assessmentInstanceId }: Props) {
   const [generations, setGenerations] = useState<AnalysisGenerationRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [approving, setApproving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [showReview, setShowReview] = useState(false);
 
   const load = useCallback(async () => {
@@ -78,6 +83,7 @@ export default function StrategyReportSection({ assessmentInstanceId }: Props) {
     if (!profile) return;
     setGenerating(true);
     setError(null);
+    setSuccessMsg(null);
     try {
       await generateStrategyReport(assessmentInstanceId, profile.id);
       await load();
@@ -88,10 +94,28 @@ export default function StrategyReportSection({ assessmentInstanceId }: Props) {
     }
   };
 
+  const handleApprove = async () => {
+    const gen = generations[0];
+    if (!gen || approving) return;
+    setApproving(true);
+    setError(null);
+    setSuccessMsg(null);
+    try {
+      await approveGeneration(gen.id, profile?.id ?? '');
+      setSuccessMsg('Strategy report approved. The report is now read-only.');
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to approve strategy report.');
+    } finally {
+      setApproving(false);
+    }
+  };
+
   const latestGen = generations[0] ?? null;
   const canReview = canReviewGeneration(capabilities);
   const canApproveGen = canApproveGeneration(capabilities);
   const canEditGen = canEditGeneration(capabilities);
+  const readOnly = latestGen ? isGenerationReadOnly(latestGen.status) : false;
 
   if (loading) {
     return (
@@ -169,7 +193,7 @@ export default function StrategyReportSection({ assessmentInstanceId }: Props) {
     );
   }
 
-  // Draft or approved — show summary + actions
+  // Draft, approved, or rejected — show summary + actions
   const output = getDisplayOutput(latestGen) as unknown as GenerationOutput | null;
 
   return (
@@ -181,6 +205,11 @@ export default function StrategyReportSection({ assessmentInstanceId }: Props) {
           <Badge variant={GENERATION_STATUS_VARIANTS[latestGen.status]} dot>
             {GENERATION_STATUS_LABELS[latestGen.status]}
           </Badge>
+          {readOnly && (
+            <span className="inline-flex items-center gap-1 text-xs text-neutral-muted">
+              <Lock className="w-3.5 h-3.5" /> Read-only
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2 flex-wrap print:hidden">
           {latestGen.status === 'draft_generated' && canReview && !showReview && (
@@ -188,15 +217,16 @@ export default function StrategyReportSection({ assessmentInstanceId }: Props) {
               <FileText className="w-4 h-4" /> Review Strategy Report
             </Button>
           )}
-          {latestGen.status === 'draft_generated' && canEditGen && (
+          {latestGen.status === 'draft_generated' && canEditGen && !readOnly && (
             <Button size="sm" variant="outline" onClick={handleGenerate} disabled={generating}>
               <RefreshCw className={`w-4 h-4 ${generating ? 'animate-spin' : ''}`} />
               {generating ? 'Generating…' : 'Regenerate'}
             </Button>
           )}
           {latestGen.status === 'draft_generated' && canApproveGen && (
-            <Button size="sm" variant="primary">
-              <CheckCircle2 className="w-4 h-4" /> Approve
+            <Button size="sm" variant="primary" onClick={handleApprove} disabled={approving || generating}>
+              {approving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+              {approving ? 'Approving…' : 'Approve'}
             </Button>
           )}
           <Button size="sm" variant="outline" onClick={() => window.print()}>
@@ -204,6 +234,14 @@ export default function StrategyReportSection({ assessmentInstanceId }: Props) {
           </Button>
         </div>
       </div>
+
+      {successMsg && (
+        <div className="rounded-md border border-green/30 bg-green/5 p-3 mb-3 print:hidden">
+          <p className="text-sm text-green flex items-center gap-1.5">
+            <CheckCircle2 className="w-4 h-4" /> {successMsg}
+          </p>
+        </div>
+      )}
 
       {error && (
         <p className="text-sm text-red flex items-center gap-1.5 mb-3 print:hidden">
