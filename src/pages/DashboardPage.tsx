@@ -70,7 +70,9 @@ export default function DashboardPage() {
       if (s === 'not_opened' || s === 'sent') notOpened++;
       if (s === 'opened' || s === 'in_progress') inProgress++;
       if (s === 'submitted' || s === 'report_ready') completed++;
-      if (s === 'report_ready') reportsReady++;
+      if (s === 'submitted' || s === 'report_ready') {
+        if (org.latest_assessment?.overall_score !== null && org.latest_assessment?.overall_score !== undefined) reportsReady++;
+      }
     }
     return { total, notOpened, inProgress, completed, reportsReady };
   }, [orgs]);
@@ -117,17 +119,6 @@ export default function DashboardPage() {
         ),
     },
     {
-      key: 'opportunity',
-      header: 'Primary Opportunity',
-      mobileLabel: 'Opportunity',
-      hideOnMobile: true,
-      render: (org) => (
-        <span className="text-neutral-secondary">
-          {org.latest_assessment?.primary_opportunity ?? '—'}
-        </span>
-      ),
-    },
-    {
       key: 'sent',
       header: 'Sent',
       hideOnMobile: true,
@@ -156,7 +147,8 @@ export default function DashboardPage() {
       header: 'Report',
       mobileLabel: '',
       render: (org) =>
-        org.latest_assessment?.status === 'report_ready' ? (
+        org.latest_assessment?.overall_score !== null &&
+        org.latest_assessment?.overall_score !== undefined ? (
           <Link
             to={`/clients/${org.id}/results`}
             className="inline-flex items-center gap-1.5 text-sm font-medium text-navy hover:text-navy-mid transition"

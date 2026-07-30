@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { Download, FileText, Eye } from 'lucide-react';
+import { Printer, FileText, Eye } from 'lucide-react';
 import BrokerLayout from '../components/layout/BrokerLayout';
 import PageHeader from '../components/layout/PageHeader';
 import Button from '../components/ui/Button';
@@ -68,9 +68,7 @@ export default function ReportsPage() {
                   </Link>
                   <p className="text-xs text-neutral-muted mt-0.5">{r.organization?.industry ?? '—'}</p>
                 </div>
-                <Badge variant={r.status === 'report_ready' ? 'success' : 'progress'}>
-                  {r.status === 'report_ready' ? 'Ready' : 'Pending'}
-                </Badge>
+                <Badge variant="success">Ready</Badge>
               </div>
 
               <div className="flex items-baseline gap-2 mb-3">
@@ -83,17 +81,20 @@ export default function ReportsPage() {
                 </Badge>
               </div>
 
-              <p className="text-sm text-neutral-secondary mb-4 flex-1">
-                Primary opportunity: <span className="text-navy font-medium">{r.primary_opportunity ?? '—'}</span>
-              </p>
-
               <div className="flex items-center gap-2 pt-3 border-t border-neutral-border-soft">
-                <Button to={`/clients/${r.organization_id}/results`} variant="outline" size="sm" className="flex-1">
+                <Button to={`/reports/${r.id}`} variant="outline" size="sm" className="flex-1">
                   <Eye className="w-4 h-4" />
                   View
                 </Button>
-                <Button variant="ghost" size="sm" className="text-neutral-muted">
-                  <Download className="w-4 h-4" />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-neutral-muted"
+                  onClick={() => window.print()}
+                  aria-label="Print report"
+                  title="Print report"
+                >
+                  <Printer className="w-4 h-4" />
                 </Button>
               </div>
             </Card>
@@ -101,9 +102,7 @@ export default function ReportsPage() {
         </div>
       )}
 
-      <p className="text-xs text-neutral-muted mt-5">
-        PDF download is a placeholder in this phase.
-      </p>
+
     </BrokerLayout>
   );
 }

@@ -31,7 +31,7 @@ import {
   fetchInstancesForOrganization,
 } from '../services/organizations';
 import type { OrganizationWithAssessment, InstanceWithTemplate } from '../services/organizations';
-import { getFundingTypeLabel, getMonthLabel } from '../lib/sampleData';
+import { getFundingTypeLabel } from '../lib/sampleData';
 
 type TabKey = 'overview' | 'assessments' | 'notes';
 
@@ -250,7 +250,6 @@ function OverviewTab({ org, instances }: { org: OrganizationWithAssessment; inst
             <div className="flex justify-between"><dt className="text-neutral-muted">Employees</dt><dd className="text-navy font-medium">{org.employee_count_range ?? '—'}</dd></div>
             <div className="flex justify-between"><dt className="text-neutral-muted">Locations</dt><dd className="text-navy font-medium">{org.number_of_locations ?? '—'}</dd></div>
             <div className="flex justify-between"><dt className="text-neutral-muted">Funding</dt><dd className="text-navy font-medium">{getFundingTypeLabel(org.funding_type)}</dd></div>
-            <div className="flex justify-between"><dt className="text-neutral-muted">Renewal</dt><dd className="text-navy font-medium">{getMonthLabel(org.renewal_month)}</dd></div>
             <div className="flex justify-between"><dt className="text-neutral-muted">Contact</dt><dd className="text-navy font-medium">{org.client_contact_name ?? '—'}</dd></div>
             <div className="flex justify-between"><dt className="text-neutral-muted">Contact email</dt><dd className="text-navy font-medium text-right">{org.client_contact_email ?? '—'}</dd></div>
           </dl>

@@ -8,7 +8,7 @@ import Card from '../components/ui/Card';
 import { useAuth } from '../context/AuthContext';
 import { createOrganization } from '../services/organizations';
 import { createDraftAssessment } from '../services/assessments';
-import { INDUSTRIES, EMPLOYEE_RANGES, FUNDING_TYPES, MONTHS } from '../lib/sampleData';
+import { INDUSTRIES, EMPLOYEE_RANGES, FUNDING_TYPES } from '../lib/sampleData';
 import type { FundingTypeDb } from '../lib/database.types';
 
 type FormState = {
@@ -18,7 +18,6 @@ type FormState = {
   employee_count_range: string;
   number_of_locations: string;
   funding_type: string;
-  renewal_month: string;
   client_contact_name: string;
   client_contact_email: string;
 };
@@ -30,7 +29,6 @@ const initial: FormState = {
   employee_count_range: '',
   number_of_locations: '',
   funding_type: '',
-  renewal_month: '',
   client_contact_name: '',
   client_contact_email: '',
 };
@@ -59,12 +57,6 @@ export default function NewClientPage() {
     if (form.number_of_locations && parseInt(form.number_of_locations, 10) < 0) {
       e.number_of_locations = 'Number of locations cannot be negative.';
     }
-    if (form.renewal_month) {
-      const m = parseInt(form.renewal_month, 10);
-      if (m < 1 || m > 12) {
-        e.renewal_month = 'Renewal month must be between 1 and 12.';
-      }
-    }
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -83,7 +75,6 @@ export default function NewClientPage() {
         employee_count_range: form.employee_count_range || undefined,
         number_of_locations: form.number_of_locations ? parseInt(form.number_of_locations, 10) : undefined,
         funding_type: (form.funding_type || undefined) as FundingTypeDb | undefined,
-        renewal_month: form.renewal_month ? parseInt(form.renewal_month, 10) : undefined,
         client_contact_name: form.client_contact_name.trim() || undefined,
         client_contact_email: form.client_contact_email.trim() || undefined,
       });
@@ -225,22 +216,7 @@ export default function NewClientPage() {
               </select>
             </div>
 
-            <div>
-              <label className={labelCls}>Renewal month</label>
-              <select
-                value={form.renewal_month}
-                onChange={(e) => update('renewal_month', e.target.value)}
-                className={fieldCls(!!errors.renewal_month)}
-              >
-                <option value="">Select month</option>
-                {MONTHS.map((m, i) => (
-                  <option key={m} value={i + 1}>{m}</option>
-                ))}
-              </select>
-              {errors.renewal_month && (
-                <p className="text-xs text-red mt-1">{errors.renewal_month}</p>
-              )}
-            </div>
+
           </div>
         </Card>
 

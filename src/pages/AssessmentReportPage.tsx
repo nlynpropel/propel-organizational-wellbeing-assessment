@@ -100,6 +100,9 @@ export default function AssessmentReportPage() {
         </div>
       )}
 
+      {/* Strategy Report Section — broker-facing generation, review, approve, print */}
+      <StrategyReportSection assessmentInstanceId={instanceId} />
+
       {/* Strengths & Priority Opportunities — side by side */}
       {recommendations && (hasStrengths || hasPriorities) && (
         <div className={`grid gap-6 mb-6 ${hasStrengths && hasPriorities ? 'md:grid-cols-2' : 'grid-cols-1'}`}>
@@ -245,9 +248,6 @@ export default function AssessmentReportPage() {
           <Button variant="outline" size="md">Request Propel Strategy Review</Button>
         </div>
       )}
-
-      {/* Strategy Report Section — broker-facing generation, review, approve, print */}
-      <StrategyReportSection assessmentInstanceId={instanceId} />
     </BrokerLayout>
   );
 }

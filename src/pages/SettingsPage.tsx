@@ -1,4 +1,4 @@
-import { User, Bell, Shield, LogOut } from 'lucide-react';
+import { User, Shield, LogOut } from 'lucide-react';
 import BrokerLayout from '../components/layout/BrokerLayout';
 import PageHeader from '../components/layout/PageHeader';
 import Card from '../components/ui/Card';
@@ -69,29 +69,6 @@ export default function SettingsPage() {
               <dd className="text-navy font-medium">Benefits advisor</dd>
             </div>
           </dl>
-        </Card>
-
-        {/* Notifications */}
-        <Card>
-          <div className="flex items-center gap-2 mb-4">
-            <Bell className="w-4 h-4 text-navy" />
-            <h2 className="text-base font-semibold text-navy">Notifications</h2>
-          </div>
-          <div className="space-y-3">
-            {[
-              { label: 'Assessment opened by client', on: true },
-              { label: 'Assessment submitted', on: true },
-              { label: 'Report ready', on: true },
-              { label: 'Link expired', on: false },
-            ].map((n) => (
-              <div key={n.label} className="flex items-center justify-between">
-                <span className="text-sm text-navy">{n.label}</span>
-                <span className={`relative inline-flex h-5 w-9 rounded-full transition ${n.on ? 'bg-green' : 'bg-neutral-border'}`}>
-                  <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition ${n.on ? 'translate-x-4' : ''}`} />
-                </span>
-              </div>
-            ))}
-          </div>
         </Card>
 
         {/* Security */}

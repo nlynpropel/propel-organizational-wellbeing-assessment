@@ -111,6 +111,7 @@ export async function fetchReportsReady(
   const { data, error } = await supabase
     .from('assessment_instances')
     .select('*, organization:organizations(id, organization_name, industry)')
+    .in('status', ['submitted', 'report_ready'])
     .not('overall_score', 'is', null)
     .order('submitted_at', { ascending: false });
   if (error) throw error;
