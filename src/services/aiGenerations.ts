@@ -335,7 +335,8 @@ export function normalizeEvidencePath(path: string): string {
   return path;
 }
 
-export function getDisplayOutput(gen: AnalysisGenerationRow): Record<string, unknown> | null {
+export function getDisplayOutput(gen: AnalysisGenerationRow | null): Record<string, unknown> | null {
+  if (!gen) return null;
   return gen.reviewed_output_json ?? gen.output_json ?? null;
 }
 
