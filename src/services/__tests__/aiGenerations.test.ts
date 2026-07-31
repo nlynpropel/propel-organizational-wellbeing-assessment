@@ -60,6 +60,7 @@ import {
   canEditGeneration,
   canRegenerate,
   isGenerationReadOnly,
+  isStaleGeneration,
   normalizeEvidencePath,
   saveReviewEdits,
   approveGeneration,
@@ -78,7 +79,7 @@ function makeGen(overrides: Partial<AnalysisGenerationRow> = {}): AnalysisGenera
     generation_type: 'strategy_poc',
     status: 'draft_generated',
     model_name: 'gpt-4o',
-    prompt_version: 'strategy-poc-v2',
+    prompt_version: 'strategy-poc-v3',
     input_snapshot_version: 1,
     output_json: { executive_summary: 'test' },
     original_output_json: { executive_summary: 'test' },
@@ -283,11 +284,31 @@ describe('aiGenerations review workflow', () => {
     expect(isGenerationReadOnly('draft_generated')).toBe(false);
   });
 
-  // ── Regeneration creates a new record, never overwrites ──
-  it('canRegenerate returns false when an active generation exists', () => {
-    const gens = [makeGen({ status: 'queued' })];
+  // ── isStaleGeneration ──
+  it('isStaleGeneration returns true for queued v2 generation', () => {
+    const gen = makeGen({ status: 'queued', prompt_version: 'strategy-poc-v2' });
+    expect(isStaleGeneration(gen)).toBe(true);
+  });
+
+  it('isStaleGeneration returns false for queued v3 generation', () => {
+    const gen = makeGen({ status: 'queued', prompt_version: 'strategy-poc-v3' });
+    expect(isStaleGeneration(gen)).toBe(false);
+  });
+
+  it('isStaleGeneration returns false for draft_generated v2 generation', () => {
+    const gen = makeGen({ status: 'draft_generated', prompt_version: 'strategy-poc-v2' });
+    expect(isStaleGeneration(gen)).toBe(false);
+  });
+  it('canRegenerate returns false when an active same-version generation exists', () => {
+    const gens = [makeGen({ status: 'queued', prompt_version: 'strategy-poc-v3' })];
     const caps = new Set(['generate_ai_analysis']) as Set<never>;
     expect(canRegenerate(caps, gens)).toBe(false);
+  });
+
+  it('canRegenerate returns true when only stale v2 generations exist', () => {
+    const gens = [makeGen({ status: 'queued', prompt_version: 'strategy-poc-v2' })];
+    const caps = new Set(['generate_ai_analysis']) as Set<never>;
+    expect(canRegenerate(caps, gens)).toBe(true);
   });
 
   it('canRegenerate returns true when no active generation exists', () => {
@@ -302,11 +323,11 @@ describe('aiGenerations review workflow', () => {
     expect(canRegenerate(caps, gens)).toBe(false);
   });
 
-  // ── Duplicate active generation blocked ──
-  it('createGeneration throws if an active generation already exists for the snapshot', async () => {
+  // ── Duplicate active generation blocked (same version only) ──
+  it('createGeneration throws if an active generation with same prompt version already exists for the snapshot', async () => {
     chainable.maybeSingle
       .mockResolvedValueOnce({ data: { snapshot_version: 1, completeness_level: 'sufficient' }, error: null })
-      .mockResolvedValueOnce({ data: { id: 'existing-gen', status: 'queued' }, error: null });
+      .mockResolvedValueOnce({ data: { id: 'existing-gen', status: 'queued', prompt_version: 'strategy-poc-v3' }, error: null });
 
     await expect(
       createGeneration({
@@ -314,9 +335,29 @@ describe('aiGenerations review workflow', () => {
         snapshot_id: 'snap-1',
         created_by: 'user-1',
         model_name: 'gpt-4o',
-        prompt_version: 'strategy-poc-v2',
+        prompt_version: 'strategy-poc-v3',
       })
     ).rejects.toThrow('An active generation already exists');
+  });
+
+  it('createGeneration allows new v3 generation when stale v2 generation exists', async () => {
+    chainable.maybeSingle
+      .mockResolvedValueOnce({ data: { snapshot_version: 1, completeness_level: 'sufficient' }, error: null })
+      .mockResolvedValueOnce({ data: { id: 'stale-gen', status: 'queued', prompt_version: 'strategy-poc-v2' }, error: null });
+    chainable.single.mockResolvedValueOnce({
+      data: { id: 'new-gen', workspace_id: 'ws-1', snapshot_id: 'snap-1', status: 'queued' },
+      error: null,
+    });
+
+    const result = await createGeneration({
+      workspace_id: 'ws-1',
+      snapshot_id: 'snap-1',
+      created_by: 'user-1',
+      model_name: 'gpt-4o',
+      prompt_version: 'strategy-poc-v3',
+    });
+
+    expect(result.id).toBe('new-gen');
   });
 
   it('createGeneration throws if snapshot readiness is below sufficient', async () => {
@@ -331,7 +372,7 @@ describe('aiGenerations review workflow', () => {
         snapshot_id: 'snap-1',
         created_by: 'user-1',
         model_name: 'gpt-4o',
-        prompt_version: 'strategy-poc-v2',
+        prompt_version: 'strategy-poc-v3',
       })
     ).rejects.toThrow('below sufficient');
   });

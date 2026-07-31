@@ -219,7 +219,7 @@ describe('generateStrategyReport — auto-create workspace flow', () => {
       workspace_id: '',
       snapshot_id: 'snap-1',
       model_name: 'gpt-4o',
-      prompt_version: 'strategy-poc-v2',
+      prompt_version: 'strategy-poc-v3',
       created_by: 'user-1',
     });
     expect(error).toBe('Workspace ID is required');
@@ -230,7 +230,7 @@ describe('generateStrategyReport — auto-create workspace flow', () => {
       workspace_id: 'ws-1',
       snapshot_id: '',
       model_name: 'gpt-4o',
-      prompt_version: 'strategy-poc-v2',
+      prompt_version: 'strategy-poc-v3',
       created_by: 'user-1',
     });
     expect(error).toBe('Snapshot ID is required');
@@ -240,7 +240,7 @@ describe('generateStrategyReport — auto-create workspace flow', () => {
   it('createGeneration blocks duplicate active generation for same snapshot', async () => {
     chainable.maybeSingle
       .mockResolvedValueOnce({ data: { snapshot_version: 1, completeness_level: 'sufficient' }, error: null })
-      .mockResolvedValueOnce({ data: { id: 'existing', status: 'queued' }, error: null });
+      .mockResolvedValueOnce({ data: { id: 'existing', status: 'queued', prompt_version: 'strategy-poc-v3' }, error: null });
 
     await expect(
       createGeneration({
@@ -248,7 +248,7 @@ describe('generateStrategyReport — auto-create workspace flow', () => {
         snapshot_id: 'snap-1',
         created_by: 'user-1',
         model_name: 'gpt-4o',
-        prompt_version: 'strategy-poc-v2',
+        prompt_version: 'strategy-poc-v3',
       })
     ).rejects.toThrow('An active generation already exists');
   });

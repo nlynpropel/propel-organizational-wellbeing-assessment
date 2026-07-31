@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabase';
 import { logDbError } from '../lib/logger';
 import { isFeatureEnabled } from '../lib/featureFlags';
 import { hasCapability } from './capabilities';
+import { SYSTEM_PROMPT_VERSION } from './generateStrategyPocLogic';
 import type {
   AnalysisGenerationRow,
   GenerationType,
@@ -117,10 +118,10 @@ export async function createGeneration(
     );
   }
 
-  // Block if an active generation already exists for this snapshot
+  // Block if a non-stale active generation already exists for this snapshot
   const { data: existing, error: existingErr } = await supabase
     .from('analysis_generations')
-    .select('id, status')
+    .select('id, status, prompt_version')
     .eq('snapshot_id', input.snapshot_id)
     .in('status', ['queued', 'generating'])
     .maybeSingle();
@@ -128,7 +129,7 @@ export async function createGeneration(
     logDbError({ fn: 'createGeneration.activeCheck', error: existingErr });
     throw existingErr;
   }
-  if (existing) {
+  if (existing && existing.prompt_version === input.prompt_version) {
     throw new Error('An active generation already exists for this snapshot. Wait for it to complete before starting a new one.');
   }
 
@@ -181,13 +182,22 @@ export function canEditGeneration(
   return hasCapability(capabilities, 'edit_strategy_analysis');
 }
 
+export function isStaleGeneration(gen: AnalysisGenerationRow): boolean {
+  return (
+    (gen.status === 'queued' || gen.status === 'generating') &&
+    gen.prompt_version !== SYSTEM_PROMPT_VERSION
+  );
+}
+
 export function canRegenerate(
   capabilities: Set<OrganizationCapability>,
   generations: AnalysisGenerationRow[]
 ): boolean {
   if (!isFeatureEnabled('ENABLE_AI_ANALYSIS')) return false;
   if (!hasCapability(capabilities, 'generate_ai_analysis')) return false;
-  const hasActive = generations.some(g => g.status === 'queued' || g.status === 'generating');
+  const hasActive = generations.some(
+    g => (g.status === 'queued' || g.status === 'generating') && !isStaleGeneration(g)
+  );
   return !hasActive;
 }
 
@@ -393,7 +403,7 @@ export async function generateStrategyReport(
     snapshot_id,
     created_by: createdBy,
     model_name: 'gpt-4o',
-    prompt_version: 'strategy-poc-v2',
+    prompt_version: SYSTEM_PROMPT_VERSION,
   });
 
   const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-strategy-poc`;

@@ -5,7 +5,7 @@
 // function so it can be unit-tested in a Node/Vitest environment.
 // The edge function inlines these same functions directly.
 
-export const SYSTEM_PROMPT_VERSION = "strategy-poc-v2";
+export const SYSTEM_PROMPT_VERSION = "strategy-poc-v3";
 export const MAX_RECOMMENDATIONS = 5;
 export const MAX_DISCUSSION_QUESTIONS = 5;
 export const MAX_BARRIERS = 5;

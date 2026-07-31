@@ -367,7 +367,7 @@ describe("Edge Function — safeErrorMessage", () => {
 
 describe("Edge Function — SYSTEM_PROMPT rules", () => {
   it("has a versioned system prompt", () => {
-    expect(SYSTEM_PROMPT_VERSION).toBe("strategy-poc-v2");
+    expect(SYSTEM_PROMPT_VERSION).toBe("strategy-poc-v3");
     expect(SYSTEM_PROMPT).toContain("JSON");
     expect(SYSTEM_PROMPT).toContain("evidence_references");
   });

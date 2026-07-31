@@ -30,10 +30,12 @@ import {
   canApproveGeneration,
   canEditGeneration,
   isGenerationReadOnly,
+  isStaleGeneration,
   getDisplayOutput,
   GENERATION_STATUS_LABELS,
   GENERATION_STATUS_VARIANTS,
 } from '../services/aiGenerations';
+import { SYSTEM_PROMPT_VERSION } from '../services/generateStrategyPocLogic';
 import { fetchSnapshotsForWorkspace } from '../services/analysisWorkspace';
 import type {
   AnalysisGenerationRow,
@@ -187,6 +189,9 @@ export default function GenerationReviewPanel({ workspaceId, onRefresh }: Props)
             {gen.error_message && (
               <p className="text-xs text-red mt-1">{gen.error_message}</p>
             )}
+            {isStaleGeneration(gen) && (
+              <p className="text-xs text-amber-600 mt-1">A newer report version is available. Generate a new report.</p>
+            )}
           </button>
         ))}
       </div>
@@ -229,7 +234,7 @@ function GenerateButton({
         snapshot_id: snapshotId,
         created_by: createdBy,
         model_name: 'gpt-4o',
-        prompt_version: 'strategy-poc-v2',
+        prompt_version: SYSTEM_PROMPT_VERSION,
       });
       onCreated();
     } catch (err) {
