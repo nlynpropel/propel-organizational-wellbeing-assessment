@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import type { ReactNode } from 'react';
 import {
   Sparkles,
   FileText,
@@ -27,9 +28,12 @@ import {
   GENERATION_STATUS_VARIANTS,
 } from '../services/aiGenerations';
 import type { AnalysisGenerationRow } from '../lib/database.types';
+import { shouldShowPrintButton, canTriggerPrint, type PrintDataContext } from '../lib/printHelpers';
 
 type Props = {
   assessmentInstanceId: string;
+  printContext?: PrintDataContext | null;
+  printableGraph?: ReactNode | null;
 };
 
 type GenerationOutput = {
@@ -51,7 +55,7 @@ type GenerationOutput = {
   limitations: string;
 };
 
-export default function StrategyReportSection({ assessmentInstanceId }: Props) {
+export default function StrategyReportSection({ assessmentInstanceId, printContext, printableGraph }: Props) {
   const { profile, capabilities } = useAuth();
   const [generations, setGenerations] = useState<AnalysisGenerationRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -114,10 +118,7 @@ export default function StrategyReportSection({ assessmentInstanceId }: Props) {
   };
 
   const handlePrint = useCallback(() => {
-    if (printingRef.current) return;
-    if (!showReview) return;
-    const printable = printRef.current;
-    if (!printable) return;
+    if (!canTriggerPrint(printingRef.current, showReview, !!printRef.current, !!output)) return;
     printingRef.current = true;
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
@@ -125,7 +126,7 @@ export default function StrategyReportSection({ assessmentInstanceId }: Props) {
         printingRef.current = false;
       });
     });
-  }, [showReview]);
+  }, [showReview, output]);
 
   const latestGen = generations[0] ?? null;
   const canReview = canReviewGeneration(capabilities);
@@ -211,6 +212,7 @@ export default function StrategyReportSection({ assessmentInstanceId }: Props) {
 
   // Draft, approved, or rejected — show summary + actions
   const output = getDisplayOutput(latestGen) as unknown as GenerationOutput | null;
+  const showPrint = shouldShowPrintButton(showReview, !!output);
 
   return (
     <Card className="mt-6 print-area">
@@ -245,7 +247,7 @@ export default function StrategyReportSection({ assessmentInstanceId }: Props) {
               {approving ? 'Approving…' : 'Approve'}
             </Button>
           )}
-          {showReview && output && (
+          {showPrint && (
             <Button
               size="sm"
               variant="outline"
@@ -281,7 +283,45 @@ export default function StrategyReportSection({ assessmentInstanceId }: Props) {
 
       <div ref={printRef}>
         {showReview && output ? (
-          <ReportContent output={output} />
+          <div className="space-y-5">
+            {/* Print-only client context */}
+            {printContext && (
+              <div className="hidden print:block space-y-1 mb-4">
+                {printContext.assessmentName && (
+                  <p className="text-sm font-semibold text-navy">{printContext.assessmentName}</p>
+                )}
+                {printContext.clientOrganization && (
+                  <p className="text-sm text-neutral-secondary">{printContext.clientOrganization}</p>
+                )}
+                {printContext.completionDate && (
+                  <p className="text-sm text-neutral-secondary">{printContext.completionDate}</p>
+                )}
+              </div>
+            )}
+
+            {/* Print-only Opportunity Index graph */}
+            {printContext && printableGraph && (
+              <div className="hidden print:block mb-5 print-break-avoid">
+                <div className="print-graph-container rounded-lg bg-navy-deep p-5">
+                  {printableGraph}
+                </div>
+                {printContext.opportunityIndexScore !== null && (
+                  <p className="text-sm text-navy mt-2">
+                    <span className="font-semibold">Opportunity Index Score: </span>
+                    {Math.round(printContext.opportunityIndexScore)} / 100
+                  </p>
+                )}
+                {printContext.maturityLevel && (
+                  <p className="text-sm text-navy">
+                    <span className="font-semibold">Maturity Level: </span>
+                    {printContext.maturityLevel}
+                  </p>
+                )}
+              </div>
+            )}
+
+            <ReportContent output={output} />
+          </div>
         ) : output ? (
           <div className="space-y-3">
             <p className="text-sm text-neutral-secondary leading-relaxed">

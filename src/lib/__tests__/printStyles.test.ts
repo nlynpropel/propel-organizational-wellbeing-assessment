@@ -60,4 +60,21 @@ describe('Print CSS — hiding web-only controls', () => {
     expect(printBlock).toMatch(/box-shadow:\s*none/);
     expect(printBlock).toMatch(/border-radius:\s*0/);
   });
+
+  it('print-graph-container has navy background and fits page width', () => {
+    const printBlock = css.match(/@media print\s*\{([\s\S]*?)^\}/m)?.[1] ?? '';
+    expect(printBlock).toMatch(/\.print-graph-container/);
+    expect(printBlock).toMatch(/width:\s*100%/);
+    expect(printBlock).toMatch(/background-color:\s*#031c40/);
+  });
+
+  it('print-graph-container has break-inside avoid', () => {
+    const printBlock = css.match(/@media print\s*\{([\s\S]*?)^\}/m)?.[1] ?? '';
+    expect(printBlock).toMatch(/\.print-graph-container[\s\S]*break-inside:\s*avoid/);
+  });
+
+  it('print-color-adjust is enabled for grayscale-safe printing', () => {
+    const printBlock = css.match(/@media print\s*\{([\s\S]*?)^\}/m)?.[1] ?? '';
+    expect(printBlock).toMatch(/print-color-adjust:\s*exact/);
+  });
 });

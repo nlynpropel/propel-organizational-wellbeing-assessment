@@ -14,6 +14,7 @@ import { roundForDisplay, CUSTOM_ASSESSMENT_DISCLAIMER, CUSTOM_SCORING_DISCLAIME
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { maturityColor, behavioralColor } from '../lib/scores';
 import StrategyReportSection from '../components/StrategyReportSection';
+import { mapPrintData } from '../lib/printHelpers';
 
 export default function AssessmentReportPage() {
   const { instanceId } = useParams();
@@ -101,7 +102,25 @@ export default function AssessmentReportPage() {
       )}
 
       {/* Strategy Report Section — broker-facing generation, review, approve, print */}
-      <StrategyReportSection assessmentInstanceId={instanceId} />
+      <StrategyReportSection
+        assessmentInstanceId={instanceId}
+        printContext={mapPrintData({
+          organizationName: organization?.organization_name,
+          templateName: template?.name,
+          submittedAt: instance.submitted_at,
+          overallScore,
+          scoreBandLabel: scoreBand,
+        })}
+        printableGraph={
+          overallScore !== null && version?.show_overall_score ? (
+            <OpportunitySpectrum
+              score={overallScore}
+              scoreBandLabel={scoreBand ?? '—'}
+              bands={scoreBands}
+            />
+          ) : null
+        }
+      />
 
       {/* Strengths & Priority Opportunities — side by side */}
       {recommendations && (hasStrengths || hasPriorities) && (

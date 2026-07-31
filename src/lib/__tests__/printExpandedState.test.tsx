@@ -171,4 +171,46 @@ describe('Print button expanded-state logic', () => {
     // Action buttons should be in a print:hidden container
     expect(source).toMatch(/print:hidden/);
   });
+
+  it('print-only graph is rendered inside printRef when expanded', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const source = readFileSync(
+      resolve(__dirname, '../../components/StrategyReportSection.tsx'),
+      'utf-8'
+    );
+    // The printableGraph must be inside the printRef div and only visible in print
+    expect(source).toMatch(/printableGraph/);
+    expect(source).toMatch(/print-graph-container/);
+    expect(source).toMatch(/hidden print:block/);
+  });
+
+  it('print context block shows client org, assessment name, date, score, maturity', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const source = readFileSync(
+      resolve(__dirname, '../../components/StrategyReportSection.tsx'),
+      'utf-8'
+    );
+    expect(source).toMatch(/printContext\.clientOrganization/);
+    expect(source).toMatch(/printContext\.assessmentName/);
+    expect(source).toMatch(/printContext\.completionDate/);
+    expect(source).toMatch(/printContext\.opportunityIndexScore/);
+    expect(source).toMatch(/printContext\.maturityLevel/);
+  });
+
+  it('graph is inside the printRef div (mounted before window.print)', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const source = readFileSync(
+      resolve(__dirname, '../../components/StrategyReportSection.tsx'),
+      'utf-8'
+    );
+    // The ref div must contain the printableGraph rendering
+    const refStart = source.indexOf('ref={printRef}');
+    expect(refStart).toBeGreaterThan(-1);
+    // Find the printableGraph rendering (inside JSX, not the prop destructure)
+    const graphRender = source.indexOf('{printableGraph', refStart);
+    expect(graphRender).toBeGreaterThan(refStart);
+  });
 });
