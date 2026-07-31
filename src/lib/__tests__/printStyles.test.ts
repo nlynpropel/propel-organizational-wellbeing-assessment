@@ -10,8 +10,8 @@ describe('Print CSS — @page and page dimensions', () => {
     expect(css).toMatch(/@page\s*\{[^}]*size:\s*Letter\s+portrait/s);
   });
 
-  it('print margins are defined (0.6in)', () => {
-    expect(css).toMatch(/@page\s*\{[^}]*margin:\s*0\.6in/s);
+  it('print margins are 0.55in 0.6in 0.75in', () => {
+    expect(css).toMatch(/@page\s*\{[^}]*margin:\s*0\.55in\s+0\.6in\s+0\.75in/s);
   });
 
   it('print-area has natural height (height: auto, min-height: 0)', () => {
@@ -20,21 +20,18 @@ describe('Print CSS — @page and page dimensions', () => {
   });
 
   it('no square aspect-ratio rule applies in print mode', () => {
-    const printBlock = css.match(/@media print\s*\{([\s\S]*?)^\}/m)?.[1] ?? '';
-    expect(printBlock).not.toMatch(/aspect-ratio\s*:\s*1\b/);
-    expect(printBlock).not.toMatch(/aspect-ratio\s*:\s*square/);
+    expect(css).not.toMatch(/aspect-ratio\s*:\s*1\b/);
+    expect(css).not.toMatch(/aspect-ratio\s*:\s*square/);
   });
 
-  it('no fixed pixel page sizes in print', () => {
-    const printBlock = css.match(/@media print\s*\{([\s\S]*?)^\}/m)?.[1] ?? '';
-    expect(printBlock).not.toMatch(/width:\s*\d+px/);
-    expect(printBlock).not.toMatch(/height:\s*\d+px/);
+  it('no fixed pixel page sizes in print-area', () => {
+    expect(css).not.toMatch(/\.print-area\s*\{[^}]*width:\s*\d+px/);
+    expect(css).not.toMatch(/\.print-area\s*\{[^}]*height:\s*\d{3,}px/);
   });
 
-  it('no viewport-based width/height in print', () => {
-    const printBlock = css.match(/@media print\s*\{([\s\S]*?)^\}/m)?.[1] ?? '';
-    expect(printBlock).not.toMatch(/width:\s*\d+vw/);
-    expect(printBlock).not.toMatch(/height:\s*\d+vh/);
+  it('no viewport-based width/height in print-area', () => {
+    expect(css).not.toMatch(/\.print-area\s*\{[^}]*width:\s*\d+vw/);
+    expect(css).not.toMatch(/\.print-area\s*\{[^}]*height:\s*\d+vh/);
   });
 });
 
@@ -56,25 +53,52 @@ describe('Print CSS — hiding web-only controls', () => {
   });
 
   it('card chrome (border, shadow, radius) is removed in print', () => {
-    const printBlock = css.match(/@media print\s*\{([\s\S]*?)^\}/m)?.[1] ?? '';
-    expect(printBlock).toMatch(/box-shadow:\s*none/);
-    expect(printBlock).toMatch(/border-radius:\s*0/);
+    expect(css).toMatch(/box-shadow:\s*none/);
+    expect(css).toMatch(/border-radius:\s*0/);
   });
 
   it('print-graph-container has navy background and fits page width', () => {
-    const printBlock = css.match(/@media print\s*\{([\s\S]*?)^\}/m)?.[1] ?? '';
-    expect(printBlock).toMatch(/\.print-graph-container/);
-    expect(printBlock).toMatch(/width:\s*100%/);
-    expect(printBlock).toMatch(/background-color:\s*#031c40/);
+    expect(css).toMatch(/\.print-graph-container/);
+    expect(css).toMatch(/width:\s*100%/);
+    expect(css).toMatch(/background-color:\s*#031c40/);
   });
 
   it('print-graph-container has break-inside avoid', () => {
-    const printBlock = css.match(/@media print\s*\{([\s\S]*?)^\}/m)?.[1] ?? '';
-    expect(printBlock).toMatch(/\.print-graph-container[\s\S]*break-inside:\s*avoid/);
+    expect(css).toMatch(/\.print-graph-container[\s\S]*break-inside:\s*avoid/);
   });
 
   it('print-color-adjust is enabled for grayscale-safe printing', () => {
-    const printBlock = css.match(/@media print\s*\{([\s\S]*?)^\}/m)?.[1] ?? '';
-    expect(printBlock).toMatch(/print-color-adjust:\s*exact/);
+    expect(css).toMatch(/print-color-adjust:\s*exact/);
+  });
+});
+
+describe('Print CSS — footer', () => {
+  it('defines a print footer with fixed positioning at the bottom', () => {
+    expect(css).toMatch(/\.print-footer\s*\{[^}]*position:\s*fixed/s);
+    expect(css).toMatch(/\.print-footer\s*\{[^}]*bottom:\s*0/s);
+  });
+
+  it('footer is centered', () => {
+    expect(css).toMatch(/\.print-footer\s*\{[^}]*text-align:\s*center/s);
+  });
+
+  it('footer reserves bottom margin so content does not overlap', () => {
+    expect(css).toMatch(/\.print-area\s*\{[^}]*padding-bottom:\s*0\.5in/s);
+  });
+
+  it('footer image preserves proportions (height set, width auto)', () => {
+    expect(css).toMatch(/\.print-footer img\s*\{[^}]*height:\s*20px/s);
+    expect(css).toMatch(/\.print-footer img\s*\{[^}]*width:\s*auto/s);
+  });
+});
+
+describe('Print CSS — border removal', () => {
+  it('removes borders from sections in print', () => {
+    expect(css).toMatch(/\.print-area section[^}]*border:\s*none/);
+  });
+
+  it('keeps left accent borders for strengths (green) and opportunities (orange)', () => {
+    expect(css).toMatch(/\.border-l-green[^}]*border-left-width:\s*3px/);
+    expect(css).toMatch(/\.border-l-orange[^}]*border-left-width:\s*3px/);
   });
 });

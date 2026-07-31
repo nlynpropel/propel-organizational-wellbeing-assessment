@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Mail, Star, Target, Zap, Flag, MessageCircleQuestion } from 'lucide-react';
+import { ArrowLeft, Mail, Zap, Flag, MessageCircleQuestion } from 'lucide-react';
 import BrokerLayout from '../components/layout/BrokerLayout';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
@@ -8,13 +8,19 @@ import LoadingState from '../components/ui/LoadingState';
 import ErrorState from '../components/ui/ErrorState';
 import OpportunitySpectrum from '../components/ui/OpportunitySpectrum';
 import { useAuth } from '../context/AuthContext';
-import { fetchReportData, getBehavioralInterpretation, DRIVER_LABELS, DRIVER_DESCRIPTIONS, type ReportData, type BehavioralReadiness } from '../services/reportData';
+import { fetchReportData, type ReportData } from '../services/reportData';
 import { getDimensionLabel, getDriverLabel, getEffortLabel, getImpactLabel, type SelectedRecommendation } from '../services/recommendations';
-import { roundForDisplay, CUSTOM_ASSESSMENT_DISCLAIMER, CUSTOM_SCORING_DISCLAIMER, getScoreBand } from '../lib/assessmentScoring';
+import { CUSTOM_ASSESSMENT_DISCLAIMER, CUSTOM_SCORING_DISCLAIMER } from '../lib/assessmentScoring';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
-import { maturityColor, behavioralColor } from '../lib/scores';
 import StrategyReportSection from '../components/StrategyReportSection';
 import { mapPrintData } from '../lib/printHelpers';
+import {
+  StrengthsSection,
+  PriorityOpportunitiesSection,
+  StrategyDimensionsSection,
+  BehavioralReadinessSection,
+  deriveStrategyDimensions,
+} from '../components/report/ReportSections';
 
 export default function AssessmentReportPage() {
   const { instanceId } = useParams();
@@ -49,8 +55,6 @@ export default function AssessmentReportPage() {
   if (error || !report) return <BrokerLayout title="Assessment Report"><ErrorState message={error ?? 'Report not found.'} onRetry={() => navigate('/reports')} /></BrokerLayout>;
 
   const { instance, template, version, organization, sections, sectionScores, overallScore, scoreBand, behavioralReadiness, contextualAnswers, recommendations, scoreBands } = report;
-  const sectionScoreMap = new Map(sectionScores.map((s) => [s.section_id, s]));
-  const scoredSections = sections.filter((s) => s.is_scored);
   const hasStrengths = (recommendations?.strengths.length ?? 0) > 0;
   const hasPriorities = (recommendations?.priorityOpportunities.length ?? 0) > 0;
   const hasQuickWins = (recommendations?.quickWins.length ?? 0) > 0;
@@ -60,6 +64,16 @@ export default function AssessmentReportPage() {
   const completedDate = instance.submitted_at
     ? new Date(instance.submitted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     : null;
+
+  const strategyDimensions = deriveStrategyDimensions(sections, sectionScores, scoreBands);
+
+  const reportSectionsData = {
+    strengths: recommendations?.strengths ?? [],
+    priorityOpportunities: recommendations?.priorityOpportunities ?? [],
+    strategyDimensions,
+    behavioralReadiness,
+    scoreBands,
+  };
 
   return (
     <BrokerLayout title="Assessment Report">
@@ -120,58 +134,33 @@ export default function AssessmentReportPage() {
             />
           ) : null
         }
+        reportSectionsData={reportSectionsData}
       />
 
       {/* Strengths & Priority Opportunities — side by side */}
       {recommendations && (hasStrengths || hasPriorities) && (
         <div className={`grid gap-6 mb-6 ${hasStrengths && hasPriorities ? 'md:grid-cols-2' : 'grid-cols-1'}`}>
           {hasStrengths && (
-            <StrengthsCard recommendations={recommendations.strengths} />
+            <StrengthsSection recommendations={recommendations.strengths} />
           )}
           {hasPriorities && (
-            <PriorityOpportunitiesCard recommendations={recommendations.priorityOpportunities} />
+            <PriorityOpportunitiesSection recommendations={recommendations.priorityOpportunities} />
           )}
         </div>
       )}
 
       {/* Strategy dimensions — two-column grid */}
-      {scoredSections.length > 0 && (
-        <Card className="mb-6">
-          <h2 className="text-lg font-semibold text-navy mb-4">Strategy Dimensions</h2>
-          <div className="grid gap-x-8 gap-y-5 md:grid-cols-2">
-            {scoredSections.map((section) => {
-              const score = sectionScoreMap.get(section.id);
-              const normScore = score ? Number(score.normalized_score) : null;
-              const bandLabel = normScore !== null ? getScoreBand(normScore, scoreBands) : null;
-              return (
-                <ScoreRow
-                  key={section.id}
-                  label={section.title}
-                  score={normScore}
-                  interpretation={bandLabel}
-                  colorFn={maturityColor}
-                />
-              );
-            })}
-          </div>
-        </Card>
+      {strategyDimensions.length > 0 && (
+        <div className="mb-6">
+          <StrategyDimensionsSection dimensions={strategyDimensions} />
+        </div>
       )}
 
       {/* Behavioral readiness — with descriptions, two-column grid */}
       {behavioralReadiness && (
-        <Card className="mb-6">
-          <h2 className="text-lg font-semibold text-navy mb-1">Behavioral Readiness</h2>
-          <p className="text-xs text-neutral-muted mb-4">Higher scores indicate stronger behavioral support for well-being participation.</p>
-          <div className="grid gap-x-8 gap-y-5 md:grid-cols-2">
-            {(Object.keys(DRIVER_LABELS) as Array<keyof BehavioralReadiness>).map((key) => (
-              <BehavioralReadinessRow
-                key={key}
-                driverKey={key}
-                score={behavioralReadiness[key]}
-              />
-            ))}
-          </div>
-        </Card>
+        <div className="mb-6">
+          <BehavioralReadinessSection readiness={behavioralReadiness} />
+        </div>
       )}
 
       {/* Quick Wins & High-Impact Moves — side by side, with pills */}
@@ -272,139 +261,6 @@ export default function AssessmentReportPage() {
 }
 
 // ============================================================
-// Score Row — single score display, zone-colored bar, label under bar
-// ============================================================
-function ScoreRow({
-  label,
-  score,
-  interpretation,
-  colorFn,
-}: {
-  label: string;
-  score: number | null;
-  interpretation: string | null;
-  colorFn: (scoreOrLabel: number | string) => string;
-}) {
-  void colorFn;
-  if (score === null) {
-    return (
-      <div>
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-sm font-medium text-navy">{label}</span>
-          <span className="text-sm text-neutral-muted">Not scored</span>
-        </div>
-      </div>
-    );
-  }
-
-  const color = colorFn(interpretation ?? score);
-  const pct = Math.max(0, Math.min(100, score));
-
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-1">
-        <span className="text-sm font-medium text-navy">{label}</span>
-        <span className="font-mono text-sm font-semibold text-navy tabular-nums">{roundForDisplay(score)} <span className="text-neutral-muted font-normal text-xs">/ 100</span></span>
-      </div>
-      <div className="w-full bg-neutral-bg rounded-full overflow-hidden h-2">
-        <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: color }} />
-      </div>
-      {interpretation && (
-        <p className="text-xs text-neutral-muted mt-1.5">{interpretation}</p>
-      )}
-    </div>
-  );
-}
-
-// ============================================================
-// Behavioral Readiness Row — driver name, description, score, bar, interpretation
-// ============================================================
-function BehavioralReadinessRow({
-  driverKey,
-  score,
-}: {
-  driverKey: keyof BehavioralReadiness;
-  score: number | null;
-}) {
-  if (score === null) {
-    return (
-      <div>
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-sm font-medium text-navy">{DRIVER_LABELS[driverKey]}</span>
-          <span className="text-sm text-neutral-muted">Not scored</span>
-        </div>
-      </div>
-    );
-  }
-
-  const color = behavioralColor(score);
-  const pct = Math.max(0, Math.min(100, score));
-  const interpretation = getBehavioralInterpretation(score);
-
-  return (
-    <div>
-      <div className="flex items-baseline justify-between gap-2 mb-0.5">
-        <span className="text-sm font-medium text-navy">{DRIVER_LABELS[driverKey]}</span>
-        <span className="font-mono text-sm font-semibold text-navy tabular-nums">{roundForDisplay(score)} <span className="text-neutral-muted font-normal text-xs">/ 100</span></span>
-      </div>
-      <p className="text-xs text-neutral-muted mb-1.5 leading-relaxed">{DRIVER_DESCRIPTIONS[driverKey]}</p>
-      <div className="w-full bg-neutral-bg rounded-full overflow-hidden h-2">
-        <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: color }} />
-      </div>
-      <p className="text-xs text-neutral-muted mt-1.5">{interpretation}</p>
-    </div>
-  );
-}
-
-// ============================================================
-// Strengths card — green top border, strength_title + strength_description only
-// ============================================================
-function StrengthsCard({ recommendations }: { recommendations: SelectedRecommendation[] }) {
-  return (
-    <Card className="border-t-4 border-t-green">
-      <div className="flex items-center gap-2 mb-4">
-        <div className="w-8 h-8 rounded-full bg-green-tint flex items-center justify-center">
-          <Star className="w-4 h-4 text-green-dark" />
-        </div>
-        <h2 className="text-lg font-semibold text-navy">Strengths</h2>
-      </div>
-      <div className="space-y-3">
-        {recommendations.map((rec) => (
-          <div key={rec.id} className="rounded-md border border-neutral-border-soft border-l-4 border-l-green bg-white p-4">
-            <h4 className="text-sm font-semibold text-navy mb-1">{rec.strength_title ?? rec.title}</h4>
-            <p className="text-sm text-neutral-secondary leading-relaxed">{rec.strength_description ?? rec.description}</p>
-          </div>
-        ))}
-      </div>
-    </Card>
-  );
-}
-
-// ============================================================
-// Priority Opportunities card — orange top border, title + description only
-// ============================================================
-function PriorityOpportunitiesCard({ recommendations }: { recommendations: SelectedRecommendation[] }) {
-  return (
-    <Card className="border-t-4 border-t-orange">
-      <div className="flex items-center gap-2 mb-4">
-        <div className="w-8 h-8 rounded-full bg-orange-tint flex items-center justify-center">
-          <Target className="w-4 h-4 text-orange" />
-        </div>
-        <h2 className="text-lg font-semibold text-navy">Priority Opportunities</h2>
-      </div>
-      <div className="space-y-3">
-        {recommendations.map((rec) => (
-          <div key={rec.id} className="rounded-md border border-neutral-border-soft border-l-4 border-l-orange bg-gradient-to-r from-orange-tint/40 to-white p-4">
-            <h4 className="text-sm font-semibold text-navy mb-1">{rec.title}</h4>
-            <p className="text-sm text-neutral-secondary leading-relaxed">{rec.description}</p>
-          </div>
-        ))}
-      </div>
-    </Card>
-  );
-}
-
-// ============================================================
 // Recommendation group card — Quick Wins / High-Impact Moves (with pills)
 // ============================================================
 function RecommendationGroupCard({
@@ -416,7 +272,7 @@ function RecommendationGroupCard({
   recommendations,
 }: {
   title: string;
-  icon: typeof Star;
+  icon: typeof Zap;
   iconColor: string;
   iconBg: string;
   accentBorder: string;
@@ -440,9 +296,6 @@ function RecommendationGroupCard({
   );
 }
 
-// ============================================================
-// Recommendation card with pills — for Quick Wins / High-Impact Moves only
-// ============================================================
 function RecommendationCardWithPills({ rec, accent }: { rec: SelectedRecommendation; accent: 'green' | 'navy' }) {
   const accentClasses: Record<string, string> = {
     green: 'border-l-green bg-white',
@@ -464,9 +317,6 @@ function RecommendationCardWithPills({ rec, accent }: { rec: SelectedRecommendat
   );
 }
 
-// ============================================================
-// Distinct tag styles (only used in Quick Wins / High-Impact Moves)
-// ============================================================
 function DimensionTag({ label }: { label: string }) {
   return <span className="inline-block text-xs text-neutral-secondary border border-neutral-border px-2 py-0.5 rounded-full">{label}</span>;
 }

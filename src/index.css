@@ -62,7 +62,7 @@
 @media print {
   @page {
     size: Letter portrait;
-    margin: 0.6in;
+    margin: 0.55in 0.6in 0.75in;
   }
 
   html, body {
@@ -98,7 +98,7 @@
     margin: 0 !important;
   }
 
-  /* Remove card chrome in print */
+  /* Remove card chrome in print — no borders, shadows, or rounded corners */
   .print-area .rounded-md,
   .print-area .rounded-lg,
   .print-area .rounded-sm,
@@ -118,6 +118,27 @@
     background: white !important;
     width: 100% !important;
     max-width: none !important;
+  }
+
+  /* Remove all remaining borders from report sections */
+  .print-area section,
+  .print-area section > div,
+  .print-area .border,
+  .print-area .border-l-4,
+  .print-area .border-l-2,
+  .print-area .border-b,
+  .print-area .border-t {
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
+
+  /* Keep only left accent borders for strengths and opportunities */
+  .print-area .border-l-green,
+  .print-area .border-l-orange {
+    border-left-width: 3px !important;
+    border-left-style: solid !important;
+    border-radius: 0 !important;
   }
 
   /* Hide elements marked print:hidden */
@@ -182,5 +203,26 @@
   /* Print-only context block */
   .print-area .print-context-block {
     margin-bottom: 1rem !important;
+  }
+
+  /* Print footer — Powered by Propel logo, centered on every page */
+  .print-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    text-align: center;
+    padding-bottom: 0.1in;
+  }
+
+  .print-footer img {
+    height: 20px;
+    width: auto;
+    display: inline-block;
+  }
+
+  /* Ensure print-area content doesn't overlap the fixed footer */
+  .print-area {
+    padding-bottom: 0.5in !important;
   }
 }

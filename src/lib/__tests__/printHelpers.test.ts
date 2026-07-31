@@ -34,12 +34,16 @@ describe('shouldShowPrintButton', () => {
 });
 
 describe('PRINT_SECTION_ORDER', () => {
-  it('has exactly 13 sections in the correct order', () => {
-    expect(PRINT_SECTION_ORDER).toHaveLength(13);
+  it('has exactly 17 sections in the correct order', () => {
+    expect(PRINT_SECTION_ORDER).toHaveLength(17);
   });
 
-  it('starts with branding', () => {
-    expect(PRINT_SECTION_ORDER[0]).toBe('branding');
+  it('no longer starts with branding', () => {
+    expect(PRINT_SECTION_ORDER[0]).not.toBe('branding');
+  });
+
+  it('starts with client_organization', () => {
+    expect(PRINT_SECTION_ORDER[0]).toBe('client_organization');
   });
 
   it('places opportunity_index_graph before opportunity_index_score', () => {
@@ -54,10 +58,20 @@ describe('PRINT_SECTION_ORDER', () => {
     expect(maturityIdx).toBeGreaterThan(scoreIdx);
   });
 
-  it('places executive_summary after maturity_level', () => {
-    const maturityIdx = PRINT_SECTION_ORDER.indexOf('maturity_level');
-    const summaryIdx = PRINT_SECTION_ORDER.indexOf('executive_summary');
-    expect(summaryIdx).toBeGreaterThan(maturityIdx);
+  it('places strengths before priority_opportunities', () => {
+    expect(PRINT_SECTION_ORDER.indexOf('strengths')).toBeLessThan(PRINT_SECTION_ORDER.indexOf('priority_opportunities'));
+  });
+
+  it('places priority_opportunities before strategy_dimensions', () => {
+    expect(PRINT_SECTION_ORDER.indexOf('priority_opportunities')).toBeLessThan(PRINT_SECTION_ORDER.indexOf('strategy_dimensions'));
+  });
+
+  it('places strategy_dimensions before behavioral_readiness', () => {
+    expect(PRINT_SECTION_ORDER.indexOf('strategy_dimensions')).toBeLessThan(PRINT_SECTION_ORDER.indexOf('behavioral_readiness'));
+  });
+
+  it('places behavioral_readiness before executive_summary', () => {
+    expect(PRINT_SECTION_ORDER.indexOf('behavioral_readiness')).toBeLessThan(PRINT_SECTION_ORDER.indexOf('executive_summary'));
   });
 
   it('places prioritized_barriers before priority_recommendations', () => {
@@ -78,18 +92,25 @@ describe('PRINT_SECTION_ORDER', () => {
     expect(discIdx).toBeGreaterThan(implIdx);
   });
 
-  it('places limitations last', () => {
-    expect(PRINT_SECTION_ORDER[PRINT_SECTION_ORDER.length - 1]).toBe('limitations');
+  it('places limitations before footer', () => {
+    expect(PRINT_SECTION_ORDER.indexOf('limitations')).toBeLessThan(PRINT_SECTION_ORDER.indexOf('footer'));
+  });
+
+  it('ends with footer', () => {
+    expect(PRINT_SECTION_ORDER[PRINT_SECTION_ORDER.length - 1]).toBe('footer');
   });
 
   it('full order matches spec', () => {
     expect([...PRINT_SECTION_ORDER]).toEqual([
-      'branding',
       'client_organization',
       'completion_date',
       'opportunity_index_graph',
       'opportunity_index_score',
       'maturity_level',
+      'strengths',
+      'priority_opportunities',
+      'strategy_dimensions',
+      'behavioral_readiness',
       'executive_summary',
       'current_maturity',
       'prioritized_barriers',
@@ -97,6 +118,7 @@ describe('PRINT_SECTION_ORDER', () => {
       'implementation_sequence',
       'client_discussion_questions',
       'limitations',
+      'footer',
     ]);
   });
 });

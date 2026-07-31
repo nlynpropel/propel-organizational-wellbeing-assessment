@@ -1,12 +1,15 @@
 import type { ReactNode } from 'react';
 
 export const PRINT_SECTION_ORDER = [
-  'branding',
   'client_organization',
   'completion_date',
   'opportunity_index_graph',
   'opportunity_index_score',
   'maturity_level',
+  'strengths',
+  'priority_opportunities',
+  'strategy_dimensions',
+  'behavioral_readiness',
   'executive_summary',
   'current_maturity',
   'prioritized_barriers',
@@ -14,6 +17,7 @@ export const PRINT_SECTION_ORDER = [
   'implementation_sequence',
   'client_discussion_questions',
   'limitations',
+  'footer',
 ] as const;
 
 export type PrintSectionKey = (typeof PRINT_SECTION_ORDER)[number];

@@ -17,6 +17,7 @@ import LoadingState from './ui/LoadingState';
 import { useAuth } from '../context/AuthContext';
 import {
   fetchGenerationsForAssessmentInstance,
+  fetchGenerationById,
   generateStrategyReport,
   approveGeneration,
   canReviewGeneration,
@@ -29,11 +30,19 @@ import {
 } from '../services/aiGenerations';
 import type { AnalysisGenerationRow } from '../lib/database.types';
 import { shouldShowPrintButton, canTriggerPrint, type PrintDataContext } from '../lib/printHelpers';
+import {
+  StrengthsSection,
+  PriorityOpportunitiesSection,
+  StrategyDimensionsSection,
+  BehavioralReadinessSection,
+  type ReportSectionsData,
+} from './report/ReportSections';
 
 type Props = {
   assessmentInstanceId: string;
   printContext?: PrintDataContext | null;
   printableGraph?: ReactNode | null;
+  reportSectionsData?: ReportSectionsData | null;
 };
 
 type GenerationOutput = {
@@ -55,7 +64,10 @@ type GenerationOutput = {
   limitations: string;
 };
 
-export default function StrategyReportSection({ assessmentInstanceId, printContext, printableGraph }: Props) {
+const POLL_INTERVAL_MS = 4000;
+const TERMINAL_STATUSES = new Set(['draft_generated', 'approved', 'failed', 'rejected']);
+
+export default function StrategyReportSection({ assessmentInstanceId, printContext, printableGraph, reportSectionsData }: Props) {
   const { profile, capabilities } = useAuth();
   const [generations, setGenerations] = useState<AnalysisGenerationRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -66,6 +78,47 @@ export default function StrategyReportSection({ assessmentInstanceId, printConte
   const [showReview, setShowReview] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
   const printingRef = useRef(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollingGenIdRef = useRef<string | null>(null);
+
+  const clearPolling = useCallback(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+    pollingGenIdRef.current = null;
+  }, []);
+
+  const startPolling = useCallback((generationId: string) => {
+    if (pollingGenIdRef.current === generationId && pollRef.current) return;
+    clearPolling();
+    pollingGenIdRef.current = generationId;
+
+    pollRef.current = setInterval(async () => {
+      try {
+        const gen = await fetchGenerationById(generationId);
+        if (!gen) {
+          clearPolling();
+          setGenerating(false);
+          setError('Generation not found. Please try again.');
+          return;
+        }
+        setGenerations(prev => {
+          const idx = prev.findIndex(g => g.id === generationId);
+          if (idx === -1) return [gen, ...prev];
+          const next = [...prev];
+          next[idx] = gen;
+          return next;
+        });
+        if (TERMINAL_STATUSES.has(gen.status)) {
+          clearPolling();
+          setGenerating(false);
+        }
+      } catch {
+        // Network error during poll — keep polling, don't disrupt UI
+      }
+    }, POLL_INTERVAL_MS);
+  }, [clearPolling]);
 
   const load = useCallback(async () => {
     if (!assessmentInstanceId) return;
@@ -74,29 +127,76 @@ export default function StrategyReportSection({ assessmentInstanceId, printConte
     try {
       const gens = await fetchGenerationsForAssessmentInstance(assessmentInstanceId);
       setGenerations(gens);
+      const latest = gens[0];
+      if (latest && (latest.status === 'queued' || latest.status === 'generating')) {
+        setGenerating(true);
+        startPolling(latest.id);
+      } else {
+        setGenerating(false);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load strategy report.');
     } finally {
       setLoading(false);
     }
-  }, [assessmentInstanceId]);
+  }, [assessmentInstanceId, startPolling]);
 
   useEffect(() => {
     load();
-  }, [load]);
+    return clearPolling;
+  }, [load, clearPolling]);
 
   const handleGenerate = async () => {
-    if (!profile) return;
+    if (!profile || generating) return;
     setGenerating(true);
     setError(null);
     setSuccessMsg(null);
+    setShowReview(false);
     try {
-      await generateStrategyReport(assessmentInstanceId, profile.id);
-      await load();
+      const result = await generateStrategyReport(assessmentInstanceId, profile.id);
+      // The Edge Function may time out while the backend keeps processing.
+      // Always check the database for the true status before showing failure.
+      const gen = await fetchGenerationById(result.id);
+      if (gen) {
+        setGenerations(prev => {
+          const idx = prev.findIndex(g => g.id === gen.id);
+          if (idx === -1) return [gen, ...prev];
+          const next = [...prev];
+          next[idx] = gen;
+          return next;
+        });
+        if (TERMINAL_STATUSES.has(gen.status)) {
+          setGenerating(false);
+        } else {
+          startPolling(gen.id);
+        }
+      } else {
+        startPolling(result.id);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to generate strategy report.');
-    } finally {
-      setGenerating(false);
+      // The HTTP request failed (timeout, network error, etc.).
+      // Query the database before showing a failure — the backend may have succeeded.
+      try {
+        const gens = await fetchGenerationsForAssessmentInstance(assessmentInstanceId);
+        const latest = gens[0];
+        if (latest && !TERMINAL_STATUSES.has(latest.status)) {
+          setGenerations(gens);
+          startPolling(latest.id);
+        } else if (latest && latest.status === 'draft_generated') {
+          setGenerations(gens);
+          setGenerating(false);
+        } else if (latest && latest.status === 'failed') {
+          setGenerations(gens);
+          setGenerating(false);
+          setError(latest.error_message ?? 'Generation failed.');
+        } else {
+          setGenerating(false);
+          setError(err instanceof Error ? err.message : 'Failed to generate strategy report.');
+        }
+      } catch {
+        setGenerating(false);
+        setError(err instanceof Error ? err.message : 'Failed to generate strategy report.');
+      }
     }
   };
 
@@ -275,23 +375,17 @@ export default function StrategyReportSection({ assessmentInstanceId, printConte
         </p>
       )}
 
-      {/* Print header — only visible when printing */}
-      <div className="hidden print:block mb-6 pb-3 border-b-2 border-navy">
-        <img src="/Propel_Logo_2020_v4-3.png" alt="Propel" className="h-10 mb-2" />
-        <h2 className="text-lg font-bold text-navy">Strategy Report</h2>
-      </div>
-
       <div ref={printRef}>
         {showReview && output ? (
-          <div className="space-y-5">
-            {/* Print-only client context */}
+          <div className="space-y-8">
+            {/* Print-only client context — begins with org, assessment, date */}
             {printContext && (
-              <div className="hidden print:block space-y-1 mb-4">
-                {printContext.assessmentName && (
-                  <p className="text-sm font-semibold text-navy">{printContext.assessmentName}</p>
-                )}
+              <div className="hidden print:block space-y-0.5 mb-6">
                 {printContext.clientOrganization && (
-                  <p className="text-sm text-neutral-secondary">{printContext.clientOrganization}</p>
+                  <p className="text-base font-semibold text-navy">{printContext.clientOrganization}</p>
+                )}
+                {printContext.assessmentName && (
+                  <p className="text-sm text-neutral-secondary">{printContext.assessmentName}</p>
                 )}
                 {printContext.completionDate && (
                   <p className="text-sm text-neutral-secondary">{printContext.completionDate}</p>
@@ -299,9 +393,9 @@ export default function StrategyReportSection({ assessmentInstanceId, printConte
               </div>
             )}
 
-            {/* Print-only Opportunity Index graph */}
+            {/* Print-only Opportunity Index graph + score + maturity */}
             {printContext && printableGraph && (
-              <div className="hidden print:block mb-5 print-break-avoid">
+              <div className="hidden print:block mb-6 print-break-avoid">
                 <div className="print-graph-container rounded-lg bg-navy-deep p-5">
                   {printableGraph}
                 </div>
@@ -320,7 +414,27 @@ export default function StrategyReportSection({ assessmentInstanceId, printConte
               </div>
             )}
 
+            {/* Deterministic sections — reused from assessment report */}
+            {reportSectionsData && reportSectionsData.strengths.length > 0 && (
+              <StrengthsSection recommendations={reportSectionsData.strengths} />
+            )}
+            {reportSectionsData && reportSectionsData.priorityOpportunities.length > 0 && (
+              <PriorityOpportunitiesSection recommendations={reportSectionsData.priorityOpportunities} />
+            )}
+            {reportSectionsData && reportSectionsData.strategyDimensions.length > 0 && (
+              <StrategyDimensionsSection dimensions={reportSectionsData.strategyDimensions} />
+            )}
+            {reportSectionsData && reportSectionsData.behavioralReadiness && (
+              <BehavioralReadinessSection readiness={reportSectionsData.behavioralReadiness} />
+            )}
+
+            {/* AI-generated sections */}
             <ReportContent output={output} />
+
+            {/* Print-only footer — Powered by Propel logo */}
+            <div className="hidden print:block print-footer">
+              <img src="/Propel_Logo_2020_v4-3.png" alt="Powered by Propel" />
+            </div>
           </div>
         ) : output ? (
           <div className="space-y-3">
@@ -346,41 +460,41 @@ export default function StrategyReportSection({ assessmentInstanceId, printConte
 
 function ReportContent({ output }: { output: GenerationOutput }) {
   return (
-    <div className="space-y-5">
+    <div className="space-y-8">
       {/* A. Executive Summary */}
-      <div className="print-break-avoid">
-        <h3 className="text-sm font-semibold text-navy mb-1.5 print-break-after-avoid">Executive Summary</h3>
+      <section className="print-break-avoid">
+        <h3 className="text-lg font-semibold text-navy mb-1.5 print-break-after-avoid">Executive Summary</h3>
         <p className="text-sm text-neutral-secondary leading-relaxed">{output.executive_summary}</p>
-      </div>
+      </section>
 
       {/* B. Current Maturity */}
-      <div className="print-break-avoid">
-        <h3 className="text-sm font-semibold text-navy mb-1.5 print-break-after-avoid">Current Maturity</h3>
+      <section className="print-break-avoid">
+        <h3 className="text-lg font-semibold text-navy mb-1.5 print-break-after-avoid">Current Maturity</h3>
         <p className="text-sm text-neutral-secondary leading-relaxed">{output.maturity_interpretation}</p>
-      </div>
+      </section>
 
       {/* C. What Is Holding Impact Back */}
       {output.prioritized_barriers?.length > 0 && (
-        <div>
-          <h3 className="text-sm font-semibold text-navy mb-2 print-break-after-avoid">What Is Holding Impact Back</h3>
-          <div className="space-y-2">
+        <section>
+          <h3 className="text-lg font-semibold text-navy mb-2 print-break-after-avoid">What Is Holding Impact Back</h3>
+          <div className="space-y-3">
             {output.prioritized_barriers.map((barrier, idx) => (
-              <div key={idx} className="rounded-md border border-neutral-border-soft p-3 print-break-avoid">
+              <div key={idx} className="print-break-avoid">
                 <p className="text-sm font-semibold text-navy">{barrier.title}</p>
                 <p className="text-sm text-neutral-secondary mt-1 leading-relaxed">{barrier.description}</p>
               </div>
             ))}
           </div>
-        </div>
+        </section>
       )}
 
       {/* D. Priority Recommendations */}
       {output.priority_recommendations?.length > 0 && (
-        <div>
-          <h3 className="text-sm font-semibold text-navy mb-2 print-break-after-avoid">Priority Recommendations</h3>
-          <div className="space-y-3">
+        <section>
+          <h3 className="text-lg font-semibold text-navy mb-2 print-break-after-avoid">Priority Recommendations</h3>
+          <div className="space-y-4">
             {output.priority_recommendations.map((rec, idx) => (
-              <div key={idx} className="rounded-md border border-neutral-border-soft p-3 print-break-avoid">
+              <div key={idx} className="print-break-avoid">
                 <div className="flex items-start gap-2">
                   <span className="text-xs font-bold text-neutral-muted mt-0.5">#{idx + 1}</span>
                   <div className="flex-1 min-w-0 space-y-2">
@@ -411,13 +525,13 @@ function ReportContent({ output }: { output: GenerationOutput }) {
               </div>
             ))}
           </div>
-        </div>
+        </section>
       )}
 
       {/* E. Recommended Implementation Sequence */}
       {output.implementation_sequence?.length > 0 && (
-        <div className="print-break-avoid">
-          <h3 className="text-sm font-semibold text-navy mb-2 print-break-after-avoid">Recommended Implementation Sequence</h3>
+        <section className="print-break-avoid">
+          <h3 className="text-lg font-semibold text-navy mb-2 print-break-after-avoid">Recommended Implementation Sequence</h3>
           <div className="space-y-1.5">
             {output.implementation_sequence.map((phase, idx) => (
               <div key={idx} className="flex items-start gap-2 text-sm print-break-avoid">
@@ -426,13 +540,13 @@ function ReportContent({ output }: { output: GenerationOutput }) {
               </div>
             ))}
           </div>
-        </div>
+        </section>
       )}
 
       {/* F. Client Discussion Questions */}
       {output.client_discussion_questions?.length > 0 && (
-        <div>
-          <h3 className="text-sm font-semibold text-navy mb-2 print-break-after-avoid">Client Discussion Questions</h3>
+        <section>
+          <h3 className="text-lg font-semibold text-navy mb-2 print-break-after-avoid">Client Discussion Questions</h3>
           <div className="space-y-2">
             {output.client_discussion_questions.map((q, idx) => (
               <div key={idx} className="flex items-start gap-2 print-break-avoid">
@@ -441,15 +555,15 @@ function ReportContent({ output }: { output: GenerationOutput }) {
               </div>
             ))}
           </div>
-        </div>
+        </section>
       )}
 
       {/* G. Limitations */}
       {output.limitations && (
-        <div className="print-break-avoid">
-          <h3 className="text-sm font-semibold text-navy mb-1.5 print-break-after-avoid">Limitations</h3>
+        <section className="print-break-avoid">
+          <h3 className="text-lg font-semibold text-navy mb-1.5 print-break-after-avoid">Limitations</h3>
           <p className="text-sm text-neutral-secondary leading-relaxed">{output.limitations}</p>
-        </div>
+        </section>
       )}
     </div>
   );
