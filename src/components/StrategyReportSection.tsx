@@ -117,6 +117,13 @@ export default function StrategyReportSection({ assessmentInstanceId, printConte
     }
   };
 
+  const latestGen = generations[0] ?? null;
+  const output = getDisplayOutput(latestGen) as unknown as GenerationOutput | null;
+  const canReview = canReviewGeneration(capabilities);
+  const canApproveGen = canApproveGeneration(capabilities);
+  const canEditGen = canEditGeneration(capabilities);
+  const readOnly = latestGen ? isGenerationReadOnly(latestGen.status) : false;
+
   const handlePrint = useCallback(() => {
     if (!canTriggerPrint(printingRef.current, showReview, !!printRef.current, !!output)) return;
     printingRef.current = true;
@@ -127,12 +134,6 @@ export default function StrategyReportSection({ assessmentInstanceId, printConte
       });
     });
   }, [showReview, output]);
-
-  const latestGen = generations[0] ?? null;
-  const canReview = canReviewGeneration(capabilities);
-  const canApproveGen = canApproveGeneration(capabilities);
-  const canEditGen = canEditGeneration(capabilities);
-  const readOnly = latestGen ? isGenerationReadOnly(latestGen.status) : false;
 
   if (loading) {
     return (
@@ -211,7 +212,6 @@ export default function StrategyReportSection({ assessmentInstanceId, printConte
   }
 
   // Draft, approved, or rejected — show summary + actions
-  const output = getDisplayOutput(latestGen) as unknown as GenerationOutput | null;
   const showPrint = shouldShowPrintButton(showReview, !!output);
 
   return (
