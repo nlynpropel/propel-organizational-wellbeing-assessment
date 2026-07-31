@@ -63,6 +63,13 @@
   @page {
     size: Letter portrait;
     margin: 0.55in 0.6in 0.75in;
+    @bottom-right {
+      content: counter(page);
+      font-size: 9px;
+      color: #6b7280;
+      font-family: sans-serif;
+      padding-right: 0;
+    }
   }
 
   html, body {

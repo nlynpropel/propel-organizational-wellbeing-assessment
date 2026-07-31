@@ -10,6 +10,14 @@ describe('Print CSS — @page and page dimensions', () => {
     expect(css).toMatch(/@page\s*\{[^}]*size:\s*Letter\s+portrait/s);
   });
 
+  it('@page bottom-right margin box shows page counter', () => {
+    expect(css).toMatch(/@bottom-right\s*\{[^}]*content:\s*counter\(page\)/s);
+  });
+
+  it('@page bottom-right margin box uses small readable font', () => {
+    expect(css).toMatch(/@bottom-right\s*\{[^}]*font-size:\s*9px/s);
+  });
+
   it('print margins are 0.55in 0.6in 0.75in', () => {
     expect(css).toMatch(/@page\s*\{[^}]*margin:\s*0\.55in\s+0\.6in\s+0\.75in/s);
   });
