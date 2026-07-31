@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Sparkles,
   CheckCircle2,
@@ -401,9 +401,21 @@ function DraftReviewScreen({
     }
   };
 
-  const handlePrint = () => {
-    window.print();
-  };
+  const printingRef = useRef(false);
+  const printRef = useRef<HTMLDivElement>(null);
+
+  const handlePrint = useCallback(() => {
+    if (printingRef.current) return;
+    const printable = printRef.current;
+    if (!printable) return;
+    printingRef.current = true;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        window.print();
+        printingRef.current = false;
+      });
+    });
+  }, []);
 
   if (!output) {
     return (
@@ -416,6 +428,7 @@ function DraftReviewScreen({
 
   return (
     <div className="space-y-4 print-area">
+      <div ref={printRef} className="space-y-4">
       {/* Header */}
       <Card className="print:hidden">
         <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -454,8 +467,8 @@ function DraftReviewScreen({
                 </Button>
               </>
             )}
-            <Button size="sm" variant="outline" onClick={handlePrint}>
-              <Printer className="w-4 h-4" /> Print
+            <Button size="sm" variant="outline" onClick={handlePrint} disabled={printingRef.current} aria-label="Print Strategy Report">
+              <Printer className="w-4 h-4" /> Print Strategy Report
             </Button>
           </div>
         </div>
@@ -476,8 +489,8 @@ function DraftReviewScreen({
       </div>
 
       {/* A. Executive Summary */}
-      <Card>
-        <span className="eyebrow">Executive Summary</span>
+      <Card className="print-break-avoid">
+        <span className="eyebrow print-break-after-avoid">Executive Summary</span>
         {editMode ? (
           <textarea
             value={execSummary}
@@ -491,8 +504,8 @@ function DraftReviewScreen({
       </Card>
 
       {/* B. Current Maturity */}
-      <Card>
-        <span className="eyebrow">Current Maturity</span>
+      <Card className="print-break-avoid">
+        <span className="eyebrow print-break-after-avoid">Current Maturity</span>
         <div className="mt-3">
           <span className="text-xs font-medium text-neutral-muted uppercase tracking-wide">Strategic Interpretation</span>
           {editMode ? (
@@ -510,10 +523,10 @@ function DraftReviewScreen({
 
       {/* C. What Is Holding Impact Back */}
       <Card>
-        <span className="eyebrow">What Is Holding Impact Back</span>
+        <span className="eyebrow print-break-after-avoid">What Is Holding Impact Back</span>
         <div className="mt-3 space-y-3">
           {barriers.map((barrier, idx) => (
-            <div key={idx} className="rounded-md border border-neutral-border-soft p-3">
+            <div key={idx} className="rounded-md border border-neutral-border-soft p-3 print-break-avoid">
               {editMode ? (
                 <div className="space-y-2">
                   <input
@@ -550,10 +563,10 @@ function DraftReviewScreen({
 
       {/* D. Priority Recommendations */}
       <Card>
-        <span className="eyebrow">Priority Recommendations ({recommendations.length})</span>
+        <span className="eyebrow print-break-after-avoid">Priority Recommendations ({recommendations.length})</span>
         <div className="mt-3 space-y-4">
           {recommendations.map((rec, idx) => (
-            <div key={idx} className="rounded-md border border-neutral-border-soft p-3">
+            <div key={idx} className="rounded-md border border-neutral-border-soft p-3 print-break-avoid">
               <div className="flex items-start gap-2">
                 <span className="text-xs font-bold text-neutral-muted mt-0.5">#{idx + 1}</span>
                 <div className="flex-1 min-w-0 space-y-2">
@@ -628,7 +641,7 @@ function DraftReviewScreen({
                   />
 
                   {(rec.propel_knowledge_evidence || rec.assessment_evidence) && (
-                    <div>
+                    <div className="print:hidden">
                       <span className="text-xs font-medium text-neutral-muted uppercase tracking-wide">Integrated Strategy Guidance</span>
                       {rec.propel_knowledge_evidence && (
                         <p className="text-sm text-neutral-secondary mt-0.5 leading-relaxed">{rec.propel_knowledge_evidence}</p>
@@ -647,11 +660,11 @@ function DraftReviewScreen({
 
       {/* E. Recommended Implementation Sequence */}
       {implSequence.length > 0 && (
-        <Card>
-          <span className="eyebrow">Recommended Implementation Sequence</span>
+        <Card className="print-break-avoid">
+          <span className="eyebrow print-break-after-avoid">Recommended Implementation Sequence</span>
           <div className="mt-3 space-y-1.5">
             {implSequence.map((phase, idx) => (
-              <div key={idx} className="flex items-start gap-2 text-sm">
+              <div key={idx} className="flex items-start gap-2 text-sm print-break-avoid">
                 <span className="text-xs font-bold text-neutral-muted mt-0.5">{idx + 1}.</span>
                 {editMode ? (
                   <input
@@ -676,10 +689,10 @@ function DraftReviewScreen({
       {/* F. Client Discussion Questions */}
       {questions.length > 0 && (
         <Card>
-          <span className="eyebrow">Client Discussion Questions ({questions.length})</span>
+          <span className="eyebrow print-break-after-avoid">Client Discussion Questions ({questions.length})</span>
           <div className="mt-3 space-y-2">
             {questions.map((q, idx) => (
-              <div key={idx} className="flex items-start gap-2">
+              <div key={idx} className="flex items-start gap-2 print-break-avoid">
                 <span className="text-xs font-bold text-neutral-muted mt-0.5">Q{idx + 1}</span>
                 {editMode ? (
                   <input
@@ -702,8 +715,8 @@ function DraftReviewScreen({
       )}
 
       {/* G. Limitations */}
-      <Card>
-        <span className="eyebrow">Limitations</span>
+      <Card className="print-break-avoid">
+        <span className="eyebrow print-break-after-avoid">Limitations</span>
         {editMode ? (
           <textarea
             value={limitations}
@@ -715,6 +728,8 @@ function DraftReviewScreen({
           <p className="mt-2 text-sm text-neutral-secondary leading-relaxed">{limitations}</p>
         )}
       </Card>
+
+      </div>
 
       {/* Rejection reason modal */}
       <ConfirmationModal
