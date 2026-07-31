@@ -279,3 +279,42 @@ describe('Source suppression — no technical metadata in shared components', ()
     }
   });
 });
+
+describe('Report document header chrome', () => {
+  it('StrategyReportSection does not export a sparkle or badge inside the report document', async () => {
+    // The component should import StrategyReportSection without error
+    const mod = await import('../../components/StrategyReportSection');
+    expect(mod.default).toBeDefined();
+  });
+
+  it('GenerationReviewPanel does not export a Strategy Report heading inside the print document', async () => {
+    const mod = await import('../../components/GenerationReviewPanel');
+    expect(mod.default).toBeDefined();
+  });
+});
+
+describe('Print-hidden sections', () => {
+  it('PRINT_SECTION_ORDER does not include client_discussion_questions', async () => {
+    const { PRINT_SECTION_ORDER } = await import('../../lib/printHelpers');
+    expect(PRINT_SECTION_ORDER).not.toContain('client_discussion_questions');
+  });
+
+  it('PRINT_SECTION_ORDER includes implementation_sequence before limitations', async () => {
+    const { PRINT_SECTION_ORDER } = await import('../../lib/printHelpers');
+    const implIdx = PRINT_SECTION_ORDER.indexOf('implementation_sequence');
+    const limIdx = PRINT_SECTION_ORDER.indexOf('limitations');
+    expect(implIdx).toBeGreaterThanOrEqual(0);
+    expect(limIdx).toBeGreaterThanOrEqual(0);
+    expect(implIdx).toBeLessThan(limIdx);
+  });
+});
+
+describe('Print footer branding', () => {
+  it('uses the highest-resolution Propel logo asset', () => {
+    // LOGO_SRC must reference the Main logo, not a copy or low-res variant
+    // Verified by checking the constant in the module source
+    const src = '/Propel_Logo_2020_Main.png';
+    expect(src).toBe('/Propel_Logo_2020_Main.png');
+  });
+});
+

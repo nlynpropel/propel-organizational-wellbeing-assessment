@@ -340,16 +340,14 @@ describe('Strategy Report polling — stale state fix', () => {
 
   // 6. Request timeout still recovers from database status
   it('recovers from Edge Function timeout by checking database status', async () => {
-    mockFetchGenerationsForAssessmentInstance.mockResolvedValue([]);
     mockGenerateStrategyReport.mockRejectedValue(new Error('Edge Function timed out'));
-
     mockFetchGenerationsForAssessmentInstance
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([makeGen({ id: 'gen-recovered', status: 'queued' })]);
-
+      .mockResolvedValueOnce([])                                                       // initial load
+      .mockResolvedValueOnce([makeGen({ id: 'gen-recovered', status: 'queued' })]);  // timeout recovery
     mockFetchGenerationById.mockResolvedValue(makeGen({ id: 'gen-recovered', status: 'queued' }));
 
     const ctrl = createPollingController();
+    await ctrl.load('inst-1');
     await ctrl.handleGenerate('inst-1', 'user-1');
 
     expect(ctrl.state.generating).toBe(true);
@@ -359,14 +357,13 @@ describe('Strategy Report polling — stale state fix', () => {
   });
 
   it('recovers from Edge Function timeout when backend already completed', async () => {
-    mockFetchGenerationsForAssessmentInstance.mockResolvedValue([]);
     mockGenerateStrategyReport.mockRejectedValue(new Error('Network error'));
-
     mockFetchGenerationsForAssessmentInstance
-      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])   // initial load
       .mockResolvedValueOnce([makeGen({ id: 'gen-done', status: 'draft_generated', output_json: { summary: 'done' } })]);
 
     const ctrl = createPollingController();
+    await ctrl.load('inst-1');
     await ctrl.handleGenerate('inst-1', 'user-1');
 
     expect(ctrl.state.generating).toBe(false);
@@ -375,14 +372,13 @@ describe('Strategy Report polling — stale state fix', () => {
   });
 
   it('shows failure only when DB status is failed', async () => {
-    mockFetchGenerationsForAssessmentInstance.mockResolvedValue([]);
     mockGenerateStrategyReport.mockRejectedValue(new Error('Request failed'));
-
     mockFetchGenerationsForAssessmentInstance
-      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])   // initial load
       .mockResolvedValueOnce([makeGen({ id: 'gen-fail', status: 'failed', error_message: 'Backend error' })]);
 
     const ctrl = createPollingController();
+    await ctrl.load('inst-1');
     await ctrl.handleGenerate('inst-1', 'user-1');
 
     expect(ctrl.state.generating).toBe(false);

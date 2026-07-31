@@ -10,6 +10,8 @@ import {
   Loader2,
   Lock,
 } from 'lucide-react';
+
+const LOGO_SRC = '/Propel_Logo_2020_Main.png';
 import Button from './ui/Button';
 import Card from './ui/Card';
 import Badge from './ui/Badge';
@@ -227,12 +229,22 @@ export default function StrategyReportSection({ assessmentInstanceId, printConte
   const handlePrint = useCallback(() => {
     if (!canTriggerPrint(printingRef.current, showReview, !!printRef.current, !!output)) return;
     printingRef.current = true;
-    requestAnimationFrame(() => {
+    // Wait for the footer logo to load before triggering print
+    const img = printRef.current?.querySelector<HTMLImageElement>('.print-footer img');
+    const trigger = () => {
       requestAnimationFrame(() => {
-        window.print();
-        printingRef.current = false;
+        requestAnimationFrame(() => {
+          window.print();
+          printingRef.current = false;
+        });
       });
-    });
+    };
+    if (!img || img.complete) {
+      trigger();
+    } else {
+      img.addEventListener('load', trigger, { once: true });
+      img.addEventListener('error', trigger, { once: true });
+    }
   }, [showReview, output]);
 
   if (loading) {
@@ -315,8 +327,9 @@ export default function StrategyReportSection({ assessmentInstanceId, printConte
   const showPrint = shouldShowPrintButton(showReview, !!output);
 
   return (
-    <Card className="mt-6 print-area">
-      <div className="flex items-center justify-between gap-2 flex-wrap mb-4">
+    <div className="mt-6">
+      {/* Application controls — never appear in the printed document */}
+      <div className="flex items-center justify-between gap-2 flex-wrap mb-3 print:hidden">
         <div className="flex items-center gap-2 flex-wrap">
           <Sparkles className="w-5 h-5 text-navy/60" />
           <span className="eyebrow">Strategy Report</span>
@@ -329,7 +342,7 @@ export default function StrategyReportSection({ assessmentInstanceId, printConte
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2 flex-wrap print:hidden">
+        <div className="flex items-center gap-2 flex-wrap">
           {latestGen.status === 'draft_generated' && canReview && !showReview && (
             <Button size="sm" onClick={() => setShowReview(true)}>
               <FileText className="w-4 h-4" /> Review Strategy Report
@@ -375,7 +388,8 @@ export default function StrategyReportSection({ assessmentInstanceId, printConte
         </p>
       )}
 
-      <div ref={printRef}>
+      {/* Printable document — no border, no card chrome */}
+      <div ref={printRef} className="print-area">
         {showReview && output ? (
           <div className="space-y-8">
             {/* Print-only client context — begins with org, assessment, date */}
@@ -431,9 +445,15 @@ export default function StrategyReportSection({ assessmentInstanceId, printConte
             {/* AI-generated sections */}
             <ReportContent output={output} />
 
-            {/* Print-only footer — Powered by Propel logo */}
+            {/* Print-only footer — Powered by Propel */}
             <div className="hidden print:block print-footer">
-              <img src="/Propel_Logo_2020_v4-3.png" alt="Powered by Propel" />
+              <span className="print-footer-text">Powered by</span>
+              <img
+                src={LOGO_SRC}
+                alt="Propel"
+                className="print-footer-logo"
+                loading="eager"
+              />
             </div>
           </div>
         ) : output ? (
@@ -450,7 +470,7 @@ export default function StrategyReportSection({ assessmentInstanceId, printConte
           <p className="text-sm text-neutral-muted">Report output is being processed…</p>
         )}
       </div>
-    </Card>
+    </div>
   );
 }
 
@@ -543,9 +563,9 @@ function ReportContent({ output }: { output: GenerationOutput }) {
         </section>
       )}
 
-      {/* F. Client Discussion Questions */}
+      {/* F. Client Discussion Questions — screen only, excluded from print */}
       {output.client_discussion_questions?.length > 0 && (
-        <section>
+        <section className="print:hidden">
           <h3 className="text-lg font-semibold text-navy mb-2 print-break-after-avoid">Client Discussion Questions</h3>
           <div className="space-y-2">
             {output.client_discussion_questions.map((q, idx) => (

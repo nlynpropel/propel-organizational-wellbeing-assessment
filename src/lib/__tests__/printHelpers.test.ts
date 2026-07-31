@@ -34,8 +34,8 @@ describe('shouldShowPrintButton', () => {
 });
 
 describe('PRINT_SECTION_ORDER', () => {
-  it('has exactly 17 sections in the correct order', () => {
-    expect(PRINT_SECTION_ORDER).toHaveLength(17);
+  it('has exactly 16 sections in the correct order', () => {
+    expect(PRINT_SECTION_ORDER).toHaveLength(16);
   });
 
   it('no longer starts with branding', () => {
@@ -86,10 +86,14 @@ describe('PRINT_SECTION_ORDER', () => {
     expect(implIdx).toBeGreaterThan(recsIdx);
   });
 
-  it('places client_discussion_questions after implementation_sequence', () => {
+  it('does not include client_discussion_questions (print:hidden section)', () => {
+    expect(PRINT_SECTION_ORDER.indexOf('client_discussion_questions')).toBe(-1);
+  });
+
+  it('places implementation_sequence before limitations', () => {
     const implIdx = PRINT_SECTION_ORDER.indexOf('implementation_sequence');
-    const discIdx = PRINT_SECTION_ORDER.indexOf('client_discussion_questions');
-    expect(discIdx).toBeGreaterThan(implIdx);
+    const limIdx = PRINT_SECTION_ORDER.indexOf('limitations');
+    expect(implIdx).toBeLessThan(limIdx);
   });
 
   it('places limitations before footer', () => {
@@ -116,7 +120,6 @@ describe('PRINT_SECTION_ORDER', () => {
       'prioritized_barriers',
       'priority_recommendations',
       'implementation_sequence',
-      'client_discussion_questions',
       'limitations',
       'footer',
     ]);

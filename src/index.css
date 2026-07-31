@@ -205,20 +205,38 @@
     margin-bottom: 1rem !important;
   }
 
-  /* Print footer — Powered by Propel logo, centered on every page */
+  /* Print footer — Powered by Propel, centered on every page */
   .print-footer {
     position: fixed;
     bottom: 0;
     left: 0;
     width: 100%;
-    text-align: center;
-    padding-bottom: 0.1in;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    padding-bottom: 0.15in;
+    padding-top: 0.1in;
+    background: white;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
-  .print-footer img {
-    height: 20px;
-    width: auto;
+  .print-footer-text {
+    font-size: 9px;
+    color: #6b7280;
+    font-family: sans-serif;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .print-footer-logo {
+    width: 64px;
+    height: auto;
+    object-fit: contain;
     display: inline-block;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
   /* Ensure print-area content doesn't overlap the fixed footer */

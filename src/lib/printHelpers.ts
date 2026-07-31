@@ -15,7 +15,6 @@ export const PRINT_SECTION_ORDER = [
   'prioritized_barriers',
   'priority_recommendations',
   'implementation_sequence',
-  'client_discussion_questions',
   'limitations',
   'footer',
 ] as const;

@@ -484,8 +484,7 @@ function DraftReviewScreen({
 
       {/* Print header — only visible when printing */}
       <div className="hidden print:block mb-8 pb-4 border-b-2 border-navy">
-        <img src="/Propel_Logo_2020_v4-3.png" alt="Propel" className="h-10 mb-2" />
-        <h1 className="text-xl font-bold text-navy">Strategy Report</h1>
+        <img src="/Propel_Logo_2020_Main.png" alt="Propel" className="h-10 mb-2" style={{ width: 'auto', objectFit: 'contain' }} />
       </div>
 
       {/* A. Executive Summary */}
@@ -686,9 +685,9 @@ function DraftReviewScreen({
         </Card>
       )}
 
-      {/* F. Client Discussion Questions */}
+      {/* F. Client Discussion Questions — screen only, not printed */}
       {questions.length > 0 && (
-        <Card>
+        <Card className="print:hidden">
           <span className="eyebrow print-break-after-avoid">Client Discussion Questions ({questions.length})</span>
           <div className="mt-3 space-y-2">
             {questions.map((q, idx) => (

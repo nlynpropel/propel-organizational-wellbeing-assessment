@@ -78,17 +78,29 @@ describe('Print CSS — footer', () => {
     expect(css).toMatch(/\.print-footer\s*\{[^}]*bottom:\s*0/s);
   });
 
-  it('footer is centered', () => {
-    expect(css).toMatch(/\.print-footer\s*\{[^}]*text-align:\s*center/s);
+  it('footer uses flex centering, not text-align center', () => {
+    expect(css).toMatch(/\.print-footer\s*\{[^}]*justify-content:\s*center/s);
   });
 
   it('footer reserves bottom margin so content does not overlap', () => {
     expect(css).toMatch(/\.print-area\s*\{[^}]*padding-bottom:\s*0\.5in/s);
   });
 
-  it('footer image preserves proportions (height set, width auto)', () => {
-    expect(css).toMatch(/\.print-footer img\s*\{[^}]*height:\s*20px/s);
-    expect(css).toMatch(/\.print-footer img\s*\{[^}]*width:\s*auto/s);
+  it('logo uses explicit width with height auto for correct proportions', () => {
+    expect(css).toMatch(/\.print-footer-logo\s*\{[^}]*width:\s*64px/s);
+    expect(css).toMatch(/\.print-footer-logo\s*\{[^}]*height:\s*auto/s);
+  });
+
+  it('logo uses object-fit contain to prevent distortion', () => {
+    expect(css).toMatch(/\.print-footer-logo\s*\{[^}]*object-fit:\s*contain/s);
+  });
+
+  it('Powered by text class is defined', () => {
+    expect(css).toMatch(/\.print-footer-text/s);
+  });
+
+  it('footer logo has print-color-adjust exact for reliable rendering', () => {
+    expect(css).toMatch(/\.print-footer-logo[^}]*print-color-adjust:\s*exact/s);
   });
 });
 
