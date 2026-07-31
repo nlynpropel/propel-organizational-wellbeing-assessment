@@ -83,7 +83,7 @@ describe('Print CSS — footer', () => {
   });
 
   it('footer reserves bottom margin so content does not overlap', () => {
-    expect(css).toMatch(/\.print-area\s*\{[^}]*padding-bottom:\s*0\.5in/s);
+    expect(css).toMatch(/\.print-area\s*\{[^}]*padding-bottom:\s*0\.25in/s);
   });
 
   it('logo uses explicit width with height auto for correct proportions', () => {

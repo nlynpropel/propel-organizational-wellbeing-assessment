@@ -214,9 +214,10 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    text-align: center;
     gap: 0.35rem;
-    padding-bottom: 0.15in;
-    padding-top: 0.1in;
+    padding-bottom: 0.08in;
+    padding-top: 0.06in;
     background: white;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
@@ -241,6 +242,6 @@
 
   /* Ensure print-area content doesn't overlap the fixed footer */
   .print-area {
-    padding-bottom: 0.5in !important;
+    padding-bottom: 0.25in !important;
   }
 }
