@@ -578,9 +578,9 @@ function ReportContent({ output }: { output: GenerationOutput }) {
         </section>
       )}
 
-      {/* G. Limitations */}
+      {/* G. Limitations — screen only, excluded from print */}
       {output.limitations && (
-        <section className="print-break-avoid">
+        <section className="print-break-avoid print:hidden">
           <h3 className="text-lg font-semibold text-navy mb-1.5 print-break-after-avoid">Limitations</h3>
           <p className="text-sm text-neutral-secondary leading-relaxed">{output.limitations}</p>
         </section>

@@ -713,8 +713,8 @@ function DraftReviewScreen({
         </Card>
       )}
 
-      {/* G. Limitations */}
-      <Card className="print-break-avoid">
+      {/* G. Limitations — screen only, excluded from print */}
+      <Card className="print-break-avoid print:hidden">
         <span className="eyebrow print-break-after-avoid">Limitations</span>
         {editMode ? (
           <textarea
