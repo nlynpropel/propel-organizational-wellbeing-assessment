@@ -299,13 +299,13 @@ describe('Print-hidden sections', () => {
     expect(PRINT_SECTION_ORDER).not.toContain('client_discussion_questions');
   });
 
-  it('PRINT_SECTION_ORDER includes implementation_sequence before limitations', async () => {
+  it('PRINT_SECTION_ORDER includes implementation_sequence before footer', async () => {
     const { PRINT_SECTION_ORDER } = await import('../../lib/printHelpers');
     const implIdx = PRINT_SECTION_ORDER.indexOf('implementation_sequence');
-    const limIdx = PRINT_SECTION_ORDER.indexOf('limitations');
+    const footerIdx = PRINT_SECTION_ORDER.indexOf('footer');
     expect(implIdx).toBeGreaterThanOrEqual(0);
-    expect(limIdx).toBeGreaterThanOrEqual(0);
-    expect(implIdx).toBeLessThan(limIdx);
+    expect(footerIdx).toBeGreaterThanOrEqual(0);
+    expect(implIdx).toBeLessThan(footerIdx);
   });
 });
 

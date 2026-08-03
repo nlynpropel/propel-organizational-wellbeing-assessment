@@ -1,5 +1,18 @@
 import { useState, useEffect, useCallback, type FormEvent } from 'react';
-import { Shield, Plus, Trash2, Globe, Users, Mail, MapPin, Building2, CheckCircle2, Loader2 } from 'lucide-react';
+import {
+  Shield,
+  Plus,
+  Trash2,
+  Globe,
+  Users,
+  Mail,
+  Building2,
+  CheckCircle2,
+  Loader2,
+  UserPlus,
+  Send,
+  Wrench,
+} from 'lucide-react';
 import BrokerLayout from '../components/layout/BrokerLayout';
 import PageHeader from '../components/layout/PageHeader';
 import Card from '../components/ui/Card';
@@ -10,17 +23,11 @@ import ErrorState from '../components/ui/ErrorState';
 import EmptyState from '../components/ui/EmptyState';
 import ConfirmationModal from '../components/ui/ConfirmationModal';
 import { fetchApprovedDomains, addApprovedDomain, removeApprovedDomain, normalizeDomain } from '../services/domains';
-import { fetchAllProfiles } from '../services/admin';
+import { fetchAllUsers, inviteUser, resendInvitation, repairUser } from '../services/admin';
 import { fetchBrokerCount } from '../services/profiles';
-import type { ApprovedDomainRow, ProfileRow, AverageClientSize } from '../lib/database.types';
+import type { ApprovedDomainRow, UserDirectoryRow } from '../lib/database.types';
 
 type Tab = 'domains' | 'users';
-
-const clientSizeLabel: Record<AverageClientSize, string> = {
-  small: 'Small',
-  mid: 'Mid-market',
-  large: 'Large',
-};
 
 export default function AdminPage() {
   const [tab, setTab] = useState<Tab>('domains');
@@ -35,12 +42,23 @@ export default function AdminPage() {
   const [domainToDelete, setDomainToDelete] = useState<ApprovedDomainRow | null>(null);
 
   // Users state
-  const [profiles, setProfiles] = useState<ProfileRow[]>([]);
-  const [usersLoading, setUsersLoading] = useState(true);
+  const [users, setUsers] = useState<UserDirectoryRow[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
   const [usersError, setUsersError] = useState<string | null>(null);
+  const [usersLoaded, setUsersLoaded] = useState(false);
 
   // Broker count
   const [brokerCount, setBrokerCount] = useState<number | null>(null);
+
+  // Invite modal state
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState<'admin' | 'broker'>('broker');
+  const [inviting, setInviting] = useState(false);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+
+  // Action state
+  const [actionUserId, setActionUserId] = useState<string | null>(null);
 
   const loadDomains = useCallback(async () => {
     setDomainsLoading(true);
@@ -59,9 +77,10 @@ export default function AdminPage() {
     setUsersLoading(true);
     setUsersError(null);
     try {
-      const [data, count] = await Promise.all([fetchAllProfiles(), fetchBrokerCount()]);
-      setProfiles(data);
+      const [data, count] = await Promise.all([fetchAllUsers(), fetchBrokerCount()]);
+      setUsers(data);
       setBrokerCount(count);
+      setUsersLoaded(true);
     } catch (err) {
       setUsersError(err instanceof Error ? err.message : 'Failed to load users.');
     } finally {
@@ -73,11 +92,12 @@ export default function AdminPage() {
     loadDomains();
   }, [loadDomains]);
 
+  // Load users when the tab is first opened
   useEffect(() => {
-    if (tab === 'users' && profiles.length === 0 && !usersLoading) {
+    if (tab === 'users' && !usersLoaded && !usersLoading) {
       loadUsers();
     }
-  }, [tab, profiles.length, usersLoading, loadUsers]);
+  }, [tab, usersLoaded, usersLoading, loadUsers]);
 
   const handleAddDomain = async (e: FormEvent) => {
     e.preventDefault();
@@ -109,11 +129,52 @@ export default function AdminPage() {
     }
   };
 
+  const handleInvite = async (e: FormEvent) => {
+    e.preventDefault();
+    setInviting(true);
+    setInviteError(null);
+    try {
+      await inviteUser({ email: inviteEmail, role: inviteRole });
+      setInviteOpen(false);
+      setInviteEmail('');
+      setInviteRole('broker');
+      await loadUsers();
+    } catch (err) {
+      setInviteError(err instanceof Error ? err.message : 'Failed to send invitation.');
+    } finally {
+      setInviting(false);
+    }
+  };
+
+  const handleResend = async (userId: string) => {
+    setActionUserId(userId);
+    try {
+      await resendInvitation(userId);
+      await loadUsers();
+    } catch (err) {
+      setUsersError(err instanceof Error ? err.message : 'Failed to resend invitation.');
+    } finally {
+      setActionUserId(null);
+    }
+  };
+
+  const handleRepair = async (userId: string) => {
+    setActionUserId(userId);
+    try {
+      await repairUser(userId);
+      await loadUsers();
+    } catch (err) {
+      setUsersError(err instanceof Error ? err.message : 'Failed to repair user.');
+    } finally {
+      setActionUserId(null);
+    }
+  };
+
   return (
     <BrokerLayout title="Propel Admin">
       <PageHeader
         title="Propel Admin"
-        subtitle="Manage approved email domains and view registered users"
+        subtitle="Manage approved email domains, invite users, and view the user directory"
         breadcrumbs={[{ label: 'Admin' }]}
       />
 
@@ -130,7 +191,7 @@ export default function AdminPage() {
       {/* Tab switcher */}
       <div className="flex items-center gap-1 mb-6 border-b border-neutral-border">
         <TabButton active={tab === 'domains'} onClick={() => setTab('domains')} icon={Globe} label="Approved Domains" count={domains.length} />
-        <TabButton active={tab === 'users'} onClick={() => setTab('users')} icon={Users} label="Registered Users" count={profiles.length} />
+        <TabButton active={tab === 'users'} onClick={() => setTab('users')} icon={Users} label="Registered Users" count={users.length} />
       </div>
 
       {/* Domains tab */}
@@ -223,27 +284,33 @@ export default function AdminPage() {
         <div className="space-y-6">
           {/* Metrics */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <SummaryCard label="Total Users" value={usersLoading ? '—' : profiles.length} icon={Users} />
-            <SummaryCard label="Active" value={usersLoading ? '—' : profiles.filter((p) => p.status === 'active').length} icon={CheckCircle2} />
+            <SummaryCard label="Total Users" value={usersLoading ? '—' : users.length} icon={Users} />
+            <SummaryCard label="Active" value={usersLoading ? '—' : users.filter((p) => p.status === 'active').length} icon={CheckCircle2} />
             <SummaryCard label="Advisors" value={usersLoading ? '—' : brokerCount ?? 0} icon={Building2} />
-            <SummaryCard label="Pending Setup" value={usersLoading ? '—' : profiles.filter((p) => !p.account_setup_complete).length} icon={Mail} />
+            <SummaryCard label="Pending Setup" value={usersLoading ? '—' : users.filter((p) => !p.account_setup_complete).length} icon={Mail} />
           </div>
 
           <Card padding={false}>
-            <div className="px-5 py-4 border-b border-neutral-border-soft flex items-center gap-3">
-              <Users className="w-5 h-5 text-navy" />
-              <h3 className="text-base font-semibold text-navy">All Registered Users</h3>
+            <div className="px-5 py-4 border-b border-neutral-border-soft flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Users className="w-5 h-5 text-navy" />
+                <h3 className="text-base font-semibold text-navy">All Registered Users</h3>
+              </div>
+              <Button size="sm" onClick={() => setInviteOpen(true)}>
+                <UserPlus className="w-4 h-4" />
+                Invite User
+              </Button>
             </div>
 
             {usersError && <div className="p-5"><ErrorState message={usersError} onRetry={loadUsers} /></div>}
 
             {usersLoading ? (
               <LoadingState label="Loading users…" />
-            ) : profiles.length === 0 ? (
+            ) : users.length === 0 ? (
               <EmptyState
                 icon={Users}
                 title="No registered users yet"
-                description="Users who sign in via a magic link from an approved domain will appear here."
+                description="Users who sign in via a magic link from an approved domain will appear here. You can also invite users manually."
               />
             ) : (
               <div className="overflow-x-auto">
@@ -254,42 +321,70 @@ export default function AdminPage() {
                       <th className="px-5 py-3 text-xs font-semibold text-neutral-muted uppercase tracking-wide">Email</th>
                       <th className="px-5 py-3 text-xs font-semibold text-neutral-muted uppercase tracking-wide">Role</th>
                       <th className="px-5 py-3 text-xs font-semibold text-neutral-muted uppercase tracking-wide">Status</th>
-                      <th className="px-5 py-3 text-xs font-semibold text-neutral-muted uppercase tracking-wide hidden md:table-cell">Client Size</th>
-                      <th className="px-5 py-3 text-xs font-semibold text-neutral-muted uppercase tracking-wide hidden md:table-cell">Territory</th>
+                      <th className="px-5 py-3 text-xs font-semibold text-neutral-muted uppercase tracking-wide hidden md:table-cell">Organization</th>
+                      <th className="px-5 py-3 text-xs font-semibold text-neutral-muted uppercase tracking-wide hidden lg:table-cell">Last Sign In</th>
+                      <th className="px-5 py-3 text-xs font-semibold text-neutral-muted uppercase tracking-wide hidden lg:table-cell">Type</th>
+                      <th className="px-5 py-3 text-xs font-semibold text-neutral-muted uppercase tracking-wide">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-neutral-border-soft">
-                    {profiles.map((p) => (
-                      <tr key={p.id} className="hover:bg-neutral-bg/50 transition">
+                    {users.map((u) => (
+                      <tr key={u.id} className="hover:bg-neutral-bg/50 transition">
                         <td className="px-5 py-3">
                           <div className="flex items-center gap-2.5">
                             <div className="w-8 h-8 rounded-full bg-navy/10 flex items-center justify-center text-xs font-semibold text-navy shrink-0">
-                              {getInitials(p)}
+                              {getInitials(u)}
                             </div>
                             <span className="text-sm font-medium text-navy">
-                              {p.first_name || p.last_name ? `${p.first_name ?? ''} ${p.last_name ?? ''}`.trim() : '—'}
+                              {u.first_name || u.last_name ? `${u.first_name ?? ''} ${u.last_name ?? ''}`.trim() : '—'}
                             </span>
                           </div>
                         </td>
-                        <td className="px-5 py-3 text-sm text-neutral-secondary">{p.email}</td>
+                        <td className="px-5 py-3 text-sm text-neutral-secondary">{u.email}</td>
                         <td className="px-5 py-3">
-                          <Badge variant={p.role === 'admin' ? 'warning' : 'info'}>{p.role}</Badge>
+                          <Badge variant={u.role === 'admin' ? 'warning' : 'info'}>{u.role ?? '—'}</Badge>
                         </td>
                         <td className="px-5 py-3">
-                          <Badge variant={statusVariant(p.status)} dot>
-                            {p.status}
+                          <Badge variant={statusVariant(u.status)} dot>
+                            {u.status ?? '—'}
                           </Badge>
                         </td>
                         <td className="px-5 py-3 text-sm text-neutral-secondary hidden md:table-cell">
-                          {p.average_client_size ? clientSizeLabel[p.average_client_size] : '—'}
+                          {u.organization_name ?? '—'}
                         </td>
-                        <td className="px-5 py-3 text-sm text-neutral-secondary hidden md:table-cell">
-                          {p.territory ? (
-                            <span className="inline-flex items-center gap-1">
-                              <MapPin className="w-3.5 h-3.5 text-neutral-muted" />
-                              {p.territory}
-                            </span>
-                          ) : '—'}
+                        <td className="px-5 py-3 text-sm text-neutral-secondary hidden lg:table-cell">
+                          {u.last_sign_in_at
+                            ? new Date(u.last_sign_in_at).toLocaleDateString()
+                            : <span className="text-neutral-muted">Never</span>}
+                        </td>
+                        <td className="px-5 py-3 hidden lg:table-cell">
+                          <Badge variant={u.is_internal ? 'info' : 'neutral'}>
+                            {u.is_internal ? 'Internal' : 'External'}
+                          </Badge>
+                        </td>
+                        <td className="px-5 py-3">
+                          <div className="flex items-center gap-1">
+                            {u.status === 'invited' && (
+                              <button
+                                onClick={() => handleResend(u.id)}
+                                disabled={actionUserId === u.id}
+                                className="p-1.5 rounded-md text-neutral-muted hover:text-navy hover:bg-navy/5 transition disabled:opacity-50"
+                                aria-label="Resend invitation"
+                                title="Resend invitation"
+                              >
+                                {actionUserId === u.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleRepair(u.id)}
+                              disabled={actionUserId === u.id}
+                              className="p-1.5 rounded-md text-neutral-muted hover:text-green hover:bg-green-tint transition disabled:opacity-50"
+                              aria-label="Repair account"
+                              title="Repair account"
+                            >
+                              <Wrench className="w-4 h-4" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -298,6 +393,77 @@ export default function AdminPage() {
               </div>
             )}
           </Card>
+        </div>
+      )}
+
+      {/* Invite user modal */}
+      {inviteOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-navy/5 flex items-center justify-center">
+                <UserPlus className="w-5 h-5 text-navy" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-navy">Invite User</h2>
+                <p className="text-sm text-neutral-secondary">Send a magic-link invitation to a new or existing user.</p>
+              </div>
+            </div>
+
+            {inviteError && (
+              <div className="mb-4 rounded-md border border-red/20 bg-red-tint px-4 py-3">
+                <p className="text-sm text-red">{inviteError}</p>
+              </div>
+            )}
+
+            <form onSubmit={handleInvite} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-navy mb-1.5">Email</label>
+                <input
+                  type="email"
+                  required
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  placeholder="user@example.com"
+                  className="w-full px-3 py-2.5 rounded-sm border border-neutral-border bg-white text-navy placeholder-neutral-muted focus:outline-none focus:border-green focus:ring-2 focus:ring-green/20 transition"
+                  autoFocus
+                />
+                <p className="text-xs text-neutral-muted mt-1">
+                  Works with any domain — no need for an approved domain.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-navy mb-1.5">Role</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {(['broker', 'admin'] as const).map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => setInviteRole(r)}
+                      className={`text-left rounded-md border p-3 transition ${
+                        inviteRole === r
+                          ? 'border-green bg-green-tint ring-2 ring-green/20'
+                          : 'border-neutral-border bg-white hover:border-navy/20'
+                      }`}
+                    >
+                      <span className="block text-sm font-semibold text-navy capitalize">{r}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <Button type="submit" disabled={inviting} className="flex-1">
+                  {inviting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                  {inviting ? 'Sending…' : 'Send Invitation'}
+                </Button>
+                <Button type="button" variant="secondary" onClick={() => { setInviteOpen(false); setInviteError(null); }} disabled={inviting}>
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
@@ -364,13 +530,13 @@ function SummaryCard({ label, value, icon: Icon }: { label: string; value: strin
   );
 }
 
-function getInitials(p: ProfileRow): string {
-  if (p.first_name && p.last_name) return (p.first_name[0] + p.last_name[0]).toUpperCase();
-  if (p.first_name) return p.first_name.slice(0, 2).toUpperCase();
-  return p.email.slice(0, 2).toUpperCase();
+function getInitials(u: UserDirectoryRow): string {
+  if (u.first_name && u.last_name) return (u.first_name[0] + u.last_name[0]).toUpperCase();
+  if (u.first_name) return u.first_name.slice(0, 2).toUpperCase();
+  return u.email.slice(0, 2).toUpperCase();
 }
 
-function statusVariant(status: ProfileRow['status']): 'success' | 'warning' | 'neutral' | 'danger' {
+function statusVariant(status: string | null): 'success' | 'warning' | 'neutral' | 'danger' {
   switch (status) {
     case 'active':
       return 'success';
@@ -379,6 +545,8 @@ function statusVariant(status: ProfileRow['status']): 'success' | 'warning' | 'n
     case 'suspended':
       return 'danger';
     case 'archived':
+      return 'neutral';
+    default:
       return 'neutral';
   }
 }

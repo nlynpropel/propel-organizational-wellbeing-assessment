@@ -35,8 +35,9 @@ export function normalizeDomain(input: string): string {
 export async function isEmailDomainApproved(email: string): Promise<boolean> {
   const domain = extractDomain(email);
   if (!domain) return false;
-  const domains = await fetchApprovedDomains();
-  return domains.some((d) => d.domain === domain);
+  const { data, error } = await supabase.rpc('check_email_domain_approved', { p_email: email });
+  if (error) throw error;
+  return data === true;
 }
 
 export function extractDomain(email: string): string {

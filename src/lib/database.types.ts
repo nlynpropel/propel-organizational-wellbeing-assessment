@@ -5,6 +5,34 @@ export type ProfileRole = 'admin' | 'broker';
 export type ProfileStatus = 'invited' | 'active' | 'suspended' | 'archived';
 export type AverageClientSize = 'small' | 'mid' | 'large';
 
+export type UserDirectoryRow = {
+  id: string;
+  email: string;
+  first_name: string | null;
+  last_name: string | null;
+  role: string | null;
+  status: string | null;
+  account_setup_complete: boolean | null;
+  created_at: string;
+  last_sign_in_at: string | null;
+  organization_id: string | null;
+  organization_name: string | null;
+  organization_type: string | null;
+  membership_role: string | null;
+  membership_status: string | null;
+  is_internal: boolean | null;
+};
+
+export type AuditLogRow = {
+  id: string;
+  actor_id: string | null;
+  target_id: string | null;
+  action: string;
+  previous_values: Record<string, unknown> | null;
+  new_values: Record<string, unknown> | null;
+  created_at: string;
+};
+
 export type OrganizationType = 'propel' | 'brokerage' | 'employer' | 'consultancy' | 'partner' | 'other';
 export type OrganizationStatus = 'active' | 'archived';
 export type MembershipRole = 'platform_admin' | 'organization_admin' | 'advisor' | 'client_manager' | 'employer_admin' | 'viewer';

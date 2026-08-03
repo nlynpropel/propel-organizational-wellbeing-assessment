@@ -30,8 +30,12 @@ export default function LoginPage() {
         return;
       }
     } catch {
-      // If the domain check fails (network/permission), proceed and let
-      // Supabase's own validation handle it — don't block login on a lookup error.
+      // If the domain check fails (network/permission), show restricted state
+      // rather than silently allowing unapproved domains through.
+      setState('restricted');
+      setErrorMsg('Could not verify your email domain. Please try again or contact your administrator.');
+      setSubmitting(false);
+      return;
     }
 
     const { error } = await sendMagicLink(email);
