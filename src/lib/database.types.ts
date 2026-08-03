@@ -1,8 +1,8 @@
 // Database row types — mirror the Propel Supabase schema exactly.
 // Manually maintained since we don't run supabase codegen in this environment.
 
-export type ProfileRole = 'admin' | 'broker';
-export type ProfileStatus = 'invited' | 'active' | 'suspended' | 'archived';
+export type ProfileRole = 'superadmin' | 'propel_csm' | 'propel_sales' | 'broker';
+export type ProfileStatus = 'invited' | 'active' | 'suspended' | 'archived' | 'setup_incomplete';
 export type AverageClientSize = 'small' | 'mid' | 'large';
 
 export type UserDirectoryRow = {

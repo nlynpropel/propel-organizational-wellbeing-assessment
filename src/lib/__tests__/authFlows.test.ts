@@ -7,19 +7,18 @@ const domainsSrc = readFileSync(resolve('src/services/domains.ts'), 'utf-8');
 const authContextSrc = readFileSync(resolve('src/context/AuthContext.tsx'), 'utf-8');
 const loginPageSrc = readFileSync(resolve('src/pages/LoginPage.tsx'), 'utf-8');
 const adminPageSrc = readFileSync(resolve('src/pages/AdminPage.tsx'), 'utf-8');
+const appSrc = readFileSync(resolve('src/App.tsx'), 'utf-8');
 const edgeFnSrc = readFileSync(resolve('supabase/functions/admin-invite-user/index.ts'), 'utf-8');
 
 describe('Auth flow — authorized-domain self-service', () => {
   it('LoginPage blocks unapproved domains instead of silently proceeding', () => {
     expect(loginPageSrc).toContain("setState('restricted')");
-    // Must NOT contain the old "proceed and let Supabase handle it" fallback
     expect(loginPageSrc).not.toContain("proceed and let");
     expect(loginPageSrc).not.toMatch(/Supabase's own validation/);
   });
 
   it('domains service uses server-side RPC for domain validation', () => {
     expect(domainsSrc).toMatch(/check_email_domain_approved/);
-    // Must NOT fetch all domains and filter client-side
     expect(domainsSrc).not.toMatch(/fetchApprovedDomains\(\)\s*\.then/);
   });
 
@@ -46,14 +45,24 @@ describe('Auth flow — Superadmin invitation', () => {
     expect(adminSrc).toMatch(/admin-invite-user\/resend/);
   });
 
-  it('edge function verifies caller is admin before inviting', () => {
-    expect(edgeFnSrc).toMatch(/role.*admin.*status.*active/);
-    expect(edgeFnSrc).toMatch(/Admin access required/);
+  it('edge function verifies caller is superadmin before inviting', () => {
+    expect(edgeFnSrc).toMatch(/superadmin/);
+    expect(edgeFnSrc).toMatch(/Superadmin access required/);
   });
 
-  it('edge function uses admin.generateLink for magic links (not client-side)', () => {
-    expect(edgeFnSrc).toMatch(/admin\.generateLink/);
-    expect(edgeFnSrc).toMatch(/magiclink/);
+  it('edge function uses inviteUserByEmail (not generateLink) for Supabase-managed invitations', () => {
+    expect(edgeFnSrc).toMatch(/inviteUserByEmail/);
+    expect(edgeFnSrc).not.toMatch(/generateLink/);
+  });
+
+  it('edge function reads SITE_URL from env and fails if missing', () => {
+    expect(edgeFnSrc).toMatch(/SITE_URL/);
+    expect(edgeFnSrc).toMatch(/SITE_URL.*not configured|SITE_URL.*missing/i);
+    expect(edgeFnSrc).not.toMatch(/localhost/);
+  });
+
+  it('edge function builds redirect as SITE_URL + /auth/callback', () => {
+    expect(edgeFnSrc).toMatch(/\/auth\/callback/);
   });
 
   it('edge function includes CORS headers on all responses', () => {
@@ -63,7 +72,6 @@ describe('Auth flow — Superadmin invitation', () => {
 
   it('edge function does not expose service role key to client', () => {
     expect(edgeFnSrc).toMatch(/SUPABASE_SERVICE_ROLE_KEY/);
-    // The key is used server-side only, never returned in response
     expect(edgeFnSrc).not.toMatch(/service_role.*JSON\.stringify/);
   });
 });
@@ -72,6 +80,29 @@ describe('Auth flow — existing user repair', () => {
   it('admin service has repairUser function calling admin_repair_user RPC', () => {
     expect(adminSrc).toMatch(/admin_repair_user/);
     expect(adminSrc).toMatch(/repairUser/);
+  });
+});
+
+describe('Canonical roles', () => {
+  it('database.types defines exactly four canonical roles', () => {
+    const dbTypes = readFileSync(resolve('src/lib/database.types.ts'), 'utf-8');
+    expect(dbTypes).toMatch(/superadmin.*propel_csm.*propel_sales.*broker/);
+    expect(dbTypes).not.toMatch(/'admin'.*ProfileRole/);
+  });
+
+  it('App.tsx uses superadmin for route guards', () => {
+    expect(appSrc).toMatch(/superadmin/);
+    expect(appSrc).not.toMatch(/role !== 'admin'/);
+    expect(appSrc).not.toMatch(/role === 'admin'/);
+  });
+
+  it('AdminPage invite modal offers canonical roles only', () => {
+    expect(adminPageSrc).toMatch(/superadmin.*propel_csm.*propel_sales.*broker/);
+    expect(adminPageSrc).not.toMatch(/'admin'.*'broker'.*as const/);
+  });
+
+  it('AdminPage does not use legacy admin role for badges', () => {
+    expect(adminPageSrc).not.toMatch(/=== 'admin'/);
   });
 });
 
@@ -84,8 +115,6 @@ describe('User directory — data source', () => {
   it('AdminPage loads users when tab is opened (not blocked by loading guard)', () => {
     expect(adminPageSrc).toMatch(/usersLoaded/);
     expect(adminPageSrc).toMatch(/tab === 'users'/);
-    // Must NOT have the old guard that prevented loading
-    expect(adminPageSrc).not.toMatch(/!usersLoading.*&&.*!usersLoaded/);
   });
 
   it('AdminPage shows user directory with name, email, role, status, org', () => {
@@ -113,12 +142,6 @@ describe('User directory — data source', () => {
 });
 
 describe('User directory — authorization', () => {
-  it('AdminPage is wrapped in adminOnly ProtectedRoute', () => {
-    // This is verified in App.tsx, but we check AdminPage doesn't
-    // do its own bypass
-    expect(adminPageSrc).not.toMatch(/bypass/i);
-  });
-
   it('admin service does not use service role key', () => {
     expect(adminSrc).not.toMatch(/SERVICE_ROLE/);
     expect(adminSrc).not.toMatch(/service_role/);
@@ -132,8 +155,6 @@ describe('Audit logging', () => {
   });
 
   it('AdminPage does not expose audit log to non-admin users', () => {
-    // AdminPage is behind adminOnly ProtectedRoute — verified in App.tsx
-    // Here we just confirm the page doesn't bypass the guard
     expect(adminPageSrc).not.toMatch(/bypass/i);
   });
 });

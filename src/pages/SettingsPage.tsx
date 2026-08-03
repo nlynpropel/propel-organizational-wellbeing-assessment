@@ -44,7 +44,7 @@ export default function SettingsPage() {
               <p className="font-medium text-navy">{getDisplayName(profile)}</p>
               <p className="text-sm text-neutral-muted">{profile?.email}</p>
               <div className="flex items-center gap-2 mt-1">
-                <Badge variant="neutral">{profile?.role === 'admin' ? 'Admin' : 'Advisor'}</Badge>
+                <Badge variant="neutral">{profile?.role === 'superadmin' ? 'Superadmin' : 'Broker'}</Badge>
                 <Badge variant={profile?.status === 'active' ? 'success' : 'warning'}>
                   {profile?.status ?? 'unknown'}
                 </Badge>

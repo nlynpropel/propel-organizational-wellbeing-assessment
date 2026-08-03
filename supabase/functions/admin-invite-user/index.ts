@@ -26,12 +26,10 @@ Deno.serve(async (req: Request) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-    // Create a service-role client for admin operations
     const adminClient = createClient(supabaseUrl, serviceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // Create a client with the user's JWT to verify they are a platform admin
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Missing authorization header" }), {
@@ -45,7 +43,6 @@ Deno.serve(async (req: Request) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // Verify the caller is authenticated
     const { data: userData, error: userErr } = await userClient.auth.getUser();
     if (userErr || !userData.user) {
       return new Response(JSON.stringify({ error: "Not authenticated" }), {
@@ -54,15 +51,14 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Verify the caller is a platform admin by checking their profile
     const { data: profileData } = await userClient
       .from("profiles")
       .select("role, status")
       .eq("id", userData.user.id)
       .maybeSingle();
 
-    if (!profileData || profileData.role !== "admin" || profileData.status !== "active") {
-      return new Response(JSON.stringify({ error: "Admin access required" }), {
+    if (!profileData || profileData.role !== "superadmin" || profileData.status !== "active") {
+      return new Response(JSON.stringify({ error: "Superadmin access required" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -73,10 +69,10 @@ Deno.serve(async (req: Request) => {
     const action = url.pathname.split("/").pop() || "";
 
     if (action === "resend") {
-      return await handleResend(adminClient, body as ResendRequestBody, userData.user.id);
+      return await handleResend(adminClient, body as ResendRequestBody);
     }
 
-    return await handleInvite(adminClient, body as InviteRequestBody, userData.user.id);
+    return await handleInvite(adminClient, body as InviteRequestBody);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     return new Response(JSON.stringify({ error: message }), {
@@ -86,10 +82,17 @@ Deno.serve(async (req: Request) => {
   }
 });
 
+function getRedirectUrl(): string {
+  const siteUrl = Deno.env.get("SITE_URL");
+  if (!siteUrl) {
+    throw new Error("SITE_URL environment variable is not configured. Set it to the deployed app origin (e.g. https://example.com).");
+  }
+  return `${siteUrl.replace(/\/$/, "")}/auth/callback`;
+}
+
 async function handleInvite(
   adminClient: ReturnType<typeof createClient>,
-  body: InviteRequestBody,
-  actorId: string
+  body: InviteRequestBody
 ): Promise<Response> {
   const { email, role, organization_id } = body;
 
@@ -100,14 +103,14 @@ async function handleInvite(
     });
   }
 
-  if (role !== "admin" && role !== "broker") {
+  const validRoles = ["superadmin", "propel_csm", "propel_sales", "broker"];
+  if (!validRoles.includes(role)) {
     return new Response(JSON.stringify({ error: "Invalid role" }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
-  // Call the RPC to create/update the user profile
   const orgId = organization_id || null;
   const { data: userId, error: rpcErr } = await adminClient.rpc("admin_invite_user", {
     p_email: email,
@@ -122,31 +125,33 @@ async function handleInvite(
     });
   }
 
-  // Generate a magic link for the invited user
-  const siteUrl = Deno.env.get("SITE_URL") || Deno.env.get("SUPABASE_URL");
-  const redirectTo = siteUrl
-    ? `${siteUrl.replace(/\/$/, "")}/auth/callback`
-    : undefined;
+  // Use inviteUserByEmail — Supabase sends the invitation email automatically
+  let redirectTo: string;
+  try {
+    redirectTo = getRedirectUrl();
+  } catch (e) {
+    return new Response(JSON.stringify({
+      user_id: userId,
+      warning: "User created but SITE_URL is not configured. Set the SITE_URL edge function secret to send invitation emails.",
+    }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
 
-  const { error: linkErr } = await adminClient.auth.admin.generateLink({
-    type: "magiclink",
-    email,
-    options: redirectTo ? { redirectTo } : {},
+  const { error: inviteErr } = await adminClient.auth.admin.inviteUserByEmail(email, {
+    redirectTo,
+    data: { invited_via: "superadmin" },
   });
 
-  if (linkErr) {
-    // User was created but link generation failed
-    // This is recoverable — admin can resend later
-    return new Response(
-      JSON.stringify({
-        user_id: userId,
-        warning: "User created but invitation email could not be sent. Use resend to try again.",
-      }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
+  if (inviteErr) {
+    return new Response(JSON.stringify({
+      user_id: userId,
+      warning: "User created but invitation email could not be sent. Use resend to try again.",
+    }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   return new Response(JSON.stringify({ user_id: userId, sent: true }), {
@@ -157,8 +162,7 @@ async function handleInvite(
 
 async function handleResend(
   adminClient: ReturnType<typeof createClient>,
-  body: ResendRequestBody,
-  actorId: string
+  body: ResendRequestBody
 ): Promise<Response> {
   const { user_id } = body;
 
@@ -169,7 +173,6 @@ async function handleResend(
     });
   }
 
-  // Call the RPC to log the resend and get the user's email
   const { data: email, error: rpcErr } = await adminClient.rpc("admin_resend_invitation", {
     p_user_id: user_id,
   });
@@ -181,20 +184,23 @@ async function handleResend(
     });
   }
 
-  // Generate a new magic link
-  const siteUrl = Deno.env.get("SITE_URL") || Deno.env.get("SUPABASE_URL");
-  const redirectTo = siteUrl
-    ? `${siteUrl.replace(/\/$/, "")}/auth/callback`
-    : undefined;
+  let redirectTo: string;
+  try {
+    redirectTo = getRedirectUrl();
+  } catch (e) {
+    return new Response(JSON.stringify({ error: "SITE_URL is not configured. Set it to send invitation emails." }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
 
-  const { error: linkErr } = await adminClient.auth.admin.generateLink({
-    type: "magiclink",
-    email: email as string,
-    options: redirectTo ? { redirectTo } : {},
+  const { error: inviteErr } = await adminClient.auth.admin.inviteUserByEmail(email as string, {
+    redirectTo,
+    data: { invited_via: "superadmin_resend" },
   });
 
-  if (linkErr) {
-    return new Response(JSON.stringify({ error: linkErr.message }), {
+  if (inviteErr) {
+    return new Response(JSON.stringify({ error: inviteErr.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

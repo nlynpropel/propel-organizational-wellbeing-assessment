@@ -19,7 +19,7 @@ export async function fetchAuditLog(): Promise<AuditLogRow[]> {
 
 export async function inviteUser(params: {
   email: string;
-  role: string;
+  role: 'superadmin' | 'propel_csm' | 'propel_sales' | 'broker';
   organization_id?: string;
 }): Promise<{ user_id: string; sent: boolean; warning?: string }> {
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;

@@ -40,7 +40,7 @@ function getDisplayName(profile: { first_name: string | null; last_name: string 
 export default function MobileNavigation() {
   const { profile, role, signOut } = useAuth();
   const [open, setOpen] = useState(false);
-  const isAdmin = role === 'admin';
+  const isAdmin = role === 'superadmin';
 
   return (
     <>

@@ -198,7 +198,7 @@ export default function AssessmentBuilderPage() {
           name,
           short_description: shortDescription || undefined,
           full_description: fullDescription || undefined,
-          owner_type: profile.role === 'admin' ? ownerType : 'broker',
+          owner_type: profile.role === 'superadmin' ? ownerType : 'broker',
           category: category || undefined,
           estimated_minutes: typeof estimatedMinutes === 'number' ? estimatedMinutes : undefined,
           scoring_enabled: scoringEnabled,

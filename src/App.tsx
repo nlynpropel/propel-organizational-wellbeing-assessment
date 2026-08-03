@@ -152,7 +152,7 @@ function RootRedirect() {
   if (loading) return <FullScreenLoader />;
   if (!user) return <Navigate to="/login" replace />;
   if (!profile) return <Navigate to="/new-account" replace />;
-  if (!profile.account_setup_complete && status === 'invited' && profile.role !== 'admin') {
+  if (!profile.account_setup_complete && status === 'invited' && profile.role !== 'superadmin') {
     return <Navigate to="/new-account" replace />;
   }
   if (status === 'active') return <Navigate to="/dashboard" replace />;
@@ -172,8 +172,8 @@ function ProtectedRoute({ children, adminOnly = false }: { children: React.React
   if (!profile) return <NoProfileScreen />;
 
   // New users who haven't completed account setup are routed to the setup page.
-  // Admins skip this — an admin's account is created directly by another admin.
-  if (!profile.account_setup_complete && status === 'invited' && profile.role !== 'admin') {
+  // Superadmins skip this — a superadmin's account is created directly by another superadmin.
+  if (!profile.account_setup_complete && status === 'invited' && profile.role !== 'superadmin') {
     return <Navigate to="/new-account" replace />;
   }
 
@@ -189,8 +189,8 @@ function ProtectedRoute({ children, adminOnly = false }: { children: React.React
   // Organization data failed to load — show recoverable error instead of crashing.
   if (orgLoadError) return <OrgLoadErrorScreen />;
 
-  // Admin-only routes: block non-admin users.
-  if (adminOnly && profile.role !== 'admin') {
+  // Superadmin-only routes: block non-superadmin users.
+  if (adminOnly && profile.role !== 'superadmin') {
     return <Navigate to="/dashboard" replace />;
   }
 

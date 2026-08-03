@@ -36,7 +36,7 @@ function getDisplayName(profile: { first_name: string | null; last_name: string 
 
 export default function BrokerSidebar() {
   const { profile, role, terminology, isPlatformAdminUser } = useAuth();
-  const isAdmin = isPlatformAdminUser || role === 'admin';
+  const isAdmin = isPlatformAdminUser || role === 'superadmin';
   const orgLabel = profile?.brokerage_name ?? getLabel(terminology, 'userRoleLabel');
 
   return (

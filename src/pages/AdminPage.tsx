@@ -53,7 +53,7 @@ export default function AdminPage() {
   // Invite modal state
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState<'admin' | 'broker'>('broker');
+  const [inviteRole, setInviteRole] = useState<'superadmin' | 'propel_csm' | 'propel_sales' | 'broker'>('broker');
   const [inviting, setInviting] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
 
@@ -183,7 +183,7 @@ export default function AdminPage() {
         <div>
           <p className="text-sm font-semibold text-orange">Super Admin</p>
           <p className="text-sm text-orange/80 mt-0.5">
-            Only users with an active admin profile can access this page and manage platform settings.
+            Only users with an active superadmin profile can access this page and manage platform settings.
           </p>
         </div>
       </div>
@@ -342,7 +342,7 @@ export default function AdminPage() {
                         </td>
                         <td className="px-5 py-3 text-sm text-neutral-secondary">{u.email}</td>
                         <td className="px-5 py-3">
-                          <Badge variant={u.role === 'admin' ? 'warning' : 'info'}>{u.role ?? '—'}</Badge>
+                          <Badge variant={u.role === 'superadmin' ? 'warning' : u.role === 'propel_csm' || u.role === 'propel_sales' ? 'info' : 'neutral'}>{u.role ?? '—'}</Badge>
                         </td>
                         <td className="px-5 py-3">
                           <Badge variant={statusVariant(u.status)} dot>

@@ -36,7 +36,7 @@ export default function AssessmentReportPage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchReportData(instanceId, profile.id, profile.role === 'admin');
+      const data = await fetchReportData(instanceId, profile.id, profile.role === 'superadmin');
       if (!data) {
         setError('Assessment report not found or you do not have access.');
         return;
