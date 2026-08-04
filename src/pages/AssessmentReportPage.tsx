@@ -232,99 +232,117 @@ function ScoredReport({
 
       {/* Strengths & Priority Opportunities — side by side */}
       {recommendations && (hasStrengths || hasPriorities) && (
-        <div className={`grid gap-6 mb-6 ${hasStrengths && hasPriorities ? 'md:grid-cols-2' : 'grid-cols-1'}`}>
-          {hasStrengths && (
-            <StrengthsSection recommendations={recommendations.strengths} />
-          )}
-          {hasPriorities && (
-            <PriorityOpportunitiesSection recommendations={recommendations.priorityOpportunities} />
-          )}
-        </div>
+        <>
+          <SectionDivider />
+          <div className={`grid gap-6 mb-6 ${hasStrengths && hasPriorities ? 'md:grid-cols-2' : 'grid-cols-1'}`}>
+            {hasStrengths && (
+              <StrengthsSection recommendations={recommendations.strengths} />
+            )}
+            {hasPriorities && (
+              <PriorityOpportunitiesSection recommendations={recommendations.priorityOpportunities} />
+            )}
+          </div>
+        </>
       )}
 
       {/* Strategy dimensions — two-column grid */}
       {strategyDimensions.length > 0 && (
-        <div className="mb-6">
-          <StrategyDimensionsSection dimensions={strategyDimensions} />
-        </div>
+        <>
+          <SectionDivider />
+          <div className="mb-6">
+            <StrategyDimensionsSection dimensions={strategyDimensions} />
+          </div>
+        </>
       )}
 
       {/* Behavioral readiness — with descriptions, two-column grid */}
       {behavioralReadiness && (
-        <div className="mb-6">
-          <BehavioralReadinessSection readiness={behavioralReadiness} />
-        </div>
+        <>
+          <SectionDivider />
+          <div className="mb-6">
+            <BehavioralReadinessSection readiness={behavioralReadiness} />
+          </div>
+        </>
       )}
 
       {/* Quick Wins & High-Impact Moves — side by side, with pills */}
       {recommendations && (hasQuickWins || hasHighImpact) && (
-        <div className={`grid gap-6 mb-6 ${hasQuickWins && hasHighImpact ? 'md:grid-cols-2' : 'grid-cols-1'}`}>
-          {hasQuickWins && (
-            <RecommendationGroupCard
-              title="Quick Wins"
-              icon={Zap}
-              iconColor="text-green-dark"
-              iconBg="bg-green-tint"
-              accentBorder="border-l-green"
-              recommendations={recommendations.quickWins}
-            />
-          )}
-          {hasHighImpact && (
-            <RecommendationGroupCard
-              title="High-Impact Moves"
-              icon={Flag}
-              iconColor="text-navy"
-              iconBg="bg-blue-tint"
-              accentBorder="border-l-navy"
-              recommendations={recommendations.highImpactMoves}
-            />
-          )}
-        </div>
+        <>
+          <SectionDivider />
+          <div className={`grid gap-6 mb-6 ${hasQuickWins && hasHighImpact ? 'md:grid-cols-2' : 'grid-cols-1'}`}>
+            {hasQuickWins && (
+              <RecommendationGroupCard
+                title="Quick Wins"
+                icon={Zap}
+                iconColor="text-green-dark"
+                iconBg="bg-green-tint"
+                accentBorder="border-l-green"
+                recommendations={recommendations.quickWins}
+              />
+            )}
+            {hasHighImpact && (
+              <RecommendationGroupCard
+                title="High-Impact Moves"
+                icon={Flag}
+                iconColor="text-navy"
+                iconBg="bg-blue-tint"
+                accentBorder="border-l-navy"
+                recommendations={recommendations.highImpactMoves}
+              />
+            )}
+          </div>
+        </>
       )}
 
       {/* Client meeting questions — dark navy, with dimension/driver pills only */}
       {recommendations && hasMeetingQs && (
-        <div className="rounded-lg bg-navy-deep shadow-md mb-6 p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
-              <MessageCircleQuestion className="w-4 h-4 text-white" />
-            </div>
-            <h2 className="text-lg font-semibold text-white">Client Meeting Questions</h2>
-          </div>
-          <div className="space-y-3">
-            {recommendations.meetingQuestions.map((rec) => (
-              <div key={rec.id} className="rounded-md bg-white/5 border border-white/10 p-4">
-                <p className="text-sm text-white leading-relaxed">{rec.title}</p>
-                {(rec.dimension_key || rec.driver_key) && (
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    {rec.dimension_key && <DarkPill>{getDimensionLabel(rec.dimension_key)}</DarkPill>}
-                    {rec.driver_key && <DarkPill>{getDriverLabel(rec.driver_key)}</DarkPill>}
-                  </div>
-                )}
+        <>
+          <SectionDivider />
+          <div className="rounded-lg bg-navy-deep shadow-md mb-6 p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
+                <MessageCircleQuestion className="w-4 h-4 text-white" />
               </div>
-            ))}
+              <h2 className="text-lg font-semibold text-white">Client Meeting Questions</h2>
+            </div>
+            <div className="space-y-3">
+              {recommendations.meetingQuestions.map((rec) => (
+                <div key={rec.id} className="rounded-md bg-white/5 border border-white/10 p-4">
+                  <p className="text-sm text-white leading-relaxed">{rec.title}</p>
+                  {(rec.dimension_key || rec.driver_key) && (
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      {rec.dimension_key && <DarkPill>{getDimensionLabel(rec.dimension_key)}</DarkPill>}
+                      {rec.driver_key && <DarkPill>{getDriverLabel(rec.driver_key)}</DarkPill>}
+                  </div>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        </>
       )}
 
       {/* Appendix — Response Detail (plain text, no pills) */}
       {contextualAnswers.length > 0 && (
-        <div className="mb-6">
-          <h2 className="text-sm font-semibold text-neutral-muted uppercase tracking-wide mb-3">Appendix — Response Detail</h2>
-          <div className="rounded-lg border border-dashed border-neutral-border bg-transparent p-4 space-y-4">
-            {contextualAnswers.map((answer, i) => (
-              <div key={i} className="border-b border-neutral-border-soft pb-3 last:border-0 last:pb-0">
-                <p className="text-xs font-medium text-neutral-secondary mb-1.5">{answer.question_text}</p>
-                {answer.selectedOptionLabels.length > 0 && (
-                  <p className="text-sm text-navy">{answer.selectedOptionLabels.join(', ')}</p>
-                )}
-                {answer.text_value && (
-                  <p className="text-sm text-neutral-secondary italic border-l-2 border-neutral-border pl-3 mt-1.5">{answer.text_value}</p>
-                )}
-              </div>
-            ))}
+        <>
+          <SectionDivider />
+          <div className="mb-6">
+            <h2 className="text-sm font-semibold text-neutral-muted uppercase tracking-wide mb-3">Appendix — Response Detail</h2>
+            <div className="rounded-lg border border-dashed border-neutral-border bg-transparent p-4 space-y-3">
+              {contextualAnswers.map((answer, i) => (
+                <div key={i} className="border-b border-neutral-border-soft pb-3 last:border-0 last:pb-0">
+                  <p className="text-xs font-medium text-neutral-secondary mb-1.5">{answer.question_text}</p>
+                  {answer.selectedOptionLabels.length > 0 && (
+                    <p className="text-sm text-navy">{answer.selectedOptionLabels.join(', ')}</p>
+                  )}
+                  {answer.text_value && (
+                    <p className="text-sm text-neutral-secondary italic border-l-2 border-neutral-border pl-3 mt-1.5">{answer.text_value}</p>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        </>
       )}
 
       {/* Custom assessment disclaimer */}
@@ -433,4 +451,8 @@ function ImpactTag({ level, label }: { level: string; label: string }) {
 
 function DarkPill({ children }: { children: React.ReactNode }) {
   return <span className="inline-block text-xs text-white/80 bg-white/10 border border-white/15 px-2 py-0.5 rounded-full">{children}</span>;
+}
+
+function SectionDivider() {
+  return <hr className="border-0 border-t border-neutral-border-soft -mt-3 mb-3" />;
 }
