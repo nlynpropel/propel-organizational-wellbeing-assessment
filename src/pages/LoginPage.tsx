@@ -1,27 +1,33 @@
 import { useState, type FormEvent } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { ArrowRight, CheckCircle2, Mail, AlertTriangle, Lock } from 'lucide-react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { ArrowRight, Lock, Mail, AlertTriangle, UserPlus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { isEmailDomainApproved } from '../services/domains';
 
-type LoginState = 'idle' | 'sent' | 'expired' | 'invalid' | 'restricted' | 'error';
+type LoginState = 'idle' | 'restricted' | 'error';
 
 export default function LoginPage() {
-  const { sendMagicLink } = useAuth();
+  const { signIn, signUp } = useAuth();
+  const navigate = useNavigate();
   const [params] = useSearchParams();
   const errorParam = params.get('error');
 
+  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [state, setState] = useState<LoginState>(errorParam === 'expired' ? 'expired' : errorParam === 'invalid' ? 'invalid' : 'idle');
+  const [state, setState] = useState<LoginState>(errorParam === 'expired' || errorParam === 'invalid' ? 'error' : 'idle');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [infoMsg, setInfoMsg] = useState<string | null>(null);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     setErrorMsg(null);
+    setInfoMsg(null);
+    setState('idle');
 
-    // Validate email domain is on the approved list before sending the link.
+    // Validate email domain is on the approved list before proceeding.
     try {
       const approved = await isEmailDomainApproved(email);
       if (!approved) {
@@ -30,28 +36,40 @@ export default function LoginPage() {
         return;
       }
     } catch {
-      // If the domain check fails (network/permission), show restricted state
-      // rather than silently allowing unapproved domains through.
       setState('restricted');
       setErrorMsg('Could not verify your email domain. Please try again or contact your administrator.');
       setSubmitting(false);
       return;
     }
 
-    const { error } = await sendMagicLink(email);
-    setSubmitting(false);
-    if (error) {
-      if (/rate limit/i.test(error)) {
-        setState('restricted');
-      } else if (/not.*allow|forbidden|restricted/i.test(error)) {
-        setState('restricted');
-      } else {
+    if (mode === 'signup') {
+      const { error } = await signUp(email, password);
+      setSubmitting(false);
+      if (error) {
         setErrorMsg(error);
         setState('error');
+      } else {
+        setInfoMsg('Account created. You can now sign in.');
+        setMode('signin');
+        setPassword('');
       }
     } else {
-      setState('sent');
+      const { error } = await signIn(email, password);
+      setSubmitting(false);
+      if (error) {
+        setErrorMsg(error);
+        setState('error');
+      } else {
+        navigate('/dashboard', { replace: true });
+      }
     }
+  };
+
+  const switchMode = () => {
+    setMode(mode === 'signin' ? 'signup' : 'signin');
+    setState('idle');
+    setErrorMsg(null);
+    setInfoMsg(null);
   };
 
   return (
@@ -65,112 +83,98 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {state === 'sent' ? (
-            <SentState email={email} onReset={() => { setState('idle'); setEmail(''); }} />
-          ) : (
-            <div className="bg-white rounded-lg shadow-xl p-8">
-              <h1 className="font-display text-2xl font-semibold text-navy">Sign in</h1>
-              <p className="text-sm text-neutral-secondary mt-1.5">
-                Enter your email and we'll send a secure magic link.
-              </p>
+          <div className="bg-white rounded-lg shadow-xl p-8">
+            <h1 className="font-display text-2xl font-semibold text-navy">
+              {mode === 'signin' ? 'Sign in' : 'Create account'}
+            </h1>
+            <p className="text-sm text-neutral-secondary mt-1.5">
+              {mode === 'signin'
+                ? 'Enter your work email and password to access the platform.'
+                : 'Enter your work email and choose a password to get started.'}
+            </p>
 
-              {state === 'restricted' && (
-                <StateBanner
-                  icon={Lock}
-                  variant="warning"
-                  title="Access restricted"
-                  message="This email isn't on the approved list. Contact your Propel administrator if you believe this is an error."
-                />
-              )}
-              {state === 'expired' && (
-                <StateBanner
-                  icon={AlertTriangle}
-                  variant="warning"
-                  title="Link expired"
-                  message="This magic link has expired. Request a new one below."
-                />
-              )}
-              {state === 'invalid' && (
-                <StateBanner
-                  icon={AlertTriangle}
-                  variant="danger"
-                  title="Invalid link"
-                  message="This magic link is invalid or has already been used. Request a new one below."
-                />
-              )}
-              {state === 'error' && errorMsg && (
-                <StateBanner
-                  icon={AlertTriangle}
-                  variant="danger"
-                  title="Couldn't send link"
-                  message={errorMsg}
-                />
-              )}
+            {state === 'restricted' && (
+              <StateBanner
+                icon={Lock}
+                variant="warning"
+                title="Access restricted"
+                message="This email isn't on the approved list. Contact your Propel administrator if you believe this is an error."
+              />
+            )}
+            {state === 'error' && errorMsg && (
+              <StateBanner
+                icon={AlertTriangle}
+                variant="danger"
+                title="Couldn't sign in"
+                message={errorMsg}
+              />
+            )}
+            {infoMsg && (
+              <div className="mt-5 rounded-md border border-green/25 bg-green-tint px-4 py-3">
+                <p className="text-sm text-green-dark">{infoMsg}</p>
+              </div>
+            )}
 
-              <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-navy mb-1.5">Work email</label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-muted" />
-                    <input
-                      type="email"
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="you@workemail.com"
-                      className="w-full pl-10 pr-3 py-2.5 rounded-sm border border-neutral-border bg-white text-navy placeholder-neutral-muted focus:outline-none focus:border-green focus:ring-2 focus:ring-green/20 transition"
-                      autoFocus
-                    />
-                  </div>
+            <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-navy mb-1.5">Work email</label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-muted" />
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@workemail.com"
+                    className="w-full pl-10 pr-3 py-2.5 rounded-sm border border-neutral-border bg-white text-navy placeholder-neutral-muted focus:outline-none focus:border-green focus:ring-2 focus:ring-green/20 transition"
+                    autoFocus
+                  />
                 </div>
+              </div>
 
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="w-full flex items-center justify-center gap-2 bg-navy hover:bg-navy-mid disabled:opacity-60 text-white font-medium py-2.5 rounded-sm transition"
-                >
-                  {submitting ? 'Sending…' : 'Send Magic Link'}
-                  {!submitting && <ArrowRight className="w-4 h-4" />}
-                </button>
-              </form>
+              <div>
+                <label className="block text-sm font-medium text-navy mb-1.5">Password</label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-muted" />
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full pl-10 pr-3 py-2.5 rounded-sm border border-neutral-border bg-white text-navy placeholder-neutral-muted focus:outline-none focus:border-green focus:ring-2 focus:ring-green/20 transition"
+                  />
+                </div>
+              </div>
 
-              <p className="text-xs text-neutral-muted mt-5 text-center">
-                No password needed. We'll email a one-time sign-in link.
-              </p>
+              <button
+                type="submit"
+                disabled={submitting}
+                className="w-full flex items-center justify-center gap-2 bg-navy hover:bg-navy-mid disabled:opacity-60 text-white font-medium py-2.5 rounded-sm transition"
+              >
+                {submitting
+                  ? (mode === 'signin' ? 'Signing in…' : 'Creating account…')
+                  : (mode === 'signin' ? 'Sign in' : 'Create account')}
+                {!submitting && (mode === 'signin' ? <ArrowRight className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />)}
+              </button>
+            </form>
+
+            <div className="mt-5 text-center">
+              <button
+                onClick={switchMode}
+                className="text-sm text-neutral-secondary hover:text-navy transition"
+              >
+                {mode === 'signin' ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
+              </button>
             </div>
-          )}
+          </div>
 
           <p className="text-center text-xs text-white/40 mt-8">
             Access is limited to approved organizations.
           </p>
         </div>
       </div>
-    </div>
-  );
-}
-
-function SentState({ email, onReset }: { email: string; onReset: () => void }) {
-  return (
-    <div className="bg-white rounded-lg shadow-xl p-8 text-center">
-      <div className="w-14 h-14 rounded-full bg-green-tint flex items-center justify-center mx-auto mb-5">
-        <CheckCircle2 className="w-7 h-7 text-green-dark" />
-      </div>
-      <h1 className="font-display text-2xl font-semibold text-navy">Check your email</h1>
-      <p className="text-sm text-neutral-secondary mt-2">
-        We sent a secure sign-in link to <span className="font-medium text-navy">{email}</span>.
-        Click it to sign in.
-      </p>
-      <div className="mt-6 space-y-2">
-        <button
-          onClick={onReset}
-          className="w-full text-sm text-neutral-secondary hover:text-navy transition py-2"
-        >
-          Use a different email
-        </button>
-      </div>
-      <p className="text-xs text-neutral-muted mt-5">
-        Link expires in 24 hours. Didn't get it? Check spam or try again.
-      </p>
     </div>
   );
 }

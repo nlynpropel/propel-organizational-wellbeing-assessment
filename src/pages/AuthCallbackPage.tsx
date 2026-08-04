@@ -15,9 +15,9 @@ export default function AuthCallbackPage() {
     startedRef.current = true;
 
     const url = new URL(window.location.href);
-    const hasCode = url.searchParams.has('code');
     const hasError = url.searchParams.has('error');
     const hasErrorDescription = url.searchParams.has('error_description');
+    const hasCode = url.searchParams.has('code');
     const hasFragment = url.hash.length > 1;
 
     if (hasError || hasErrorDescription) {
@@ -34,11 +34,12 @@ export default function AuthCallbackPage() {
 
     const finish = async () => {
       try {
-        // With detectSessionInUrl disabled, we must explicitly exchange the PKCE code.
-        // supabase-js handles the code_verifier from sessionStorage automatically.
-        const { data, error } = await supabase.auth.exchangeCodeForSession(
-          window.location.href,
-        );
+        // With detectSessionInUrl enabled, supabase-js parses the hash/query
+        // and establishes the session automatically. We just verify it landed.
+        // Give the client a tick to process the URL on mount.
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
+        const { data, error } = await supabase.auth.getSession();
         if (cancelled) return;
 
         if (error || !data.session) {
@@ -93,7 +94,7 @@ export default function AuthCallbackPage() {
             </div>
             <h1 className="text-xl font-semibold text-navy">Sign-in link is invalid or expired</h1>
             <p className="text-sm text-neutral-secondary mt-2">
-              This magic link has expired or already been used. Request a new one to continue.
+              This sign-in link has expired or already been used. Request a new one to continue.
             </p>
             <button
               onClick={() => navigate('/login?error=expired', { replace: true })}

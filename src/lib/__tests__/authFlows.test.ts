@@ -22,13 +22,13 @@ describe('Auth flow — authorized-domain self-service', () => {
     expect(domainsSrc).not.toMatch(/fetchApprovedDomains\(\)\s*\.then/);
   });
 
-  it('AuthContext uses signInWithOtp with emailRedirectTo for magic links', () => {
-    expect(authContextSrc).toMatch(/signInWithOtp/);
-    expect(authContextSrc).toMatch(/emailRedirectTo/);
-    expect(authContextSrc).toMatch(/\/auth\/callback/);
+  it('AuthContext uses signInWithPassword and signUp for password auth', () => {
+    expect(authContextSrc).toMatch(/signInWithPassword/);
+    expect(authContextSrc).toMatch(/signUp/);
+    expect(authContextSrc).not.toMatch(/signInWithOtp/);
   });
 
-  it('does not use admin.createUser or inviteUserByEmail in client code', () => {
+  it('AuthContext does not use admin.createUser or inviteUserByEmail in client code', () => {
     expect(authContextSrc).not.toMatch(/admin\.createUser/);
     expect(authContextSrc).not.toMatch(/inviteUserByEmail/);
   });

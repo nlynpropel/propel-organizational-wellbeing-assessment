@@ -39,7 +39,6 @@ type AuthContextValue = {
   refreshProfile: () => Promise<void>;
   signUp: (email: string, password: string) => Promise<{ error: AuthError }>;
   signIn: (email: string, password: string) => Promise<{ error: AuthError }>;
-  sendMagicLink: (email: string) => Promise<{ error: AuthError }>;
   signOut: () => Promise<void>;
 };
 
@@ -127,17 +126,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error?.message ?? null };
   };
 
-  const sendMagicLink = async (email: string) => {
-    const origin = window.location.origin;
-    const isLocalhost =
-      origin.startsWith('http://localhost') || origin.startsWith('https://localhost');
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: isLocalhost ? {} : { emailRedirectTo: `${origin}/auth/callback` },
-    });
-    return { error: error?.message ?? null };
-  };
-
   const signOut = async () => {
     await supabase.auth.signOut();
     setProfile(null);
@@ -199,7 +187,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         refreshProfile,
         signUp,
         signIn,
-        sendMagicLink,
         signOut,
       }}
     >
