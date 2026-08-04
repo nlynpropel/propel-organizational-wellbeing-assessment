@@ -54,6 +54,100 @@ export default function AssessmentReportPage() {
   if (loading) return <BrokerLayout title="Assessment Report"><LoadingState label="Loading report…" /></BrokerLayout>;
   if (error || !report) return <BrokerLayout title="Assessment Report"><ErrorState message={error ?? 'Report not found.'} onRetry={() => navigate('/reports')} /></BrokerLayout>;
 
+  const isUnscoredInternal = report.template?.report_type === 'unscored_internal';
+
+  if (isUnscoredInternal) {
+    return <UnscoredInternalReport report={report} instanceId={instanceId!} navigate={navigate} profile={profile} />;
+  }
+
+  return <ScoredReport report={report} instanceId={instanceId!} />;
+}
+
+// ============================================================
+// 360 / unscored_internal report — metadata + AI analysis only
+// ============================================================
+function UnscoredInternalReport({
+  report,
+  instanceId,
+  profile,
+}: {
+  report: ReportData;
+  instanceId: string;
+  profile: { role: string } | null;
+}) {
+  const { instance, template, organization } = report;
+  const canAccessAI = profile?.role === 'superadmin' || profile?.role === 'propel_csm';
+
+  const completedDate = instance.submitted_at
+    ? new Date(instance.submitted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    : null;
+
+  return (
+    <BrokerLayout title="Assessment Report">
+      {/* Report header — assessment name, client, respondent, date, status */}
+      <Card className="mb-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <h1 className="font-display text-2xl font-bold text-navy">{template?.name ?? 'Untitled Assessment'}</h1>
+            {organization && (
+              <p className="text-sm text-navy mt-2 font-medium">{organization.organization_name}</p>
+            )}
+            {instance.respondent_name && (
+              <p className="text-sm text-neutral-secondary mt-1">
+                {instance.respondent_email ? `${instance.respondent_name} · ${instance.respondent_email}` : instance.respondent_name}
+              </p>
+            )}
+            {instance.respondent_email && !instance.respondent_name && (
+              <p className="text-sm text-neutral-secondary mt-1">{instance.respondent_email}</p>
+            )}
+            {completedDate && (
+              <p className="text-sm text-neutral-secondary mt-0.5">{completedDate}</p>
+            )}
+            <div className="flex items-center gap-1.5 mt-2">
+              <span className="inline-flex items-center gap-1 rounded-full bg-green-tint px-2.5 py-0.5 text-xs font-medium text-green-dark">
+                Submitted
+              </span>
+            </div>
+          </div>
+          <Button variant="ghost" size="sm" to="/reports"><ArrowLeft className="w-4 h-4" /> Back to Reports</Button>
+        </div>
+      </Card>
+
+      {/* Internal AI Analysis card — Superadmin / Propel CSM only */}
+      {canAccessAI && (
+        <Card className="mb-6 border-l-4 border-l-navy">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-navy/5 flex items-center justify-center">
+                <Sparkles className="w-5 h-5 text-navy" />
+              </div>
+              <div>
+                <h2 className="text-sm font-semibold text-navy">Internal AI Analysis</h2>
+                <p className="text-xs text-neutral-secondary mt-0.5">
+                  Generate or view the internal 360 engagement analysis. Propel Client Services only.
+                </p>
+              </div>
+            </div>
+            <Button variant="outline" size="sm" to={`/reports/${instanceId}/360-analysis`}>
+              Open Analysis
+            </Button>
+          </div>
+        </Card>
+      )}
+    </BrokerLayout>
+  );
+}
+
+// ============================================================
+// Standard scored report (Well-being Opportunity Index, etc.)
+// ============================================================
+function ScoredReport({
+  report,
+  instanceId,
+}: {
+  report: ReportData;
+  instanceId: string;
+}) {
   const { instance, template, version, organization, sections, sectionScores, overallScore, scoreBand, behavioralReadiness, contextualAnswers, recommendations, scoreBands } = report;
   const hasStrengths = (recommendations?.strengths.length ?? 0) > 0;
   const hasPriorities = (recommendations?.priorityOpportunities.length ?? 0) > 0;
@@ -77,7 +171,6 @@ export default function AssessmentReportPage() {
 
   return (
     <BrokerLayout title="Assessment Report">
-      {/* Simplified report header — compact text hierarchy */}
       <Card className="mb-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
@@ -103,28 +196,6 @@ export default function AssessmentReportPage() {
           <Button variant="ghost" size="sm" to="/reports"><ArrowLeft className="w-4 h-4" /> Back to Reports</Button>
         </div>
       </Card>
-
-      {/* 360 Internal AI Analysis link — shown only for unscored_internal templates */}
-      {template?.report_type === 'unscored_internal' && (profile?.role === 'superadmin' || profile?.role === 'propel_csm') && (
-        <Card className="mb-6 border-l-4 border-l-navy">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-navy/5 flex items-center justify-center">
-                <Sparkles className="w-5 h-5 text-navy" />
-              </div>
-              <div>
-                <h2 className="text-sm font-semibold text-navy">Internal AI Analysis</h2>
-                <p className="text-xs text-neutral-secondary mt-0.5">
-                  Generate or view the internal 360 engagement analysis. Propel Client Services only.
-                </p>
-              </div>
-            </div>
-            <Button variant="outline" size="sm" to={`/reports/${instanceId}/360-analysis`}>
-              Open Analysis
-            </Button>
-          </div>
-        </Card>
-      )}
 
       {/* Overall score hero — dark navy */}
       {overallScore !== null && version?.show_overall_score && (

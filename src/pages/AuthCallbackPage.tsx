@@ -31,7 +31,6 @@ export default function AuthCallbackPage() {
     }
 
     let cancelled = false;
-    const timeoutMs = 15000;
 
     const finish = async () => {
       try {

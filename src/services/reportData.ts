@@ -173,12 +173,15 @@ function extractBehavioralReadiness(snapshot: Record<string, unknown> | null): B
   const br = snapshot.behavioral_readiness;
   if (!br || typeof br !== 'object') return null;
   const b = br as Record<string, unknown>;
-  return {
+  const readiness: BehavioralReadiness = {
     clarity_of_value: Number(b.clarity_of_value ?? 0),
     motivation_overcoming_inertia: Number(b.motivation_overcoming_inertia ?? 0),
     trust_social_proof: Number(b.trust_social_proof ?? 0),
     structural_environmental_friction: Number(b.structural_environmental_friction ?? 0),
   };
+  // Don't return zero-valued scores when no real data exists
+  if (Object.values(readiness).every((v) => v === 0)) return null;
+  return readiness;
 }
 
 function resolveOptionLabels(question: AssessmentSectionWithQuestions['questions'][number], response: AssessmentResponseRow): string[] {

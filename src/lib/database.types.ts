@@ -163,6 +163,11 @@ export type AssessmentTemplateRow = {
   estimated_minutes: number | null;
   scoring_enabled: boolean;
   recommendations_enabled: boolean;
+  report_type: string;
+  maturity_enabled: boolean;
+  section_scores_enabled: boolean;
+  behavioral_driver_scores_enabled: boolean;
+  respondent_result_mode: string;
   created_by: string | null;
   created_at: string;
   updated_at: string;
