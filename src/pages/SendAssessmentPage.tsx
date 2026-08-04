@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Check, Loader2, Mail, Calendar, Users, ClipboardList, Copy, ExternalLink } from 'lucide-react';
 import BrokerLayout from '../components/layout/BrokerLayout';
 import PageHeader from '../components/layout/PageHeader';
@@ -11,22 +12,23 @@ import AssessmentOwnerBadge from '../components/builder/AssessmentOwnerBadge';
 import { useAuth } from '../context/AuthContext';
 import { createAssessmentInstance } from '../services/assessmentBuilder';
 import { fetchAccessibleAssessments, type AccessibleAssessment } from '../services/assessments';
-import { fetchOrganizations, createOrganization, type CreateOrganizationInput } from '../services/organizations';
+import { fetchOrganizations, fetchOrganizationById, createOrganization, type CreateOrganizationInput, type OrganizationWithAssessment } from '../services/organizations';
 import { logDbError } from '../lib/logger';
-import type { OrganizationRow } from '../lib/database.types';
 
 type Step = 0 | 1 | 2 | 3;
 
 export default function SendAssessmentPage() {
   const { profile } = useAuth();
+  const [searchParams] = useSearchParams();
+  const clientIdParam = searchParams.get('clientId');
 
   const [step, setStep] = useState<Step>(0);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [organizations, setOrganizations] = useState<OrganizationRow[]>([]);
-  const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
+  const [organizations, setOrganizations] = useState<OrganizationWithAssessment[]>([]);
+  const [selectedOrg, setSelectedOrg] = useState<OrganizationWithAssessment | null>(null);
   const [showNewOrg, setShowNewOrg] = useState(false);
   const [newOrgName, setNewOrgName] = useState('');
   const [newOrgContact, setNewOrgContact] = useState('');
@@ -42,6 +44,7 @@ export default function SendAssessmentPage() {
   const [createdLink, setCreatedLink] = useState<string | null>(null);
 
   const selectedAssessment = assessments.find((a) => a.template.id === selectedAssessmentId) ?? null;
+  const hasClientContext = Boolean(selectedOrg);
 
   const loadData = useCallback(async () => {
     if (!profile) return;
@@ -57,13 +60,22 @@ export default function SendAssessmentPage() {
       if (accessibleAssessments.length === 1) {
         setSelectedAssessmentId(accessibleAssessments[0].template.id);
       }
+
+      if (clientIdParam) {
+        const org = await fetchOrganizationById(profile.id, clientIdParam);
+        if (org) {
+          setSelectedOrg(org);
+        } else {
+          setError('The specified client could not be found or you are not authorized to access it. You can still select a client manually below.');
+        }
+      }
     } catch (err) {
       logDbError({ fn: 'SendAssessmentPage.loadData', error: err });
       setError(err instanceof Error ? err.message : 'Failed to load data.');
     } finally {
       setLoading(false);
     }
-  }, [profile]);
+  }, [profile, clientIdParam]);
 
   useEffect(() => {
     loadData();
@@ -78,8 +90,9 @@ export default function SendAssessmentPage() {
         client_contact_name: newOrgContact.trim() || undefined,
       };
       const org = await createOrganization(profile.id, input);
-      setOrganizations([...organizations, org]);
-      setSelectedOrgId(org.id);
+      const orgWithInstances: OrganizationWithAssessment = { ...org, latest_assessment: null, assessment_instances: [] };
+      setOrganizations([...organizations, orgWithInstances]);
+      setSelectedOrg(orgWithInstances);
       setShowNewOrg(false);
       setNewOrgName('');
       setNewOrgContact('');
@@ -91,12 +104,12 @@ export default function SendAssessmentPage() {
   };
 
   const handleCreateInstance = async () => {
-    if (!profile || !selectedOrgId || !selectedAssessment) return;
+    if (!profile || !selectedOrg || !selectedAssessment) return;
     setSubmitting(true);
     setError(null);
     try {
       const instance = await createAssessmentInstance({
-        organization_id: selectedOrgId,
+        organization_id: selectedOrg.id,
         broker_id: profile.id,
         assessment_template_id: selectedAssessment.template.id,
         assessment_version_id: selectedAssessment.version.id,
@@ -125,7 +138,7 @@ export default function SendAssessmentPage() {
 
   const stepLabels = ['Select assessment', 'Configure invitation', 'Review', 'Create'];
 
-  const canProceedFromStep0 = selectedOrgId && selectedAssessmentId;
+  const canProceedFromStep0 = selectedOrg && selectedAssessmentId;
 
   return (
     <BrokerLayout title="Send Assessment">
@@ -133,7 +146,7 @@ export default function SendAssessmentPage() {
         title="Send Assessment"
         subtitle="Generate a secure link for a well-being assessment."
         breadcrumbs={[{ label: 'Assessments', to: '/assessments' }, { label: 'Send' }]}
-        actions={<Button variant="ghost" size="sm" to="/assessments"><ArrowLeft className="w-4 h-4" /> Cancel</Button>}
+        actions={<Button variant="ghost" size="sm" to={selectedOrg ? `/clients/${selectedOrg.id}` : '/assessments'}><ArrowLeft className="w-4 h-4" /> Cancel</Button>}
       />
 
       <div className="flex items-center gap-1 mb-8">
@@ -223,73 +236,95 @@ export default function SendAssessmentPage() {
             </Card>
           )}
 
-          {/* Client selector */}
-          <Card>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base font-semibold text-navy">Select client</h3>
-              <Button variant="outline" size="sm" onClick={() => setShowNewOrg(!showNewOrg)}>
-                {showNewOrg ? 'Cancel' : '+ New client'}
-              </Button>
-            </div>
-
-            {showNewOrg && (
-              <div className="rounded-md border border-neutral-border bg-neutral-bg/30 p-4 mb-4 space-y-3">
-                <div>
-                  <label className="block text-sm font-medium text-navy mb-1">Organization name *</label>
-                  <input
-                    type="text"
-                    value={newOrgName}
-                    onChange={(e) => setNewOrgName(e.target.value)}
-                    placeholder="e.g. Acme Corporation"
-                    className="w-full px-3 py-2 rounded-sm border border-neutral-border bg-white text-navy text-sm focus:outline-none focus:border-green focus:ring-1 focus:ring-green/20"
-                  />
+          {/* Client context banner — shown when client is preselected */}
+          {hasClientContext && (
+            <Card className="bg-navy/5 border-navy/20">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-navy/10 flex items-center justify-center shrink-0">
+                    <Users className="w-5 h-5 text-navy" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-neutral-muted uppercase tracking-wide">Selected client</p>
+                    <p className="text-base font-semibold text-navy">{selectedOrg.organization_name}</p>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-navy mb-1">Client contact name</label>
-                  <input
-                    type="text"
-                    value={newOrgContact}
-                    onChange={(e) => setNewOrgContact(e.target.value)}
-                    placeholder="e.g. Jane Smith"
-                    className="w-full px-3 py-2 rounded-sm border border-neutral-border bg-white text-navy text-sm focus:outline-none focus:border-green focus:ring-1 focus:ring-green/20"
-                  />
-                </div>
-                <Button variant="primary" size="sm" onClick={handleCreateOrg} disabled={submitting || !newOrgName.trim()}>
-                  {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                  Create client
+                <Button variant="ghost" size="sm" onClick={() => setSelectedOrg(null)}>
+                  Change client
                 </Button>
               </div>
-            )}
+            </Card>
+          )}
 
-            {organizations.length === 0 && !showNewOrg ? (
-              <p className="text-sm text-neutral-muted text-center py-8">
-                No clients yet. Click &quot;New client&quot; to create one.
-              </p>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {organizations.map((org) => (
-                  <button
-                    key={org.id}
-                    type="button"
-                    onClick={() => setSelectedOrgId(org.id)}
-                    className={`text-left rounded-md border p-4 transition ${
-                      selectedOrgId === org.id
-                        ? 'border-green bg-green-tint ring-2 ring-green/20'
-                        : 'border-neutral-border bg-white hover:border-navy/20'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <Users className="w-4 h-4 text-navy" />
-                      <span className="text-sm font-semibold text-navy">{org.organization_name}</span>
-                    </div>
-                    {org.client_contact_name && (
-                      <p className="text-xs text-neutral-muted mt-1">{org.client_contact_name}</p>
-                    )}
-                  </button>
-                ))}
+          {/* Client selector — hidden when client is preselected via clientId */}
+          {!hasClientContext && (
+            <Card>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-base font-semibold text-navy">Select client</h3>
+                <Button variant="outline" size="sm" onClick={() => setShowNewOrg(!showNewOrg)}>
+                  {showNewOrg ? 'Cancel' : '+ New client'}
+                </Button>
               </div>
-            )}
-          </Card>
+
+              {showNewOrg && (
+                <div className="rounded-md border border-neutral-border bg-neutral-bg/30 p-4 mb-4 space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-navy mb-1">Organization name *</label>
+                    <input
+                      type="text"
+                      value={newOrgName}
+                      onChange={(e) => setNewOrgName(e.target.value)}
+                      placeholder="e.g. Acme Corporation"
+                      className="w-full px-3 py-2 rounded-sm border border-neutral-border bg-white text-navy text-sm focus:outline-none focus:border-green focus:ring-1 focus:ring-green/20"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-navy mb-1">Client contact name</label>
+                    <input
+                      type="text"
+                      value={newOrgContact}
+                      onChange={(e) => setNewOrgContact(e.target.value)}
+                      placeholder="e.g. Jane Smith"
+                      className="w-full px-3 py-2 rounded-sm border border-neutral-border bg-white text-navy text-sm focus:outline-none focus:border-green focus:ring-1 focus:ring-green/20"
+                    />
+                  </div>
+                  <Button variant="primary" size="sm" onClick={handleCreateOrg} disabled={submitting || !newOrgName.trim()}>
+                    {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                    Create client
+                  </Button>
+                </div>
+              )}
+
+              {organizations.length === 0 && !showNewOrg ? (
+                <p className="text-sm text-neutral-muted text-center py-8">
+                  No clients yet. Click &quot;New client&quot; to create one.
+                </p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {organizations.map((org) => (
+                    <button
+                      key={org.id}
+                      type="button"
+                      onClick={() => setSelectedOrg(org)}
+                      className={`text-left rounded-md border p-4 transition ${
+                        selectedOrg?.id === org.id
+                          ? 'border-green bg-green-tint ring-2 ring-green/20'
+                          : 'border-neutral-border bg-white hover:border-navy/20'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Users className="w-4 h-4 text-navy" />
+                        <span className="text-sm font-semibold text-navy">{org.organization_name}</span>
+                      </div>
+                      {org.client_contact_name && (
+                        <p className="text-xs text-neutral-muted mt-1">{org.client_contact_name}</p>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </Card>
+          )}
         </div>
       )}
 
@@ -344,7 +379,7 @@ export default function SendAssessmentPage() {
         <Card className="space-y-4 max-w-2xl">
           <h3 className="text-base font-semibold text-navy">Review</h3>
           <dl className="space-y-3 text-sm">
-            <ReviewRow icon={Users} label="Client" value={organizations.find((o) => o.id === selectedOrgId)?.organization_name ?? '—'} />
+            <ReviewRow icon={Users} label="Client" value={selectedOrg?.organization_name ?? '—'} />
             <ReviewRow icon={ClipboardList} label="Assessment" value={selectedAssessment?.template.name ?? '—'} />
             <ReviewRow icon={Check} label="Version" value={selectedAssessment ? `v${selectedAssessment.version.version_number} (latest published)` : '—'} />
             <ReviewRow icon={Mail} label="Respondent" value={respondentName ? `${respondentName} (${respondentEmail})` : '—'} />
@@ -393,7 +428,7 @@ export default function SendAssessmentPage() {
               variant="outline"
               size="sm"
               onClick={() => {
-                const msg = `Hello,\n\nYou've been invited to complete the ${selectedAssessment?.template.name ?? 'assessment'} for ${organizations.find((o) => o.id === selectedOrgId)?.organization_name ?? 'your organization'}.\n\nUse the secure link below to begin:\n${createdLink}\n\nThank you,\nPropel`;
+                const msg = `Hello,\n\nYou've been invited to complete the ${selectedAssessment?.template.name ?? 'assessment'} for ${selectedOrg?.organization_name ?? 'your organization'}.\n\nUse the secure link below to begin:\n${createdLink}\n\nThank you,\nPropel`;
                 navigator.clipboard.writeText(msg);
               }}
             >
@@ -420,7 +455,7 @@ export default function SendAssessmentPage() {
             Editing the assessment later will not affect this link.
           </p>
           <div className="flex gap-2">
-            <Button variant="primary" size="md" to={selectedOrgId ? `/clients/${selectedOrgId}` : '/clients'}>
+            <Button variant="primary" size="md" to={selectedOrg ? `/clients/${selectedOrg.id}` : '/clients'}>
               Return to Client
             </Button>
             <Button variant="outline" size="md" to="/assessments">Done</Button>

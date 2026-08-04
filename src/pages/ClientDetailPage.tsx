@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
+import type { OrganizationWithAssessment, InstanceWithTemplate } from '../services/organizations';
 import {
   ArrowLeft,
   RefreshCw,
@@ -30,7 +31,6 @@ import {
   unarchiveOrganization,
   fetchInstancesForOrganization,
 } from '../services/organizations';
-import type { OrganizationWithAssessment, InstanceWithTemplate } from '../services/organizations';
 import { getFundingTypeLabel } from '../lib/sampleData';
 
 type TabKey = 'overview' | 'assessments' | 'notes';
@@ -149,9 +149,9 @@ export default function ClientDetailPage() {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <Button variant="primary" size="sm" to={`/assessments/send?org=${org.id}`}>
+          <Button variant="primary" size="sm" to={`/assessments/send?clientId=${org.id}`}>
             <Plus className="w-4 h-4" />
-            <span className="hidden sm:inline">Send another assessment</span>
+            <span className="hidden sm:inline">{instances.length === 0 ? 'Send an Assessment' : 'Send Another Assessment'}</span>
             <span className="sm:hidden">New</span>
           </Button>
           <Button variant="ghost" size="sm" onClick={() => setArchiveOpen(true)}>
@@ -294,7 +294,7 @@ function AssessmentsTab({
           icon={ClipboardList}
           title="No assessments yet"
           description="Send the first assessment to this client to get started."
-          action={<Button to={`/assessments/send?org=${org.id}`} size="sm"><Plus className="w-4 h-4" /> Send assessment</Button>}
+          action={<Button to={`/assessments/send?clientId=${org.id}`} size="sm"><Plus className="w-4 h-4" /> Send an Assessment</Button>}
         />
       </Card>
     );
@@ -303,8 +303,8 @@ function AssessmentsTab({
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <Button to={`/assessments/send?org=${org.id}`} size="sm">
-          <Plus className="w-4 h-4" /> Send another assessment
+        <Button to={`/assessments/send?clientId=${org.id}`} size="sm">
+          <Plus className="w-4 h-4" /> Send Another Assessment
         </Button>
       </div>
       {instances.map((inst) => (
@@ -411,8 +411,8 @@ function AssessmentInstanceCard({
               <Button variant="ghost" size="sm" to={`/reports/${inst.id}`}>
                 <FileText className="w-3.5 h-3.5" /> View details
               </Button>
-              <Button variant="outline" size="sm" to={`/assessments/send?org=${inst.organization_id}`}>
-                <Plus className="w-3.5 h-3.5" /> New assessment
+              <Button variant="outline" size="sm" to={`/assessments/send?clientId=${inst.organization_id}`}>
+                <Plus className="w-3.5 h-3.5" /> Send Another Assessment
               </Button>
             </>
           )}
