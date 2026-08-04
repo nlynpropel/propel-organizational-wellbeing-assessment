@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import type { AssessmentInstanceRow, AssessmentInstanceStatus } from '../lib/database.types';
+import type { AssessmentInstanceRow, AssessmentInstanceStatus, AssessmentTemplateRow, AssessmentVersionRow } from '../lib/database.types';
 import type { OrganizationRow } from './organizations';
 
 export type AssessmentWithOrganization = AssessmentInstanceRow & {
@@ -42,41 +42,45 @@ export async function fetchAssessmentsForBroker(
   return results;
 }
 
-export async function createDraftAssessment(
-  brokerId: string,
-  organizationId: string
-): Promise<AssessmentInstanceRow> {
-  const { data: tmpl, error: tmplErr } = await supabase
+export type AccessibleAssessment = {
+  template: AssessmentTemplateRow;
+  version: AssessmentVersionRow;
+};
+
+export async function fetchAccessibleAssessments(role: string): Promise<AccessibleAssessment[]> {
+  const { data: templates, error } = await supabase
     .from('assessment_templates')
-    .select('id, latest_version:assessment_versions!inner(id)')
-    .eq('owner_type', 'propel')
+    .select('*, latest_version:assessment_versions!inner(*)')
     .eq('status', 'published')
     .eq('latest_version.status', 'published')
-    .order('created_at', { ascending: true })
-    .limit(1)
-    .single();
+    .order('name');
 
-  const latestVersion = tmpl?.latest_version as unknown;
-  const versionId = (Array.isArray(latestVersion) ? latestVersion[0]?.id : (latestVersion as { id?: string } | null)?.id) ?? undefined;
-  const templateId = tmpl?.id;
-
-  if (tmplErr || !versionId || !templateId) {
-    throw new Error('No published Propel assessment template found. Publish an assessment before creating clients.');
-  }
-
-  const { data, error } = await supabase
-    .from('assessment_instances')
-    .insert({
-      broker_id: brokerId,
-      organization_id: organizationId,
-      assessment_template_id: templateId,
-      assessment_version_id: versionId,
-      status: 'draft',
-    })
-    .select()
-    .single();
   if (error) throw error;
-  return data;
+  if (!templates) return [];
+
+  const results: AccessibleAssessment[] = [];
+  for (const t of templates) {
+    const latestVersion = Array.isArray(t.latest_version) ? t.latest_version[0] : t.latest_version;
+    if (!latestVersion) continue;
+
+    if (role === 'superadmin') {
+      results.push({ template: t as AssessmentTemplateRow, version: latestVersion as AssessmentVersionRow });
+      continue;
+    }
+
+    const { data: access } = await supabase
+      .from('assessment_role_access')
+      .select('can_view')
+      .eq('assessment_template_id', t.id)
+      .eq('role', role)
+      .eq('can_view', true)
+      .maybeSingle();
+
+    if (access) {
+      results.push({ template: t as AssessmentTemplateRow, version: latestVersion as AssessmentVersionRow });
+    }
+  }
+  return results;
 }
 
 export async function fetchAssessmentCountByStatus(

@@ -7,7 +7,6 @@ import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
 import { useAuth } from '../context/AuthContext';
 import { createOrganization } from '../services/organizations';
-import { createDraftAssessment } from '../services/assessments';
 import { INDUSTRIES, EMPLOYEE_RANGES, FUNDING_TYPES } from '../lib/sampleData';
 import type { FundingTypeDb } from '../lib/database.types';
 
@@ -78,15 +77,6 @@ export default function NewClientPage() {
         client_contact_name: form.client_contact_name.trim() || undefined,
         client_contact_email: form.client_contact_email.trim() || undefined,
       });
-
-      // Also create a draft assessment instance for this organization.
-      // If this fails, the organization still exists — surface the error but
-      // navigate to the new client's page so the user isn't stuck.
-      try {
-        await createDraftAssessment(profile.id, org.id);
-      } catch (draftErr) {
-        console.warn('Draft assessment creation failed:', draftErr);
-      }
 
       navigate(`/clients/${org.id}`, { state: { justCreated: true } });
     } catch (err) {
@@ -261,7 +251,7 @@ export default function NewClientPage() {
         </div>
 
         <p className="text-xs text-neutral-muted max-w-2xl mt-4">
-          Submitting creates an organization and a draft assessment instance in Supabase.
+          Submitting creates an organization profile in Supabase. You can send an assessment to this client from their detail page.
         </p>
       </form>
     </BrokerLayout>

@@ -38,12 +38,13 @@ describe('Feature flags', () => {
 // ============================================================
 
 describe('Send flow', () => {
-  it('Test 3: fetchPropelAssessment queries only published Propel templates', () => {
-    // The function queries: owner_type='propel', latest_version.status='published'
-    // We verify the query structure by checking the feature flag logic
+  it('Test 3: fetchAccessibleAssessments queries only published templates with role access', () => {
+    // The function queries: status='published', latest_version.status='published'
+    // and checks assessment_role_access for non-superadmin roles
+    // Superadmin bypasses the role access check
     expect(FEATURE_FLAGS.ENABLE_CUSTOM_ASSESSMENT_SENDING).toBe(false);
-    // When disabled, the send flow should only show Propel assessments
-    // and skip the assessment-selection step
+    // The send flow now uses fetchAccessibleAssessments which filters by role
+    // and shows a selector when more than one accessible assessment exists
   });
 });
 

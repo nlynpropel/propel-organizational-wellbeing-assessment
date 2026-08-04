@@ -10,15 +10,24 @@ export default function AssessmentIntroduction({
   onStart: () => void;
 }) {
   const { template, instance, version } = assessment;
+
+  const introText = version.respondent_intro_text
+    ?? 'An assessment for identifying well-being strategy maturity, behavioral barriers, and priority opportunities.';
+
   return (
     <div className="bg-white rounded-lg shadow-md border border-neutral-border p-8">
-      <span className="eyebrow">{template.category || 'Assessment'}</span>
+      <span className="eyebrow">Well-being Strategy Assessment</span>
       <h1 className="font-display text-2xl font-semibold text-navy mt-3 leading-tight">
         {template.name}
       </h1>
-      {template.short_description && (
+
+      <p className="text-sm text-neutral-secondary mt-3 leading-relaxed">
+        {introText}
+      </p>
+
+      {instance.broker_name && (
         <p className="text-sm text-neutral-secondary mt-3 leading-relaxed">
-          {template.short_description}
+          {instance.broker_name} will review your responses and prepare a personalized report.
         </p>
       )}
 
@@ -37,19 +46,10 @@ export default function AssessmentIntroduction({
         </div>
       </div>
 
-      {instance.broker_name && (
-        <div className="rounded-md bg-blue-tint border border-blue/20 p-4 mt-5">
-          <p className="text-sm text-blue">
-            <strong>Your advisor:</strong> {instance.broker_name} will review your responses and
-            prepare a personalized report.
-          </p>
-        </div>
-      )}
-
       {instance.broker_message && (
         <div className="rounded-md border border-neutral-border bg-neutral-bg/50 p-4 mt-4">
           <p className="text-xs font-medium text-neutral-muted uppercase tracking-wide">
-            Message from your advisor
+            Message from your reviewer
           </p>
           <p className="text-sm text-neutral-text mt-2 leading-relaxed whitespace-pre-wrap">
             {instance.broker_message}
@@ -66,7 +66,7 @@ export default function AssessmentIntroduction({
       )}
 
       <p className="text-xs text-neutral-muted mt-5 leading-relaxed">
-        Your responses are confidential and shared only with your advisor. Individual answers are
+        Your responses are confidential and shared only with your reviewer. Individual answers are
         never attributed to specific employees. This link is unique to you — please don&apos;t
         forward it.
       </p>

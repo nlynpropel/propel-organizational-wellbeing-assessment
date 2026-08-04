@@ -184,6 +184,7 @@ export type AssessmentVersionRow = {
   respondent_score_enabled: boolean;
   respondent_section_scores_enabled: boolean;
   respondent_recommendations_enabled: boolean;
+  respondent_intro_text: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -448,6 +449,7 @@ export type ResolvedAssessment = {
     respondent_score_enabled: boolean;
     respondent_section_scores_enabled: boolean;
     respondent_recommendations_enabled: boolean;
+    respondent_intro_text: string | null;
   };
   sections: Array<{
     id: string;

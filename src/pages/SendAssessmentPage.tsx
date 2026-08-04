@@ -10,18 +10,12 @@ import LoadingState from '../components/ui/LoadingState';
 import AssessmentOwnerBadge from '../components/builder/AssessmentOwnerBadge';
 import { useAuth } from '../context/AuthContext';
 import { createAssessmentInstance } from '../services/assessmentBuilder';
+import { fetchAccessibleAssessments, type AccessibleAssessment } from '../services/assessments';
 import { fetchOrganizations, createOrganization, type CreateOrganizationInput } from '../services/organizations';
-import { supabase } from '../lib/supabase';
-import { FEATURE_FLAGS } from '../lib/featureFlags';
 import { logDbError } from '../lib/logger';
-import type { AssessmentTemplateRow, AssessmentVersionRow, OrganizationRow } from '../lib/database.types';
+import type { OrganizationRow } from '../lib/database.types';
 
 type Step = 0 | 1 | 2 | 3;
-
-type PropelAssessment = {
-  template: AssessmentTemplateRow;
-  version: AssessmentVersionRow;
-};
 
 export default function SendAssessmentPage() {
   const { profile } = useAuth();
@@ -37,7 +31,8 @@ export default function SendAssessmentPage() {
   const [newOrgName, setNewOrgName] = useState('');
   const [newOrgContact, setNewOrgContact] = useState('');
 
-  const [propelAssessment, setPropelAssessment] = useState<PropelAssessment | null>(null);
+  const [assessments, setAssessments] = useState<AccessibleAssessment[]>([]);
+  const [selectedAssessmentId, setSelectedAssessmentId] = useState<string | null>(null);
 
   const [respondentName, setRespondentName] = useState('');
   const [respondentEmail, setRespondentEmail] = useState('');
@@ -46,19 +41,21 @@ export default function SendAssessmentPage() {
 
   const [createdLink, setCreatedLink] = useState<string | null>(null);
 
+  const selectedAssessment = assessments.find((a) => a.template.id === selectedAssessmentId) ?? null;
+
   const loadData = useCallback(async () => {
     if (!profile) return;
     setLoading(true);
     try {
-      const [orgs, assessment] = await Promise.all([
+      const [orgs, accessibleAssessments] = await Promise.all([
         fetchOrganizations(profile.id, { includeArchived: false }),
-        fetchPropelAssessment(),
+        fetchAccessibleAssessments(profile.role),
       ]);
       setOrganizations(orgs);
-      setPropelAssessment(assessment);
+      setAssessments(accessibleAssessments);
 
-      if (assessment && selectedOrgId) {
-        setStep(1);
+      if (accessibleAssessments.length === 1) {
+        setSelectedAssessmentId(accessibleAssessments[0].template.id);
       }
     } catch (err) {
       logDbError({ fn: 'SendAssessmentPage.loadData', error: err });
@@ -66,7 +63,7 @@ export default function SendAssessmentPage() {
     } finally {
       setLoading(false);
     }
-  }, [profile, selectedOrgId]);
+  }, [profile]);
 
   useEffect(() => {
     loadData();
@@ -94,15 +91,15 @@ export default function SendAssessmentPage() {
   };
 
   const handleCreateInstance = async () => {
-    if (!profile || !selectedOrgId || !propelAssessment) return;
+    if (!profile || !selectedOrgId || !selectedAssessment) return;
     setSubmitting(true);
     setError(null);
     try {
       const instance = await createAssessmentInstance({
         organization_id: selectedOrgId,
         broker_id: profile.id,
-        assessment_template_id: propelAssessment.template.id,
-        assessment_version_id: propelAssessment.version.id,
+        assessment_template_id: selectedAssessment.template.id,
+        assessment_version_id: selectedAssessment.version.id,
         respondent_name: respondentName,
         respondent_email: respondentEmail,
         expires_at: dueDate ? new Date(dueDate).toISOString() : null,
@@ -126,13 +123,15 @@ export default function SendAssessmentPage() {
     );
   }
 
-  const stepLabels = ['Select client', 'Configure invitation', 'Review', 'Create'];
+  const stepLabels = ['Select assessment', 'Configure invitation', 'Review', 'Create'];
+
+  const canProceedFromStep0 = selectedOrgId && selectedAssessmentId;
 
   return (
     <BrokerLayout title="Send Assessment">
       <PageHeader
-        title="Send Propel Assessment"
-        subtitle="Generate a secure link for the Propel Well-being Opportunity Index."
+        title="Send Assessment"
+        subtitle="Generate a secure link for a well-being assessment."
         breadcrumbs={[{ label: 'Assessments', to: '/assessments' }, { label: 'Send' }]}
         actions={<Button variant="ghost" size="sm" to="/assessments"><ArrowLeft className="w-4 h-4" /> Cancel</Button>}
       />
@@ -155,8 +154,20 @@ export default function SendAssessmentPage() {
 
       {error && <div className="mb-4"><ErrorState message={error} onRetry={() => setError(null)} /></div>}
 
-      {/* Assessment being sent (always shown — no selection step) */}
-      {propelAssessment && step < 3 && (
+      {assessments.length === 0 && step < 3 && (
+        <Card>
+          <div className="text-center py-8">
+            <ClipboardList className="w-10 h-10 text-neutral-muted mx-auto mb-3" />
+            <h3 className="text-base font-semibold text-navy">No assessments available</h3>
+            <p className="text-sm text-neutral-secondary mt-1">
+              You don&apos;t have access to any published assessments yet. Contact a Superadmin.
+            </p>
+          </div>
+        </Card>
+      )}
+
+      {/* Selected assessment summary (shown after step 0) */}
+      {selectedAssessment && step > 0 && step < 3 && (
         <Card className="mb-6 bg-green-tint/30 border-green/20">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-green-tint flex items-center justify-center shrink-0">
@@ -164,21 +175,55 @@ export default function SendAssessmentPage() {
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="text-base font-semibold text-navy">{propelAssessment.template.name}</h3>
-                <AssessmentOwnerBadge ownerType="propel" />
-                <Badge variant="neutral">v{propelAssessment.version.version_number}</Badge>
+                <h3 className="text-base font-semibold text-navy">{selectedAssessment.template.name}</h3>
+                <AssessmentOwnerBadge ownerType={selectedAssessment.template.owner_type} />
+                <Badge variant="neutral">v{selectedAssessment.version.version_number}</Badge>
               </div>
               <p className="text-sm text-neutral-secondary mt-0.5">
-                Latest published version will be used automatically.
+                Latest published version will be used.
               </p>
             </div>
           </div>
         </Card>
       )}
 
-      {/* Step 0: Select client */}
-      {step === 0 && (
+      {/* Step 0: Select assessment + client */}
+      {step === 0 && assessments.length > 0 && (
         <div className="space-y-4">
+          {/* Assessment selector — only shown when more than one accessible assessment */}
+          {assessments.length > 1 && (
+            <Card>
+              <h3 className="text-base font-semibold text-navy mb-4">Select assessment</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {assessments.map((a) => (
+                  <button
+                    key={a.template.id}
+                    type="button"
+                    onClick={() => setSelectedAssessmentId(a.template.id)}
+                    className={`text-left rounded-md border p-4 transition ${
+                      selectedAssessmentId === a.template.id
+                        ? 'border-green bg-green-tint ring-2 ring-green/20'
+                        : 'border-neutral-border bg-white hover:border-navy/20'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <ClipboardList className="w-4 h-4 text-navy" />
+                      <span className="text-sm font-semibold text-navy">{a.template.name}</span>
+                    </div>
+                    {a.template.short_description && (
+                      <p className="text-xs text-neutral-muted mt-1">{a.template.short_description}</p>
+                    )}
+                    <div className="flex items-center gap-1.5 mt-2">
+                      <AssessmentOwnerBadge ownerType={a.template.owner_type} />
+                      <Badge variant="neutral">v{a.version.version_number}</Badge>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          {/* Client selector */}
           <Card>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-base font-semibold text-navy">Select client</h3>
@@ -218,7 +263,7 @@ export default function SendAssessmentPage() {
 
             {organizations.length === 0 && !showNewOrg ? (
               <p className="text-sm text-neutral-muted text-center py-8">
-                No clients yet. Click "New client" to create one.
+                No clients yet. Click &quot;New client&quot; to create one.
               </p>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -282,7 +327,7 @@ export default function SendAssessmentPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-navy mb-1.5">Advisor message (optional)</label>
+            <label className="block text-sm font-medium text-navy mb-1.5">Reviewer message (optional)</label>
             <textarea
               value={brokerMessage}
               onChange={(e) => setBrokerMessage(e.target.value)}
@@ -300,12 +345,12 @@ export default function SendAssessmentPage() {
           <h3 className="text-base font-semibold text-navy">Review</h3>
           <dl className="space-y-3 text-sm">
             <ReviewRow icon={Users} label="Client" value={organizations.find((o) => o.id === selectedOrgId)?.organization_name ?? '—'} />
-            <ReviewRow icon={ClipboardList} label="Assessment" value={propelAssessment?.template.name ?? '—'} />
-            <ReviewRow icon={Check} label="Version" value={propelAssessment ? `v${propelAssessment.version.version_number} (latest published)` : '—'} />
+            <ReviewRow icon={ClipboardList} label="Assessment" value={selectedAssessment?.template.name ?? '—'} />
+            <ReviewRow icon={Check} label="Version" value={selectedAssessment ? `v${selectedAssessment.version.version_number} (latest published)` : '—'} />
             <ReviewRow icon={Mail} label="Respondent" value={respondentName ? `${respondentName} (${respondentEmail})` : '—'} />
             <ReviewRow icon={Calendar} label="Due date" value={dueDate || 'No due date'} />
-            <ReviewRow icon={Check} label="Scoring" value={propelAssessment?.template.scoring_enabled ? 'Included' : 'Not included'} />
-            <ReviewRow icon={Check} label="Recommendations" value={propelAssessment?.template.recommendations_enabled ? 'Included' : 'Not included'} />
+            <ReviewRow icon={Check} label="Scoring" value={selectedAssessment?.template.scoring_enabled ? 'Included' : 'Not included'} />
+            <ReviewRow icon={Check} label="Recommendations" value={selectedAssessment?.template.recommendations_enabled ? 'Included' : 'Not included'} />
           </dl>
           <Button variant="primary" size="lg" onClick={handleCreateInstance} disabled={submitting}>
             {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
@@ -348,7 +393,7 @@ export default function SendAssessmentPage() {
               variant="outline"
               size="sm"
               onClick={() => {
-                const msg = `Hello,\n\nYou've been invited to complete the Propel Well-being Opportunity Index for ${organizations.find((o) => o.id === selectedOrgId)?.organization_name ?? 'your organization'}.\n\nUse the secure link below to begin:\n${createdLink}\n\nThank you,\nPropel`;
+                const msg = `Hello,\n\nYou've been invited to complete the ${selectedAssessment?.template.name ?? 'assessment'} for ${organizations.find((o) => o.id === selectedOrgId)?.organization_name ?? 'your organization'}.\n\nUse the secure link below to begin:\n${createdLink}\n\nThank you,\nPropel`;
                 navigator.clipboard.writeText(msg);
               }}
             >
@@ -384,7 +429,7 @@ export default function SendAssessmentPage() {
       )}
 
       {/* Navigation */}
-      {step < 3 && (
+      {step < 3 && assessments.length > 0 && (
         <div className="flex items-center justify-between mt-8">
           <Button variant="ghost" size="md" onClick={() => setStep((s) => Math.max(0, s - 1) as Step)} disabled={step === 0}>
             <ArrowLeft className="w-4 h-4" /> Back
@@ -394,7 +439,7 @@ export default function SendAssessmentPage() {
             size="md"
             onClick={() => setStep((s) => Math.min(3, s + 1) as Step)}
             disabled={
-              (step === 0 && !selectedOrgId) ||
+              (step === 0 && !canProceedFromStep0) ||
               (step === 1 && (!respondentName.trim() || !respondentEmail.trim()))
             }
           >
@@ -402,34 +447,8 @@ export default function SendAssessmentPage() {
           </Button>
         </div>
       )}
-
-      {/* Custom assessment sending — hidden behind feature flag */}
-      {FEATURE_FLAGS.ENABLE_CUSTOM_ASSESSMENT_SENDING && null}
     </BrokerLayout>
   );
-}
-
-async function fetchPropelAssessment(): Promise<PropelAssessment | null> {
-  const { data, error } = await supabase
-    .from('assessment_templates')
-    .select('*, latest_version:assessment_versions!inner(id, version_number, status, recommendation_framework_id, show_overall_score)')
-    .eq('owner_type', 'propel')
-    .eq('latest_version.status', 'published')
-    .order('name')
-    .limit(1)
-    .maybeSingle();
-
-  if (error) {
-    logDbError({ fn: 'fetchPropelAssessment', error });
-    throw error;
-  }
-
-  if (!data) return null;
-
-  const t = data as unknown as AssessmentTemplateRow & { latest_version: AssessmentVersionRow | AssessmentVersionRow[] };
-  const latestVersion = Array.isArray(t.latest_version) ? t.latest_version[0] : t.latest_version;
-  if (!latestVersion) return null;
-  return { template: t, version: latestVersion };
 }
 
 function ReviewRow({ icon: Icon, label, value }: { icon: typeof Users; label: string; value: string }) {

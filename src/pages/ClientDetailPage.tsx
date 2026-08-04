@@ -132,7 +132,7 @@ export default function ClientDetailPage() {
       {showSuccess && (
         <div className="mb-4 rounded-md border border-green/30 bg-green-tint px-4 py-3 flex items-center gap-2.5">
           <CheckCircle2 className="w-5 h-5 text-green-dark" />
-          <p className="text-sm text-green-dark font-medium">Client created. A draft assessment instance was also created.</p>
+          <p className="text-sm text-green-dark font-medium">Client created successfully.</p>
         </div>
       )}
 
@@ -262,11 +262,6 @@ function OverviewTab({ org, instances }: { org: OrganizationWithAssessment; inst
             <div className="flex justify-between"><dt className="text-neutral-muted">Completed</dt><dd className="text-navy font-medium">{completedCount}</dd></div>
             <div className="flex justify-between"><dt className="text-neutral-muted">In progress</dt><dd className="text-navy font-medium">{instances.filter((i) => i.status === 'in_progress').length}</dd></div>
             <div className="flex justify-between"><dt className="text-neutral-muted">Draft / link created</dt><dd className="text-navy font-medium">{instances.filter((i) => i.status === 'draft' || i.status === 'sent').length}</dd></div>
-          </div>
-          <div className="mt-4 pt-4 border-t border-neutral-border-soft">
-            <Button to={`/clients/${org.id}`} variant="outline" size="sm">
-              <ClipboardList className="w-4 h-4" /> View all assessments
-            </Button>
           </div>
         </Card>
       </div>
