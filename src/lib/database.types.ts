@@ -535,6 +535,13 @@ export type ResolvedReusableLink = {
   template_full_description: string | null;
   template_category: string | null;
   template_estimated_minutes: number | null;
+  template_report_type: string;
+  template_scoring_enabled: boolean;
+  template_maturity_enabled: boolean;
+  template_section_scores_enabled: boolean;
+  template_behavioral_driver_scores_enabled: boolean;
+  template_recommendations_enabled: boolean;
+  template_respondent_result_mode: string;
   version_number: number;
   version_label: string | null;
   introduction_text: string | null;

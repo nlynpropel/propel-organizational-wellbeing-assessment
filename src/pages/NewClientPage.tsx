@@ -7,9 +7,8 @@ import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
 import { useAuth } from '../context/AuthContext';
 import { createOrganization } from '../services/organizations';
-import { INDUSTRIES, FUNDING_TYPES } from '../lib/sampleData';
+import { INDUSTRIES } from '../lib/sampleData';
 import { validateEmployeeCount } from '../lib/validation';
-import type { FundingTypeDb } from '../lib/database.types';
 
 type FormState = {
   organization_name: string;
@@ -17,7 +16,6 @@ type FormState = {
   industry: string;
   employee_count: string;
   number_of_locations: string;
-  funding_type: string;
   client_contact_name: string;
   client_contact_email: string;
 };
@@ -28,7 +26,6 @@ const initial: FormState = {
   industry: '',
   employee_count: '',
   number_of_locations: '',
-  funding_type: '',
   client_contact_name: '',
   client_contact_email: '',
 };
@@ -78,7 +75,6 @@ export default function NewClientPage() {
         industry: form.industry || undefined,
         employee_count: form.employee_count ? parseInt(form.employee_count, 10) : undefined,
         number_of_locations: form.number_of_locations ? parseInt(form.number_of_locations, 10) : undefined,
-        funding_type: (form.funding_type || undefined) as FundingTypeDb | undefined,
         client_contact_name: form.client_contact_name.trim() || undefined,
         client_contact_email: form.client_contact_email.trim() || undefined,
       });
@@ -197,20 +193,6 @@ export default function NewClientPage() {
               {errors.number_of_locations && (
                 <p className="text-xs text-red mt-1">{errors.number_of_locations}</p>
               )}
-            </div>
-
-            <div>
-              <label className={labelCls}>Funding type</label>
-              <select
-                value={form.funding_type}
-                onChange={(e) => update('funding_type', e.target.value)}
-                className={fieldCls()}
-              >
-                <option value="">Select funding type</option>
-                {FUNDING_TYPES.map((f) => (
-                  <option key={f.value} value={f.value}>{f.label}</option>
-                ))}
-              </select>
             </div>
 
 

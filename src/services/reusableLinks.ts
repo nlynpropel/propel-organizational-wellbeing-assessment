@@ -106,7 +106,6 @@ export async function createIntakeSubmission(params: {
   email: string;
   employeeCount: number;
   industry?: string;
-  region?: string;
 }): Promise<{ submission_id: string; already_exists?: boolean } | { error: string }> {
   const { data, error } = await supabase.rpc('create_intake_submission', {
     p_token: params.token,
@@ -115,7 +114,6 @@ export async function createIntakeSubmission(params: {
     p_email: params.email,
     p_employee_count: params.employeeCount,
     p_industry: params.industry ?? null,
-    p_region: params.region ?? null,
   });
   if (error) {
     logDbError({ fn: 'createIntakeSubmission', error });

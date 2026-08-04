@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, ListChecks, Building2, Mail, Hash, MapPin, Briefcase, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ListChecks, Building2, Mail, Hash, Briefcase, AlertCircle, CheckCircle2 } from 'lucide-react';
 import {
   resolveReusableLink,
   createIntakeSubmission,
@@ -32,7 +32,6 @@ type IntakeForm = {
   email: string;
   employee_count: string;
   industry: string;
-  region: string;
 };
 
 const INDUSTRIES = [
@@ -46,7 +45,6 @@ const initialForm: IntakeForm = {
   email: '',
   employee_count: '',
   industry: '',
-  region: '',
 };
 
 export default function IntakePage() {
@@ -103,7 +101,6 @@ export default function IntakePage() {
     if (!empVal.valid) e.employee_count = empVal.error;
 
     if (!form.industry) e.industry = 'Industry is required.';
-    if (!form.region.trim()) e.region = 'State/country is required.';
 
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -121,7 +118,6 @@ export default function IntakePage() {
         email: normalizeEmail(form.email),
         employeeCount: parseInt(form.employee_count, 10),
         industry: form.industry,
-        region: form.region.trim(),
       });
 
       if ('error' in result) {
@@ -317,15 +313,6 @@ export default function IntakePage() {
               </select>
             </IntakeField>
 
-            <IntakeField icon={MapPin} label="State / Country *" error={errors.region}>
-              <input
-                type="text"
-                value={form.region}
-                onChange={(e) => setForm({ ...form, region: e.target.value })}
-                className={inputCls(!!errors.region)}
-                placeholder="California, USA"
-              />
-            </IntakeField>
           </div>
 
           <div className="flex items-center justify-end mt-8 pt-6 border-t border-neutral-border-soft">

@@ -15,7 +15,7 @@ import { fetchAccessibleAssessments, type AccessibleAssessment } from '../servic
 import { fetchOrganizations, fetchOrganizationById, createOrganization, type CreateOrganizationInput, type OrganizationWithAssessment } from '../services/organizations';
 import { logDbError } from '../lib/logger';
 
-type Step = 0 | 1 | 2 | 3;
+type Step = 0 | 1 | 2;
 
 export default function SendAssessmentPage() {
   const { profile } = useAuth();
@@ -42,6 +42,7 @@ export default function SendAssessmentPage() {
   const [brokerMessage, setBrokerMessage] = useState('');
 
   const [createdLink, setCreatedLink] = useState<string | null>(null);
+  const [createdOrgId, setCreatedOrgId] = useState<string | null>(null);
 
   const selectedAssessment = assessments.find((a) => a.template.id === selectedAssessmentId) ?? null;
   const hasClientContext = Boolean(selectedOrg);
@@ -120,7 +121,7 @@ export default function SendAssessmentPage() {
       });
       const link = `${window.location.origin}/assessment/${instance.secure_token}`;
       setCreatedLink(link);
-      setStep(3);
+      setCreatedOrgId(selectedOrg.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create assessment instance.');
     } finally {
@@ -136,7 +137,7 @@ export default function SendAssessmentPage() {
     );
   }
 
-  const stepLabels = ['Select assessment', 'Configure invitation', 'Review', 'Create'];
+  const stepLabels = ['Select assessment & client', 'Configure recipient', 'Review & create'];
 
   const canProceedFromStep0 = selectedOrg && selectedAssessmentId;
 
@@ -167,7 +168,7 @@ export default function SendAssessmentPage() {
 
       {error && <div className="mb-4"><ErrorState message={error} onRetry={() => setError(null)} /></div>}
 
-      {assessments.length === 0 && step < 3 && (
+      {assessments.length === 0 && step < 2 && (
         <Card>
           <div className="text-center py-8">
             <ClipboardList className="w-10 h-10 text-neutral-muted mx-auto mb-3" />
@@ -180,7 +181,7 @@ export default function SendAssessmentPage() {
       )}
 
       {/* Selected assessment summary (shown after step 0) */}
-      {selectedAssessment && step > 0 && step < 3 && (
+      {selectedAssessment && step > 0 && step < 2 && (
         <Card className="mb-6 bg-green-tint/30 border-green/20">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-green-tint flex items-center justify-center shrink-0">
@@ -374,10 +375,10 @@ export default function SendAssessmentPage() {
         </Card>
       )}
 
-      {/* Step 2: Review */}
+      {/* Step 2: Review & create */}
       {step === 2 && (
         <Card className="space-y-4 max-w-2xl">
-          <h3 className="text-base font-semibold text-navy">Review</h3>
+          <h3 className="text-base font-semibold text-navy">Review & create</h3>
           <dl className="space-y-3 text-sm">
             <ReviewRow icon={Users} label="Client" value={selectedOrg?.organization_name ?? '—'} />
             <ReviewRow icon={ClipboardList} label="Assessment" value={selectedAssessment?.template.name ?? '—'} />
@@ -387,84 +388,74 @@ export default function SendAssessmentPage() {
             <ReviewRow icon={Check} label="Scoring" value={selectedAssessment?.template.scoring_enabled ? 'Included' : 'Not included'} />
             <ReviewRow icon={Check} label="Recommendations" value={selectedAssessment?.template.recommendations_enabled ? 'Included' : 'Not included'} />
           </dl>
-          <Button variant="primary" size="lg" onClick={handleCreateInstance} disabled={submitting}>
-            {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
-            {submitting ? 'Creating…' : 'Create assessment link'}
-          </Button>
-        </Card>
-      )}
-
-      {/* Step 3: Created */}
-      {step === 3 && createdLink && (
-        <Card className="space-y-4 max-w-2xl">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-green-tint flex items-center justify-center">
-              <Check className="w-5 h-5 text-green-dark" />
+          {createdLink ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-green-tint flex items-center justify-center">
+                  <Check className="w-5 h-5 text-green-dark" />
+                </div>
+                <div>
+                  <h3 className="text-base font-semibold text-navy">Assessment link created</h3>
+                  <p className="text-sm text-neutral-secondary">Share this secure link with your respondent.</p>
+                </div>
+              </div>
+              <div className="rounded-md border border-neutral-border bg-neutral-bg/30 p-3">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={createdLink}
+                    readOnly
+                    className="flex-1 bg-transparent text-sm text-navy font-mono outline-none"
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigator.clipboard.writeText(createdLink)}
+                  >
+                    <Copy className="w-3.5 h-3.5" /> Copy Link
+                  </Button>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const msg = `Hello,\n\nYou've been invited to complete the ${selectedAssessment?.template.name ?? 'assessment'} for ${selectedOrg?.organization_name ?? 'your organization'}.\n\nUse the secure link below to begin:\n${createdLink}\n\nThank you,\nPropel`;
+                    navigator.clipboard.writeText(msg);
+                  }}
+                >
+                  <Copy className="w-3.5 h-3.5" /> Copy Invitation Message
+                </Button>
+                <a href={createdLink} target="_blank" rel="noopener noreferrer">
+                  <Button variant="outline" size="sm">
+                    <ExternalLink className="w-3.5 h-3.5" /> Open Assessment
+                  </Button>
+                </a>
+              </div>
+              <div className="rounded-sm bg-orange-tint border border-orange/20 px-3 py-2">
+                <p className="text-xs text-orange-dark">
+                  Email delivery is not enabled. Copy and send this assessment link to the client.
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="primary" size="md" to={createdOrgId ? `/clients/${createdOrgId}` : '/clients'}>
+                  Return to Client
+                </Button>
+                <Button variant="outline" size="md" to="/assessments">Done</Button>
+              </div>
             </div>
-            <div>
-              <h3 className="text-base font-semibold text-navy">Assessment link created</h3>
-              <p className="text-sm text-neutral-secondary">Share this secure link with your respondent.</p>
-            </div>
-          </div>
-          <div className="rounded-md border border-neutral-border bg-neutral-bg/30 p-3">
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                value={createdLink}
-                readOnly
-                className="flex-1 bg-transparent text-sm text-navy font-mono outline-none"
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigator.clipboard.writeText(createdLink)}
-              >
-                <Copy className="w-3.5 h-3.5" /> Copy Link
-              </Button>
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                const msg = `Hello,\n\nYou've been invited to complete the ${selectedAssessment?.template.name ?? 'assessment'} for ${selectedOrg?.organization_name ?? 'your organization'}.\n\nUse the secure link below to begin:\n${createdLink}\n\nThank you,\nPropel`;
-                navigator.clipboard.writeText(msg);
-              }}
-            >
-              <Copy className="w-3.5 h-3.5" /> Copy Invitation Message
+          ) : (
+            <Button variant="primary" size="lg" onClick={handleCreateInstance} disabled={submitting}>
+              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+              {submitting ? 'Creating…' : 'Create Assessment'}
             </Button>
-            <a href={createdLink} target="_blank" rel="noopener noreferrer">
-              <Button variant="outline" size="sm">
-                <ExternalLink className="w-3.5 h-3.5" /> Open Assessment
-              </Button>
-            </a>
-          </div>
-          {respondentEmail && (
-            <p className="text-xs text-neutral-muted">
-              Respondent email (reference only): {respondentEmail}
-            </p>
           )}
-          <div className="rounded-sm bg-orange-tint border border-orange/20 px-3 py-2">
-            <p className="text-xs text-orange-dark">
-              Email delivery is not enabled. Copy and send this assessment link to the client.
-            </p>
-          </div>
-          <p className="text-xs text-neutral-muted">
-            The link is tied to the exact published version of the assessment.
-            Editing the assessment later will not affect this link.
-          </p>
-          <div className="flex gap-2">
-            <Button variant="primary" size="md" to={selectedOrg ? `/clients/${selectedOrg.id}` : '/clients'}>
-              Return to Client
-            </Button>
-            <Button variant="outline" size="md" to="/assessments">Done</Button>
-          </div>
         </Card>
       )}
 
       {/* Navigation */}
-      {step < 3 && assessments.length > 0 && (
+      {step < 2 && assessments.length > 0 && (
         <div className="flex items-center justify-between mt-8">
           <Button variant="ghost" size="md" onClick={() => setStep((s) => Math.max(0, s - 1) as Step)} disabled={step === 0}>
             <ArrowLeft className="w-4 h-4" /> Back
@@ -472,7 +463,7 @@ export default function SendAssessmentPage() {
           <Button
             variant="primary"
             size="md"
-            onClick={() => setStep((s) => Math.min(3, s + 1) as Step)}
+            onClick={() => setStep((s) => Math.min(2, s + 1) as Step)}
             disabled={
               (step === 0 && !canProceedFromStep0) ||
               (step === 1 && (!respondentName.trim() || !respondentEmail.trim()))

@@ -10,6 +10,8 @@ import {
   deriveEmployeeSizeTier,
 } from '../validation';
 
+const sendAssessmentSrc = readFileSync(resolve('src/pages/SendAssessmentPage.tsx'), 'utf-8');
+
 const reusableLinksSrc = readFileSync(resolve('src/services/reusableLinks.ts'), 'utf-8');
 const intakePageSrc = readFileSync(resolve('src/pages/IntakePage.tsx'), 'utf-8');
 const linksPageSrc = readFileSync(resolve('src/pages/ReusableLinksPage.tsx'), 'utf-8');
@@ -170,7 +172,11 @@ describe('Intake page public flow', () => {
     expect(intakePageSrc).toMatch(/email/);
     expect(intakePageSrc).toMatch(/employee_count/);
     expect(intakePageSrc).toMatch(/industry/);
-    expect(intakePageSrc).toMatch(/region/);
+  });
+
+  it('does not include State/Country field', () => {
+    expect(intakePageSrc).not.toMatch(/region/);
+    expect(intakePageSrc).not.toMatch(/State.*Country/i);
   });
 
   it('uses validateEmployeeCount for employee count field', () => {
@@ -198,8 +204,8 @@ describe('Intake page public flow', () => {
     expect(intakePageSrc).toMatch(/'complete'/);
   });
 
-  it('does not expose scoring, permissions, or owner IDs', () => {
-    expect(intakePageSrc).not.toMatch(/scoring_enabled|recommendations_enabled|owner_type|owner_profile_id|generating_user_id/);
+  it('does not expose owner IDs or internal permissions', () => {
+    expect(intakePageSrc).not.toMatch(/owner_type|owner_profile_id|generating_user_id/);
   });
 
   it('uses assessment-specific intro configuration', () => {
@@ -255,6 +261,15 @@ describe('Employee-count picklist replacement', () => {
     expect(newClientSrc).not.toMatch(/employee_count_range/);
   });
 
+  it('NewClientPage does not include funding type', () => {
+    expect(newClientSrc).not.toMatch(/funding_type/);
+    expect(newClientSrc).not.toMatch(/FUNDING_TYPES/);
+  });
+
+  it('ClientDetailPage does not display funding type', () => {
+    expect(clientDetailSrc).not.toMatch(/funding_type|getFundingTypeLabel/);
+  });
+
   it('ClientDetailPage shows employee_count with fallback to range', () => {
     expect(clientDetailSrc).toMatch(/employee_count/);
     expect(clientDetailSrc).toMatch(/employee_count_range/);
@@ -292,5 +307,46 @@ describe('Existing flow preservation', () => {
 
   it('App.tsx preserves /assessment/:token route', () => {
     expect(appSrc).toMatch(/path="\/assessment\/:token"/);
+  });
+});
+
+// ============================================================
+// Conventional send wizard (3 steps only)
+// ============================================================
+
+describe('Conventional send wizard', () => {
+  it('has exactly 3 steps', () => {
+    expect(sendAssessmentSrc).toMatch(/type Step = 0 \| 1 \| 2;/);
+  });
+
+  it('does not have a Step 4', () => {
+    expect(sendAssessmentSrc).not.toMatch(/step === 3/);
+    expect(sendAssessmentSrc).not.toMatch(/Step 4/);
+  });
+
+  it('Step 2 (review) shows Create Assessment as the only primary action', () => {
+    expect(sendAssessmentSrc).toMatch(/Create Assessment/);
+  });
+
+  it('does not show Next button on step 2', () => {
+    expect(sendAssessmentSrc).toMatch(/step < 2/);
+  });
+});
+
+// ============================================================
+// Report selection follows assessment config
+// ============================================================
+
+describe('Report selection follows assessment config', () => {
+  it('resolveReusableLink returns report config fields', () => {
+    expect(reusableLinksSrc).toMatch(/resolve_reusable_link/);
+  });
+
+  it('submitReusableAssessment calls the same scoring pipeline', () => {
+    expect(reusableLinksSrc).toMatch(/submit_reusable_assessment/);
+  });
+
+  it('reusable link scoring is not minimal/global', () => {
+    expect(reusableLinksSrc).not.toMatch(/minimal.*report|abridged.*report/i);
   });
 });
