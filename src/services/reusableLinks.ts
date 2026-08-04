@@ -136,7 +136,7 @@ export async function submitReusableAssessment(params: {
   const { data, error } = await supabase.rpc('submit_reusable_assessment', {
     p_token: params.token,
     p_submission_id: params.submissionId,
-    p_responses: JSON.stringify(params.responses),
+    p_responses: params.responses,
   });
   if (error) {
     logDbError({ fn: 'submitReusableAssessment', error });
