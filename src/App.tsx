@@ -19,6 +19,7 @@ import ReusableLinksPage from './pages/ReusableLinksPage';
 import IntakePage from './pages/IntakePage';
 import AdminAssessmentsPage from './pages/AdminAssessmentsPage';
 import AssessmentReportPage from './pages/AssessmentReportPage';
+import Assessment360AnalysisPage from './pages/Assessment360AnalysisPage';
 import ReportsPage from './pages/ReportsPage';
 import SettingsPage from './pages/SettingsPage';
 import AssessmentPage from './pages/AssessmentPage';
@@ -222,6 +223,7 @@ function AppRoutes() {
       <Route path="/assessments/send" element={<ProtectedRoute><SendAssessmentPage /></ProtectedRoute>} />
       <Route path="/assessments/links" element={<ProtectedRoute><ReusableLinksPage /></ProtectedRoute>} />
       <Route path="/reports/:instanceId" element={<ProtectedRoute><AssessmentReportPage /></ProtectedRoute>} />
+      <Route path="/reports/:instanceId/360-analysis" element={<ProtectedRoute><Assessment360AnalysisPage /></ProtectedRoute>} />
       <Route path="/reports" element={<ProtectedRoute><ReportsPage /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
       <Route path="/admin" element={<ProtectedRoute adminOnly><AdminPage /></ProtectedRoute>} />

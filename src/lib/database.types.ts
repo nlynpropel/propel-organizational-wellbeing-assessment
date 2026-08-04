@@ -939,3 +939,32 @@ export type PropelKnowledgeCatalogRow = {
   client_facing_eligible: boolean;
   created_at: string;
 };
+
+// ============================================================
+// Propel 360 Engagement Assessment — AI Analysis generations
+// ============================================================
+
+export type Propel360GenerationStatus = 'queued' | 'generating' | 'completed' | 'failed';
+
+export type Propel360GenerationRow = {
+  id: string;
+  assessment_instance_id: string;
+  status: Propel360GenerationStatus;
+  output_markdown: string | null;
+  output_json: Record<string, unknown> | null;
+  model: string;
+  prompt_version: string;
+  vector_store_id: string | null;
+  guide_file_id: string | null;
+  created_by: string;
+  created_at: string;
+  completed_at: string | null;
+  error_message: string | null;
+  supersedes_generation_id: string | null;
+};
+
+export type Propel360ConfigRow = {
+  key: string;
+  value: string;
+  updated_at: string;
+};

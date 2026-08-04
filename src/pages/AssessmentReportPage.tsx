@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Mail, Zap, Flag, MessageCircleQuestion } from 'lucide-react';
+import { ArrowLeft, Mail, Zap, Flag, MessageCircleQuestion, Sparkles } from 'lucide-react';
 import BrokerLayout from '../components/layout/BrokerLayout';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
@@ -103,6 +103,28 @@ export default function AssessmentReportPage() {
           <Button variant="ghost" size="sm" to="/reports"><ArrowLeft className="w-4 h-4" /> Back to Reports</Button>
         </div>
       </Card>
+
+      {/* 360 Internal AI Analysis link — shown only for unscored_internal templates */}
+      {template?.report_type === 'unscored_internal' && (profile?.role === 'superadmin' || profile?.role === 'propel_csm') && (
+        <Card className="mb-6 border-l-4 border-l-navy">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-navy/5 flex items-center justify-center">
+                <Sparkles className="w-5 h-5 text-navy" />
+              </div>
+              <div>
+                <h2 className="text-sm font-semibold text-navy">Internal AI Analysis</h2>
+                <p className="text-xs text-neutral-secondary mt-0.5">
+                  Generate or view the internal 360 engagement analysis. Propel Client Services only.
+                </p>
+              </div>
+            </div>
+            <Button variant="outline" size="sm" to={`/reports/${instanceId}/360-analysis`}>
+              Open Analysis
+            </Button>
+          </div>
+        </Card>
+      )}
 
       {/* Overall score hero — dark navy */}
       {overallScore !== null && version?.show_overall_score && (
