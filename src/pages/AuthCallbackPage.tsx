@@ -35,37 +35,21 @@ export default function AuthCallbackPage() {
 
     const finish = async () => {
       try {
-        const { data, error } = await supabase.auth.getSession();
+        // With detectSessionInUrl disabled, we must explicitly exchange the PKCE code.
+        // supabase-js handles the code_verifier from sessionStorage automatically.
+        const { data, error } = await supabase.auth.exchangeCodeForSession(
+          window.location.href,
+        );
         if (cancelled) return;
 
-        if (error) {
+        if (error || !data.session) {
           setStatus('expired');
           return;
         }
 
-        if (data.session) {
-          history.replaceState(null, '', window.location.pathname);
-          setStatus('success');
-          setTimeout(() => navigate('/dashboard', { replace: true }), 600);
-          return;
-        }
-
-        const pollInterval = setInterval(async () => {
-          if (cancelled) return;
-          const { data: pollData } = await supabase.auth.getSession();
-          if (pollData.session) {
-            clearInterval(pollInterval);
-            clearTimeout(timeoutHandle);
-            history.replaceState(null, '', window.location.pathname);
-            setStatus('success');
-            setTimeout(() => navigate('/dashboard', { replace: true }), 600);
-          }
-        }, 500);
-
-        const timeoutHandle = setTimeout(() => {
-          clearInterval(pollInterval);
-          if (!cancelled) setStatus('expired');
-        }, timeoutMs);
+        history.replaceState(null, '', window.location.pathname);
+        setStatus('success');
+        setTimeout(() => navigate('/dashboard', { replace: true }), 600);
       } catch {
         if (!cancelled) setStatus('account_error');
       }
