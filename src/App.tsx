@@ -7,6 +7,9 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { getLabel } from './lib/terminology';
 import LoginPage from './pages/LoginPage';
 import AuthCallbackPage from './pages/AuthCallbackPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import UpdatePasswordPage from './pages/UpdatePasswordPage';
+import SetPasswordPage from './pages/SetPasswordPage';
 import DashboardPage from './pages/DashboardPage';
 import ClientsPage from './pages/ClientsPage';
 import NewClientPage from './pages/NewClientPage';
@@ -155,15 +158,16 @@ function RootRedirect() {
   if (loading) return <FullScreenLoader />;
   if (!user) return <Navigate to="/login" replace />;
   if (!profile) return <Navigate to="/new-account" replace />;
+  // Invited users who haven't set a password yet go to the Set Password page.
+  if (!profile.password_set) return <Navigate to="/set-password" replace />;
   if (!profile.account_setup_complete && status === 'invited' && profile.role !== 'superadmin') {
     return <Navigate to="/new-account" replace />;
   }
   if (status === 'active') return <Navigate to="/dashboard" replace />;
-  // Invited/suspended/archived users land on new-account or are handled by ProtectedRoute elsewhere.
   return <Navigate to="/dashboard" replace />;
 }
 
-function ProtectedRoute({ children, adminOnly = false }: { children: React.ReactNode; adminOnly?: boolean }) {
+function ProtectedRoute({ children, adminOnly = false, allowInvited = false }: { children: React.ReactNode; adminOnly?: boolean; allowInvited?: boolean }) {
   const { user, profile, status, loading, orgLoadError } = useAuth();
   const location = useLocation();
 
@@ -174,8 +178,13 @@ function ProtectedRoute({ children, adminOnly = false }: { children: React.React
   // No profile row — user exists in auth.users but has no profiles entry.
   if (!profile) return <NoProfileScreen />;
 
+  // Invited users who haven't set a password yet must set it first.
+  if (!profile.password_set) return <Navigate to="/set-password" replace />;
+
+  // allowInvited routes (like /set-password) skip the status checks below.
+  if (allowInvited) return <ErrorBoundary>{children}</ErrorBoundary>;
+
   // New users who haven't completed account setup are routed to the setup page.
-  // Superadmins skip this — a superadmin's account is created directly by another superadmin.
   if (!profile.account_setup_complete && status === 'invited' && profile.role !== 'superadmin') {
     return <Navigate to="/new-account" replace />;
   }
@@ -207,6 +216,9 @@ function AppRoutes() {
       <Route path="/" element={<RootRedirect />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/auth/callback" element={<AuthCallbackPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/update-password" element={<UpdatePasswordPage />} />
+      <Route path="/set-password" element={<ProtectedRoute allowInvited><SetPasswordPage /></ProtectedRoute>} />
 
       {/* Account setup for new users */}
       <Route path="/new-account" element={<NewAccountPage />} />

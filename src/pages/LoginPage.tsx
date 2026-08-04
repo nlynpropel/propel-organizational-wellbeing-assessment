@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { ArrowRight, Lock, Mail, AlertTriangle, UserPlus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { isEmailDomainApproved } from '../services/domains';
@@ -160,7 +160,15 @@ export default function LoginPage() {
               </button>
             </form>
 
-            <div className="mt-5 text-center">
+            <div className="mt-5 text-center space-y-2">
+              {mode === 'signin' && (
+                <Link
+                  to="/forgot-password"
+                  className="block text-sm text-neutral-secondary hover:text-navy transition"
+                >
+                  Forgot password?
+                </Link>
+              )}
               <button
                 onClick={switchMode}
                 className="text-sm text-neutral-secondary hover:text-navy transition"

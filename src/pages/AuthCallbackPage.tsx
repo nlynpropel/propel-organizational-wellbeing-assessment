@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, CheckCircle2, AlertTriangle, UserX } from 'lucide-react';
+import { Loader2, AlertTriangle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
-type CallbackStatus = 'completing' | 'success' | 'expired' | 'no_auth' | 'account_error';
+type CallbackStatus = 'completing' | 'expired' | 'no_auth';
 
 export default function AuthCallbackPage() {
   const navigate = useNavigate();
@@ -35,9 +35,10 @@ export default function AuthCallbackPage() {
     const finish = async () => {
       try {
         // With detectSessionInUrl enabled, supabase-js parses the hash/query
-        // and establishes the session automatically. We just verify it landed.
-        // Give the client a tick to process the URL on mount.
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        // and establishes the session automatically on mount. We just verify
+        // it landed, then redirect to the root so RootRedirect can route
+        // the user to the right place (dashboard, set-password, etc.).
+        await new Promise((resolve) => setTimeout(resolve, 200));
 
         const { data, error } = await supabase.auth.getSession();
         if (cancelled) return;
@@ -48,10 +49,9 @@ export default function AuthCallbackPage() {
         }
 
         history.replaceState(null, '', window.location.pathname);
-        setStatus('success');
-        setTimeout(() => navigate('/dashboard', { replace: true }), 600);
+        navigate('/', { replace: true });
       } catch {
-        if (!cancelled) setStatus('account_error');
+        if (!cancelled) setStatus('expired');
       }
     };
 
@@ -62,84 +62,44 @@ export default function AuthCallbackPage() {
     };
   }, [navigate]);
 
+  if (status === 'completing') {
+    return (
+      <div className="min-h-screen bg-navy auth-radial flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 text-green animate-spin mx-auto mb-4" />
+          <p className="text-sm text-white/60">Completing sign in…</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-navy auth-radial flex items-center justify-center px-6">
       <div className="bg-white rounded-lg shadow-xl p-8 max-w-md w-full text-center">
-        {status === 'completing' && (
+        <div className="w-14 h-14 rounded-full bg-red-tint flex items-center justify-center mx-auto mb-4">
+          <AlertTriangle className="w-7 h-7 text-red" />
+        </div>
+        {status === 'expired' ? (
           <>
-            <Loader2 className="w-8 h-8 text-green animate-spin mx-auto mb-4" />
-            <h1 className="text-xl font-semibold text-navy">Completing sign in…</h1>
-            <p className="text-sm text-neutral-secondary mt-2">
-              Verifying your credentials and loading your account.
-            </p>
-          </>
-        )}
-
-        {status === 'success' && (
-          <>
-            <div className="w-14 h-14 rounded-full bg-green-tint flex items-center justify-center mx-auto mb-4">
-              <CheckCircle2 className="w-7 h-7 text-green-dark" />
-            </div>
-            <h1 className="text-xl font-semibold text-navy">Welcome back</h1>
-            <p className="text-sm text-neutral-secondary mt-2">
-              Sign-in verified. Taking you to your dashboard…
-            </p>
-          </>
-        )}
-
-        {status === 'expired' && (
-          <>
-            <div className="w-14 h-14 rounded-full bg-red-tint flex items-center justify-center mx-auto mb-4">
-              <AlertTriangle className="w-7 h-7 text-red" />
-            </div>
             <h1 className="text-xl font-semibold text-navy">Sign-in link is invalid or expired</h1>
             <p className="text-sm text-neutral-secondary mt-2">
               This sign-in link has expired or already been used. Request a new one to continue.
             </p>
-            <button
-              onClick={() => navigate('/login?error=expired', { replace: true })}
-              className="mt-5 inline-flex items-center bg-navy hover:bg-navy-mid text-white text-sm font-medium px-4 py-2 rounded-sm transition"
-            >
-              Request a new link
-            </button>
           </>
-        )}
-
-        {status === 'no_auth' && (
+        ) : (
           <>
-            <div className="w-14 h-14 rounded-full bg-neutral-bg flex items-center justify-center mx-auto mb-4">
-              <AlertTriangle className="w-7 h-7 text-neutral-muted" />
-            </div>
             <h1 className="text-xl font-semibold text-navy">No sign-in data found</h1>
             <p className="text-sm text-neutral-secondary mt-2">
               You arrived at the sign-in callback without authentication parameters.
             </p>
-            <button
-              onClick={() => navigate('/login', { replace: true })}
-              className="mt-5 inline-flex items-center bg-navy hover:bg-navy-mid text-white text-sm font-medium px-4 py-2 rounded-sm transition"
-            >
-              Go to sign in
-            </button>
           </>
         )}
-
-        {status === 'account_error' && (
-          <>
-            <div className="w-14 h-14 rounded-full bg-red-tint flex items-center justify-center mx-auto mb-4">
-              <UserX className="w-7 h-7 text-red" />
-            </div>
-            <h1 className="text-xl font-semibold text-navy">We could not load your account</h1>
-            <p className="text-sm text-neutral-secondary mt-2">
-              Something went wrong while loading your account. Please try again or sign in from the start.
-            </p>
-            <button
-              onClick={() => navigate('/login', { replace: true })}
-              className="mt-5 inline-flex items-center bg-navy hover:bg-navy-mid text-white text-sm font-medium px-4 py-2 rounded-sm transition"
-            >
-              Back to sign in
-            </button>
-          </>
-        )}
+        <button
+          onClick={() => navigate('/login', { replace: true })}
+          className="mt-5 inline-flex items-center bg-navy hover:bg-navy-mid text-white text-sm font-medium px-4 py-2 rounded-sm transition"
+        >
+          Go to sign in
+        </button>
       </div>
     </div>
   );

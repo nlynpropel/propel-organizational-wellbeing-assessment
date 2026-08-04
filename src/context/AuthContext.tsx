@@ -39,6 +39,8 @@ type AuthContextValue = {
   refreshProfile: () => Promise<void>;
   signUp: (email: string, password: string) => Promise<{ error: AuthError }>;
   signIn: (email: string, password: string) => Promise<{ error: AuthError }>;
+  resetPassword: (email: string) => Promise<{ error: AuthError }>;
+  updatePassword: (password: string) => Promise<{ error: AuthError }>;
   signOut: () => Promise<void>;
 };
 
@@ -126,6 +128,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error?.message ?? null };
   };
 
+  const resetPassword = async (email: string) => {
+    const redirectTo = `${window.location.origin}/update-password`;
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo,
+    });
+    return { error: error?.message ?? null };
+  };
+
+  const updatePassword = async (password: string) => {
+    const { error } = await supabase.auth.updateUser({ password });
+    return { error: error?.message ?? null };
+  };
+
   const signOut = async () => {
     await supabase.auth.signOut();
     setProfile(null);
@@ -187,6 +202,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         refreshProfile,
         signUp,
         signIn,
+        resetPassword,
+        updatePassword,
         signOut,
       }}
     >

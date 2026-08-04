@@ -81,6 +81,52 @@ describe('Auth flow — Superadmin invitation', () => {
   });
 });
 
+describe('Auth flow — password reset', () => {
+  it('AuthContext exposes resetPassword using resetPasswordForEmail', () => {
+    expect(authContextSrc).toMatch(/resetPasswordForEmail/);
+    expect(authContextSrc).toMatch(/update-password/);
+  });
+
+  it('AuthContext exposes updatePassword using updateUser', () => {
+    expect(authContextSrc).toMatch(/updateUser/);
+    expect(authContextSrc).toMatch(/updatePassword/);
+  });
+
+  it('ForgotPasswordPage exists and is routed', () => {
+    const forgotSrc = readFileSync(resolve('src/pages/ForgotPasswordPage.tsx'), 'utf-8');
+    expect(forgotSrc).toMatch(/resetPassword/);
+    expect(appSrc).toMatch(/forgot-password/);
+  });
+
+  it('UpdatePasswordPage exists and is routed', () => {
+    const updateSrc = readFileSync(resolve('src/pages/UpdatePasswordPage.tsx'), 'utf-8');
+    expect(updateSrc).toMatch(/updatePassword/);
+    expect(appSrc).toMatch(/update-password/);
+  });
+
+  it('LoginPage has a forgot password link', () => {
+    expect(loginPageSrc).toMatch(/forgot-password/);
+  });
+});
+
+describe('Auth flow — invitation set-password', () => {
+  it('SetPasswordPage exists and is routed', () => {
+    const setPwSrc = readFileSync(resolve('src/pages/SetPasswordPage.tsx'), 'utf-8');
+    expect(setPwSrc).toMatch(/updatePassword/);
+    expect(setPwSrc).toMatch(/completeAccountSetup/);
+    expect(appSrc).toMatch(/set-password/);
+  });
+
+  it('RootRedirect routes password_set=false users to /set-password', () => {
+    expect(appSrc).toMatch(/password_set/);
+    expect(appSrc).toMatch(/\/set-password/);
+  });
+
+  it('ProtectedRoute blocks invited users without password from app routes', () => {
+    expect(appSrc).toMatch(/allowInvited/);
+  });
+});
+
 describe('Auth flow — existing user repair', () => {
   it('admin service has repairUser function calling admin_repair_user RPC', () => {
     expect(adminSrc).toMatch(/admin_repair_user/);

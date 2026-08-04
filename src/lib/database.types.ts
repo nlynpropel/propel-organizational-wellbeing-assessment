@@ -64,6 +64,7 @@ export type ProfileRow = {
   average_client_size: AverageClientSize | null;
   territory: string | null;
   account_setup_complete: boolean;
+  password_set: boolean;
   created_at: string;
   updated_at: string;
   last_login_at: string | null;
