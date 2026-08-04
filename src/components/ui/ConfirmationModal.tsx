@@ -9,6 +9,7 @@ export default function ConfirmationModal({
   confirmLabel = 'Confirm',
   cancelLabel = 'Cancel',
   variant = 'danger',
+  confirmDisabled,
   onConfirm,
   onCancel,
 }: {
@@ -18,6 +19,7 @@ export default function ConfirmationModal({
   confirmLabel?: string;
   cancelLabel?: string;
   variant?: 'danger' | 'primary';
+  confirmDisabled?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
@@ -43,7 +45,7 @@ export default function ConfirmationModal({
           <Button variant="ghost" size="md" onClick={onCancel}>
             {cancelLabel}
           </Button>
-          <Button variant={variant === 'danger' ? 'danger' : 'primary'} size="md" onClick={onConfirm}>
+          <Button variant={variant === 'danger' ? 'danger' : 'primary'} size="md" onClick={onConfirm} disabled={confirmDisabled}>
             {confirmLabel}
           </Button>
         </div>

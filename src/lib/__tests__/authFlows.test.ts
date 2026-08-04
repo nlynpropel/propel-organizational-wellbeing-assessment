@@ -139,6 +139,21 @@ describe('User management — role change and deletion', () => {
     expect(adminSrc).toMatch(/admin_delete_user/);
   });
 
+  it('admin service has deactivateUser function calling admin_deactivate_user RPC', () => {
+    expect(adminSrc).toMatch(/deactivateUser/);
+    expect(adminSrc).toMatch(/admin_deactivate_user/);
+  });
+
+  it('admin service has reactivateUser function calling admin_reactivate_user RPC', () => {
+    expect(adminSrc).toMatch(/reactivateUser/);
+    expect(adminSrc).toMatch(/admin_reactivate_user/);
+  });
+
+  it('admin service has checkUserDeletable function calling admin_check_user_deletable RPC', () => {
+    expect(adminSrc).toMatch(/checkUserDeletable/);
+    expect(adminSrc).toMatch(/admin_check_user_deletable/);
+  });
+
   it('AdminPage has role change UI', () => {
     expect(adminPageSrc).toMatch(/roleChangeUserId/);
     expect(adminPageSrc).toMatch(/handleRoleChange/);
@@ -149,6 +164,24 @@ describe('User management — role change and deletion', () => {
     expect(adminPageSrc).toMatch(/handleDeleteUser/);
   });
 
+  it('AdminPage has deactivate user UI', () => {
+    expect(adminPageSrc).toMatch(/userToDeactivate/);
+    expect(adminPageSrc).toMatch(/handleDeactivateUser/);
+  });
+
+  it('AdminPage has reactivate user UI', () => {
+    expect(adminPageSrc).toMatch(/handleReactivateUser/);
+  });
+
+  it('AdminPage checks deletion eligibility before allowing delete', () => {
+    expect(adminPageSrc).toMatch(/deleteEligibility/);
+    expect(adminPageSrc).toMatch(/handleCheckDeletable/);
+  });
+
+  it('AdminPage blocks delete button when not eligible', () => {
+    expect(adminPageSrc).toMatch(/confirmDisabled/);
+  });
+
   it('AdminPage shows approved-domain help text on invite form', () => {
     expect(adminPageSrc).toMatch(/Invitations can only be sent to email domains approved by the Superadmin/);
   });
@@ -156,6 +189,14 @@ describe('User management — role change and deletion', () => {
   it('AdminPage does not say invitations work with any domain', () => {
     expect(adminPageSrc).not.toMatch(/Works with any domain/i);
     expect(adminPageSrc).not.toMatch(/any email domain/i);
+  });
+
+  it('AdminPage does not auto-delete shared data in delete confirmation', () => {
+    expect(adminPageSrc).not.toMatch(/all associated data/i);
+  });
+
+  it('AdminPage shows Deactivated label for suspended status', () => {
+    expect(adminPageSrc).toMatch(/Deactivated/);
   });
 });
 

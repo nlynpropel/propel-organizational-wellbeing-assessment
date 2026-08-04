@@ -13,6 +13,8 @@ import {
   Send,
   Wrench,
   ChevronDown,
+  Ban,
+  RotateCcw,
 } from 'lucide-react';
 import BrokerLayout from '../components/layout/BrokerLayout';
 import PageHeader from '../components/layout/PageHeader';
@@ -24,7 +26,7 @@ import ErrorState from '../components/ui/ErrorState';
 import EmptyState from '../components/ui/EmptyState';
 import ConfirmationModal from '../components/ui/ConfirmationModal';
 import { fetchApprovedDomains, addApprovedDomain, removeApprovedDomain, normalizeDomain } from '../services/domains';
-import { fetchAllUsers, inviteUser, resendInvitation, repairUser, changeUserRole, deleteUser } from '../services/admin';
+import { fetchAllUsers, inviteUser, resendInvitation, repairUser, changeUserRole, deactivateUser, reactivateUser, checkUserDeletable, deleteUser } from '../services/admin';
 import { fetchBrokerCount } from '../services/profiles';
 import type { ApprovedDomainRow, UserDirectoryRow } from '../lib/database.types';
 
@@ -74,9 +76,15 @@ export default function AdminPage() {
   const [roleChangeValue, setRoleChangeValue] = useState<CanonicalRole>('broker');
   const [changingRole, setChangingRole] = useState(false);
 
+  // Deactivate state
+  const [userToDeactivate, setUserToDeactivate] = useState<UserDirectoryRow | null>(null);
+  const [deactivating, setDeactivating] = useState(false);
+
   // Delete state
   const [userToDelete, setUserToDelete] = useState<UserDirectoryRow | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [deleteEligibility, setDeleteEligibility] = useState<{ eligible: boolean; reason: string } | null>(null);
+  const [checkingDeletable, setCheckingDeletable] = useState(false);
 
   // Action state
   const [actionUserId, setActionUserId] = useState<string | null>(null);
@@ -204,16 +212,59 @@ export default function AdminPage() {
     }
   };
 
+  const handleDeactivateUser = async () => {
+    if (!userToDeactivate) return;
+    setDeactivating(true);
+    try {
+      await deactivateUser(userToDeactivate.id);
+      setUserToDeactivate(null);
+      await loadUsers();
+    } catch (err) {
+      setUsersError(err instanceof Error ? err.message : 'Failed to deactivate user.');
+      setUserToDeactivate(null);
+    } finally {
+      setDeactivating(false);
+    }
+  };
+
+  const handleReactivateUser = async (userId: string) => {
+    setActionUserId(userId);
+    try {
+      await reactivateUser(userId);
+      await loadUsers();
+    } catch (err) {
+      setUsersError(err instanceof Error ? err.message : 'Failed to reactivate user.');
+    } finally {
+      setActionUserId(null);
+    }
+  };
+
+  const handleCheckDeletable = async (user: UserDirectoryRow) => {
+    setUserToDelete(user);
+    setDeleteEligibility(null);
+    setCheckingDeletable(true);
+    try {
+      const result = await checkUserDeletable(user.id);
+      setDeleteEligibility(result);
+    } catch (err) {
+      setDeleteEligibility({ eligible: false, reason: err instanceof Error ? err.message : 'Failed to check eligibility.' });
+    } finally {
+      setCheckingDeletable(false);
+    }
+  };
+
   const handleDeleteUser = async () => {
     if (!userToDelete) return;
     setDeleting(true);
     try {
       await deleteUser(userToDelete.id);
       setUserToDelete(null);
+      setDeleteEligibility(null);
       await loadUsers();
     } catch (err) {
       setUsersError(err instanceof Error ? err.message : 'Failed to delete user.');
       setUserToDelete(null);
+      setDeleteEligibility(null);
     } finally {
       setDeleting(false);
     }
@@ -397,7 +448,7 @@ export default function AdminPage() {
                         </td>
                         <td className="px-5 py-3">
                           <Badge variant={statusVariant(u.status)} dot>
-                            {u.status ?? '—'}
+                            {statusLabel(u.status)}
                           </Badge>
                         </td>
                         <td className="px-5 py-3 text-sm text-neutral-secondary hidden md:table-cell">
@@ -446,11 +497,32 @@ export default function AdminPage() {
                             >
                               <ChevronDown className="w-4 h-4" />
                             </button>
+                            {u.status === 'active' && (
+                              <button
+                                onClick={() => setUserToDeactivate(u)}
+                                className="p-1.5 rounded-md text-neutral-muted hover:text-orange hover:bg-orange-tint transition"
+                                aria-label="Deactivate user"
+                                title="Deactivate user"
+                              >
+                                <Ban className="w-4 h-4" />
+                              </button>
+                            )}
+                            {u.status === 'suspended' && (
+                              <button
+                                onClick={() => handleReactivateUser(u.id)}
+                                disabled={actionUserId === u.id}
+                                className="p-1.5 rounded-md text-neutral-muted hover:text-green hover:bg-green-tint transition disabled:opacity-50"
+                                aria-label="Reactivate user"
+                                title="Reactivate user"
+                              >
+                                {actionUserId === u.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />}
+                              </button>
+                            )}
                             <button
-                              onClick={() => setUserToDelete(u)}
+                              onClick={() => handleCheckDeletable(u)}
                               className="p-1.5 rounded-md text-neutral-muted hover:text-red hover:bg-red-tint transition"
-                              aria-label="Delete user"
-                              title="Delete user"
+                              aria-label="Permanently delete user"
+                              title="Permanently delete user"
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
@@ -571,20 +643,55 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* Delete user confirmation */}
+      {/* Deactivate user confirmation */}
       <ConfirmationModal
-        open={!!userToDelete}
-        title="Delete user"
+        open={!!userToDeactivate}
+        title="Deactivate user"
         message={
           <>
-            Are you sure you want to permanently delete <span className="font-semibold">{userToDelete?.email}</span>?
-            This will remove their account, profile, organization membership, and all associated data. This action cannot be undone.
+            Deactivate <span className="font-semibold">{userToDeactivate?.email}</span>?
+            The user will lose access to the platform, but their profile and all created records will be preserved for historical attribution. You can reactivate the account later.
           </>
+        }
+        confirmLabel={deactivating ? 'Deactivating…' : 'Deactivate'}
+        variant="danger"
+        onConfirm={handleDeactivateUser}
+        onCancel={() => setUserToDeactivate(null)}
+      />
+
+      {/* Delete user confirmation with eligibility check */}
+      <ConfirmationModal
+        open={!!userToDelete}
+        title="Permanently delete user"
+        message={
+          checkingDeletable ? (
+            <div className="flex items-center gap-2">
+              <Loader2 className="w-4 h-4 animate-spin text-navy" />
+              <span className="text-sm text-neutral-secondary">Checking for associated records…</span>
+            </div>
+          ) : deleteEligibility ? (
+            <div className="space-y-3">
+              <p>
+                Permanently delete <span className="font-semibold">{userToDelete?.email}</span>?
+                This will remove their auth account, profile, and organization memberships. This action cannot be undone.
+              </p>
+              {deleteEligibility.eligible ? (
+                <div className="rounded-md border border-green/25 bg-green-tint px-3 py-2">
+                  <p className="text-sm text-green-dark">{deleteEligibility.reason}</p>
+                </div>
+              ) : (
+                <div className="rounded-md border border-red/25 bg-red-tint px-3 py-2">
+                  <p className="text-sm text-red">{deleteEligibility.reason}</p>
+                </div>
+              )}
+            </div>
+          ) : null
         }
         confirmLabel={deleting ? 'Deleting…' : 'Delete permanently'}
         variant="danger"
         onConfirm={handleDeleteUser}
-        onCancel={() => setUserToDelete(null)}
+        onCancel={() => { setUserToDelete(null); setDeleteEligibility(null); }}
+        confirmDisabled={checkingDeletable || !deleteEligibility?.eligible}
       />
 
       <ConfirmationModal
@@ -670,6 +777,23 @@ function statusVariant(status: string | null): 'success' | 'warning' | 'neutral'
       return 'warning';
     default:
       return 'neutral';
+  }
+}
+
+function statusLabel(status: string | null): string {
+  switch (status) {
+    case 'active':
+      return 'Active';
+    case 'invited':
+      return 'Invited';
+    case 'suspended':
+      return 'Deactivated';
+    case 'archived':
+      return 'Archived';
+    case 'setup_incomplete':
+      return 'Setup Incomplete';
+    default:
+      return status ?? '—';
   }
 }
 

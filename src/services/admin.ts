@@ -83,6 +83,22 @@ export async function changeUserRole(userId: string, role: 'superadmin' | 'prope
   if (error) throw error;
 }
 
+export async function deactivateUser(userId: string): Promise<void> {
+  const { error } = await supabase.rpc('admin_deactivate_user', { p_user_id: userId });
+  if (error) throw error;
+}
+
+export async function reactivateUser(userId: string): Promise<void> {
+  const { error } = await supabase.rpc('admin_reactivate_user', { p_user_id: userId });
+  if (error) throw error;
+}
+
+export async function checkUserDeletable(userId: string): Promise<{ eligible: boolean; reason: string }> {
+  const { data, error } = await supabase.rpc('admin_check_user_deletable', { p_user_id: userId });
+  if (error) throw error;
+  return data as { eligible: boolean; reason: string };
+}
+
 export async function deleteUser(userId: string): Promise<void> {
   const { error } = await supabase.rpc('admin_delete_user', { p_user_id: userId });
   if (error) throw error;
