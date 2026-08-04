@@ -12,6 +12,7 @@ import {
   UserPlus,
   Send,
   Wrench,
+  ChevronDown,
 } from 'lucide-react';
 import BrokerLayout from '../components/layout/BrokerLayout';
 import PageHeader from '../components/layout/PageHeader';
@@ -23,11 +24,22 @@ import ErrorState from '../components/ui/ErrorState';
 import EmptyState from '../components/ui/EmptyState';
 import ConfirmationModal from '../components/ui/ConfirmationModal';
 import { fetchApprovedDomains, addApprovedDomain, removeApprovedDomain, normalizeDomain } from '../services/domains';
-import { fetchAllUsers, inviteUser, resendInvitation, repairUser } from '../services/admin';
+import { fetchAllUsers, inviteUser, resendInvitation, repairUser, changeUserRole, deleteUser } from '../services/admin';
 import { fetchBrokerCount } from '../services/profiles';
 import type { ApprovedDomainRow, UserDirectoryRow } from '../lib/database.types';
 
 type Tab = 'domains' | 'users';
+
+type CanonicalRole = 'superadmin' | 'propel_csm' | 'propel_sales' | 'broker';
+
+const ROLE_LABELS: Record<CanonicalRole, string> = {
+  superadmin: 'Superadmin',
+  propel_csm: 'Propel Client Services',
+  propel_sales: 'Propel Sales',
+  broker: 'Broker',
+};
+
+const INVITE_ROLES: CanonicalRole[] = ['broker', 'propel_csm', 'propel_sales'];
 
 export default function AdminPage() {
   const [tab, setTab] = useState<Tab>('domains');
@@ -53,9 +65,18 @@ export default function AdminPage() {
   // Invite modal state
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState<'superadmin' | 'propel_csm' | 'propel_sales' | 'broker'>('broker');
+  const [inviteRole, setInviteRole] = useState<CanonicalRole>('broker');
   const [inviting, setInviting] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
+
+  // Role-change state
+  const [roleChangeUserId, setRoleChangeUserId] = useState<string | null>(null);
+  const [roleChangeValue, setRoleChangeValue] = useState<CanonicalRole>('broker');
+  const [changingRole, setChangingRole] = useState(false);
+
+  // Delete state
+  const [userToDelete, setUserToDelete] = useState<UserDirectoryRow | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   // Action state
   const [actionUserId, setActionUserId] = useState<string | null>(null);
@@ -92,7 +113,6 @@ export default function AdminPage() {
     loadDomains();
   }, [loadDomains]);
 
-  // Load users when the tab is first opened
   useEffect(() => {
     if (tab === 'users' && !usersLoaded && !usersLoading) {
       loadUsers();
@@ -170,6 +190,35 @@ export default function AdminPage() {
     }
   };
 
+  const handleRoleChange = async () => {
+    if (!roleChangeUserId) return;
+    setChangingRole(true);
+    try {
+      await changeUserRole(roleChangeUserId, roleChangeValue);
+      setRoleChangeUserId(null);
+      await loadUsers();
+    } catch (err) {
+      setUsersError(err instanceof Error ? err.message : 'Failed to change role.');
+    } finally {
+      setChangingRole(false);
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!userToDelete) return;
+    setDeleting(true);
+    try {
+      await deleteUser(userToDelete.id);
+      setUserToDelete(null);
+      await loadUsers();
+    } catch (err) {
+      setUsersError(err instanceof Error ? err.message : 'Failed to delete user.');
+      setUserToDelete(null);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <BrokerLayout title="Propel Admin">
       <PageHeader
@@ -181,9 +230,9 @@ export default function AdminPage() {
       <div className="rounded-md border border-orange/25 bg-orange-tint px-4 py-3 mb-6 flex items-start gap-2.5">
         <Shield className="w-5 h-5 text-orange shrink-0 mt-0.5" />
         <div>
-          <p className="text-sm font-semibold text-orange">Super Admin</p>
+          <p className="text-sm font-semibold text-orange">Superadmin</p>
           <p className="text-sm text-orange/80 mt-0.5">
-            Only users with an active superadmin profile can access this page and manage platform settings.
+            Only users with an active Superadmin profile can access this page and manage platform settings.
           </p>
         </div>
       </div>
@@ -205,7 +254,7 @@ export default function AdminPage() {
               <div>
                 <h3 className="text-base font-semibold text-navy">Approved email domains</h3>
                 <p className="text-sm text-neutral-secondary mt-1">
-                  Only users with an email address from an approved domain can self-register via the magic-link flow.
+                  Only users with an email address from an approved domain can self-register or be invited.
                 </p>
               </div>
             </div>
@@ -246,7 +295,7 @@ export default function AdminPage() {
               <EmptyState
                 icon={Globe}
                 title="No approved domains yet"
-                description="Add a domain above to allow users with that email domain to self-register."
+                description="Add a domain above to allow users with that email domain to self-register or be invited."
               />
             ) : (
               <div className="divide-y divide-neutral-border-soft rounded-md border border-neutral-border">
@@ -286,7 +335,7 @@ export default function AdminPage() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <SummaryCard label="Total Users" value={usersLoading ? '—' : users.length} icon={Users} />
             <SummaryCard label="Active" value={usersLoading ? '—' : users.filter((p) => p.status === 'active').length} icon={CheckCircle2} />
-            <SummaryCard label="Advisors" value={usersLoading ? '—' : brokerCount ?? 0} icon={Building2} />
+            <SummaryCard label="Brokers" value={usersLoading ? '—' : brokerCount ?? 0} icon={Building2} />
             <SummaryCard label="Pending Setup" value={usersLoading ? '—' : users.filter((p) => !p.account_setup_complete).length} icon={Mail} />
           </div>
 
@@ -342,7 +391,9 @@ export default function AdminPage() {
                         </td>
                         <td className="px-5 py-3 text-sm text-neutral-secondary">{u.email}</td>
                         <td className="px-5 py-3">
-                          <Badge variant={u.role === 'superadmin' ? 'warning' : u.role === 'propel_csm' || u.role === 'propel_sales' ? 'info' : 'neutral'}>{u.role ?? '—'}</Badge>
+                          <Badge variant={roleBadgeVariant(u.role)}>
+                            {u.role ? ROLE_LABELS[u.role as CanonicalRole] ?? u.role : '—'}
+                          </Badge>
                         </td>
                         <td className="px-5 py-3">
                           <Badge variant={statusVariant(u.status)} dot>
@@ -383,6 +434,25 @@ export default function AdminPage() {
                               title="Repair account"
                             >
                               <Wrench className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                setRoleChangeUserId(u.id);
+                                setRoleChangeValue((u.role as CanonicalRole) ?? 'broker');
+                              }}
+                              className="p-1.5 rounded-md text-neutral-muted hover:text-navy hover:bg-navy/5 transition"
+                              aria-label="Change role"
+                              title="Change role"
+                            >
+                              <ChevronDown className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => setUserToDelete(u)}
+                              className="p-1.5 rounded-md text-neutral-muted hover:text-red hover:bg-red-tint transition"
+                              aria-label="Delete user"
+                              title="Delete user"
+                            >
+                              <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
                         </td>
@@ -429,14 +499,14 @@ export default function AdminPage() {
                   autoFocus
                 />
                 <p className="text-xs text-neutral-muted mt-1">
-                  Works with any domain — no need for an approved domain.
+                  Invitations can only be sent to email domains approved by the Superadmin.
                 </p>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-navy mb-1.5">Role</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {(['broker', 'admin'] as const).map((r) => (
+                <div className="grid grid-cols-1 gap-2">
+                  {INVITE_ROLES.map((r) => (
                     <button
                       key={r}
                       type="button"
@@ -447,7 +517,7 @@ export default function AdminPage() {
                           : 'border-neutral-border bg-white hover:border-navy/20'
                       }`}
                     >
-                      <span className="block text-sm font-semibold text-navy capitalize">{r}</span>
+                      <span className="block text-sm font-semibold text-navy">{ROLE_LABELS[r]}</span>
                     </button>
                   ))}
                 </div>
@@ -466,6 +536,56 @@ export default function AdminPage() {
           </div>
         </div>
       )}
+
+      {/* Role change modal */}
+      {roleChangeUserId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <h2 className="text-lg font-semibold text-navy mb-4">Change Role</h2>
+            <div className="space-y-2 mb-6">
+              {(['broker', 'propel_csm', 'propel_sales', 'superadmin'] as CanonicalRole[]).map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => setRoleChangeValue(r)}
+                  className={`w-full text-left rounded-md border p-3 transition ${
+                    roleChangeValue === r
+                      ? 'border-green bg-green-tint ring-2 ring-green/20'
+                      : 'border-neutral-border bg-white hover:border-navy/20'
+                  }`}
+                >
+                  <span className="block text-sm font-semibold text-navy">{ROLE_LABELS[r]}</span>
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-3">
+              <Button onClick={handleRoleChange} disabled={changingRole} className="flex-1">
+                {changingRole ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                {changingRole ? 'Saving…' : 'Save'}
+              </Button>
+              <Button type="button" variant="secondary" onClick={() => setRoleChangeUserId(null)} disabled={changingRole}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete user confirmation */}
+      <ConfirmationModal
+        open={!!userToDelete}
+        title="Delete user"
+        message={
+          <>
+            Are you sure you want to permanently delete <span className="font-semibold">{userToDelete?.email}</span>?
+            This will remove their account, profile, organization membership, and all associated data. This action cannot be undone.
+          </>
+        }
+        confirmLabel={deleting ? 'Deleting…' : 'Delete permanently'}
+        variant="danger"
+        onConfirm={handleDeleteUser}
+        onCancel={() => setUserToDelete(null)}
+      />
 
       <ConfirmationModal
         open={!!domainToDelete}
@@ -546,6 +666,20 @@ function statusVariant(status: string | null): 'success' | 'warning' | 'neutral'
       return 'danger';
     case 'archived':
       return 'neutral';
+    case 'setup_incomplete':
+      return 'warning';
+    default:
+      return 'neutral';
+  }
+}
+
+function roleBadgeVariant(role: string | null): 'warning' | 'info' | 'neutral' {
+  switch (role) {
+    case 'superadmin':
+      return 'warning';
+    case 'propel_csm':
+    case 'propel_sales':
+      return 'info';
     default:
       return 'neutral';
   }

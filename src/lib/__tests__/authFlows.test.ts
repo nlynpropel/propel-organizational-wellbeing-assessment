@@ -74,6 +74,11 @@ describe('Auth flow — Superadmin invitation', () => {
     expect(edgeFnSrc).toMatch(/SUPABASE_SERVICE_ROLE_KEY/);
     expect(edgeFnSrc).not.toMatch(/service_role.*JSON\.stringify/);
   });
+
+  it('edge function validates email domain against approved_domains before creating user', () => {
+    expect(edgeFnSrc).toMatch(/approved_domains/);
+    expect(edgeFnSrc).toMatch(/not approved/i);
+  });
 });
 
 describe('Auth flow — existing user repair', () => {
@@ -96,13 +101,61 @@ describe('Canonical roles', () => {
     expect(appSrc).not.toMatch(/role === 'admin'/);
   });
 
-  it('AdminPage invite modal offers canonical roles only', () => {
-    expect(adminPageSrc).toMatch(/superadmin.*propel_csm.*propel_sales.*broker/);
+  it('AdminPage invite modal offers canonical roles only (broker, propel_csm, propel_sales)', () => {
+    expect(adminPageSrc).toMatch(/propel_csm/);
+    expect(adminPageSrc).toMatch(/propel_sales/);
     expect(adminPageSrc).not.toMatch(/'admin'.*'broker'.*as const/);
   });
 
   it('AdminPage does not use legacy admin role for badges', () => {
     expect(adminPageSrc).not.toMatch(/=== 'admin'/);
+  });
+
+  it('AdminPage uses ROLE_LABELS for display (Superadmin, Propel Client Services, Propel Sales, Broker)', () => {
+    expect(adminPageSrc).toMatch(/Superadmin/);
+    expect(adminPageSrc).toMatch(/Propel Client Services/);
+    expect(adminPageSrc).toMatch(/Propel Sales/);
+    expect(adminPageSrc).toMatch(/Broker/);
+  });
+
+  it('AdminPage does not display Benefits Advisor', () => {
+    expect(adminPageSrc).not.toMatch(/Benefits Advisor/i);
+    expect(adminPageSrc).not.toMatch(/benefits_advisor/i);
+  });
+
+  it('AdminPage does not display legacy Advisor label for roles', () => {
+    expect(adminPageSrc).not.toMatch(/'Advisor'/);
+  });
+});
+
+describe('User management — role change and deletion', () => {
+  it('admin service has changeUserRole function calling admin_change_user_role RPC', () => {
+    expect(adminSrc).toMatch(/changeUserRole/);
+    expect(adminSrc).toMatch(/admin_change_user_role/);
+  });
+
+  it('admin service has deleteUser function calling admin_delete_user RPC', () => {
+    expect(adminSrc).toMatch(/deleteUser/);
+    expect(adminSrc).toMatch(/admin_delete_user/);
+  });
+
+  it('AdminPage has role change UI', () => {
+    expect(adminPageSrc).toMatch(/roleChangeUserId/);
+    expect(adminPageSrc).toMatch(/handleRoleChange/);
+  });
+
+  it('AdminPage has delete user UI', () => {
+    expect(adminPageSrc).toMatch(/userToDelete/);
+    expect(adminPageSrc).toMatch(/handleDeleteUser/);
+  });
+
+  it('AdminPage shows approved-domain help text on invite form', () => {
+    expect(adminPageSrc).toMatch(/Invitations can only be sent to email domains approved by the Superadmin/);
+  });
+
+  it('AdminPage does not say invitations work with any domain', () => {
+    expect(adminPageSrc).not.toMatch(/Works with any domain/i);
+    expect(adminPageSrc).not.toMatch(/any email domain/i);
   });
 });
 

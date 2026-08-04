@@ -90,6 +90,12 @@ function getRedirectUrl(): string {
   return `${siteUrl.replace(/\/$/, "")}/auth/callback`;
 }
 
+function normalizeDomain(email: string): string {
+  const parts = email.split("@");
+  if (parts.length < 2) return "";
+  return parts[parts.length - 1].toLowerCase().trim();
+}
+
 async function handleInvite(
   adminClient: ReturnType<typeof createClient>,
   body: InviteRequestBody
@@ -111,6 +117,37 @@ async function handleInvite(
     });
   }
 
+  // Validate email domain against approved_domains before creating any records
+  const domain = normalizeDomain(email);
+  if (!domain) {
+    return new Response(JSON.stringify({ error: "Invalid email address" }), {
+      status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const { data: domainApproved, error: domainErr } = await adminClient
+    .from("approved_domains")
+    .select("id")
+    .ilike("domain", domain)
+    .maybeSingle();
+
+  if (domainErr) {
+    return new Response(JSON.stringify({ error: "Failed to validate email domain" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  if (!domainApproved) {
+    return new Response(JSON.stringify({
+      error: `Email domain @${domain} is not approved. Invitations can only be sent to email domains approved by the Superadmin.`,
+    }), {
+      status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   const orgId = organization_id || null;
   const { data: userId, error: rpcErr } = await adminClient.rpc("admin_invite_user", {
     p_email: email,
@@ -125,11 +162,10 @@ async function handleInvite(
     });
   }
 
-  // Use inviteUserByEmail — Supabase sends the invitation email automatically
   let redirectTo: string;
   try {
     redirectTo = getRedirectUrl();
-  } catch (e) {
+  } catch {
     return new Response(JSON.stringify({
       user_id: userId,
       warning: "User created but SITE_URL is not configured. Set the SITE_URL edge function secret to send invitation emails.",
@@ -187,7 +223,7 @@ async function handleResend(
   let redirectTo: string;
   try {
     redirectTo = getRedirectUrl();
-  } catch (e) {
+  } catch {
     return new Response(JSON.stringify({ error: "SITE_URL is not configured. Set it to send invitation emails." }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

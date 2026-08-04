@@ -75,4 +75,17 @@ export async function repairUser(userId: string): Promise<void> {
   if (error) throw error;
 }
 
+export async function changeUserRole(userId: string, role: 'superadmin' | 'propel_csm' | 'propel_sales' | 'broker'): Promise<void> {
+  const { error } = await supabase.rpc('admin_change_user_role', {
+    p_user_id: userId,
+    p_role: role,
+  });
+  if (error) throw error;
+}
+
+export async function deleteUser(userId: string): Promise<void> {
+  const { error } = await supabase.rpc('admin_delete_user', { p_user_id: userId });
+  if (error) throw error;
+}
+
 export type { UserDirectoryRow, AuditLogRow };
