@@ -15,6 +15,8 @@ import ResultsPage from './pages/ResultsPage';
 import AssessmentsPage from './pages/AssessmentsPage';
 import AssessmentBuilderPage from './pages/AssessmentBuilderPage';
 import SendAssessmentPage from './pages/SendAssessmentPage';
+import ReusableLinksPage from './pages/ReusableLinksPage';
+import IntakePage from './pages/IntakePage';
 import AdminAssessmentsPage from './pages/AdminAssessmentsPage';
 import AssessmentReportPage from './pages/AssessmentReportPage';
 import ReportsPage from './pages/ReportsPage';
@@ -218,6 +220,7 @@ function AppRoutes() {
       <Route path="/assessments/builder" element={FEATURE_FLAGS.ENABLE_CUSTOM_ASSESSMENT_BUILDER ? <ProtectedRoute><AssessmentBuilderPage /></ProtectedRoute> : <Navigate to="/assessments" replace />} />
       <Route path="/assessments/builder/:assessmentId" element={FEATURE_FLAGS.ENABLE_CUSTOM_ASSESSMENT_BUILDER ? <ProtectedRoute><AssessmentBuilderPage /></ProtectedRoute> : <Navigate to="/assessments" replace />} />
       <Route path="/assessments/send" element={<ProtectedRoute><SendAssessmentPage /></ProtectedRoute>} />
+      <Route path="/assessments/links" element={<ProtectedRoute><ReusableLinksPage /></ProtectedRoute>} />
       <Route path="/reports/:instanceId" element={<ProtectedRoute><AssessmentReportPage /></ProtectedRoute>} />
       <Route path="/reports" element={<ProtectedRoute><ReportsPage /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
@@ -226,6 +229,7 @@ function AppRoutes() {
 
       {/* Public respondent assessment (no auth required) */}
       <Route path="/assessment/:token" element={<AssessmentPage />} />
+      <Route path="/intake/:token" element={<IntakePage />} />
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

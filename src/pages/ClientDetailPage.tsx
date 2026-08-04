@@ -143,7 +143,7 @@ export default function ClientDetailPage() {
             {org.archived_at && <Badge variant="neutral">Archived</Badge>}
           </div>
           <p className="text-sm text-neutral-secondary mt-1">
-            {org.industry ?? 'No industry'} · {org.employee_count_range ?? 'Unknown size'}
+            {org.industry ?? 'No industry'} · {org.employee_count ? `${org.employee_count} employees` : org.employee_count_range ?? 'Unknown size'}
             {org.number_of_locations !== null && ` · ${org.number_of_locations} locations`}
             {' · '}{getFundingTypeLabel(org.funding_type)}
           </p>
@@ -247,7 +247,7 @@ function OverviewTab({ org, instances }: { org: OrganizationWithAssessment; inst
           <span className="eyebrow">Organization profile</span>
           <dl className="mt-3 space-y-2.5 text-sm">
             <div className="flex justify-between"><dt className="text-neutral-muted">Industry</dt><dd className="text-navy font-medium">{org.industry ?? '—'}</dd></div>
-            <div className="flex justify-between"><dt className="text-neutral-muted">Employees</dt><dd className="text-navy font-medium">{org.employee_count_range ?? '—'}</dd></div>
+            <div className="flex justify-between"><dt className="text-neutral-muted">Employees</dt><dd className="text-navy font-medium">{org.employee_count ? `${org.employee_count}` : org.employee_count_range ?? '—'}{org.employee_count_needs_confirmation && !org.employee_count && ' (needs confirmation)'}</dd></div>
             <div className="flex justify-between"><dt className="text-neutral-muted">Locations</dt><dd className="text-navy font-medium">{org.number_of_locations ?? '—'}</dd></div>
             <div className="flex justify-between"><dt className="text-neutral-muted">Funding</dt><dd className="text-navy font-medium">{getFundingTypeLabel(org.funding_type)}</dd></div>
             <div className="flex justify-between"><dt className="text-neutral-muted">Contact</dt><dd className="text-navy font-medium">{org.client_contact_name ?? '—'}</dd></div>

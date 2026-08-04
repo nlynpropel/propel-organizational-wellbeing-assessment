@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Send, CheckCircle2, Clock, FileText, Layers, ListChecks, Sparkles } from 'lucide-react';
+import { Send, CheckCircle2, Clock, FileText, Layers, ListChecks, Sparkles, Link } from 'lucide-react';
 import BrokerLayout from '../components/layout/BrokerLayout';
 import PageHeader from '../components/layout/PageHeader';
 import Card from '../components/ui/Card';
@@ -96,9 +96,14 @@ export default function AssessmentsPage() {
         subtitle="Propel-published assessments available for your clients."
         breadcrumbs={[{ label: 'Assessments' }]}
         actions={
-          <Button variant="primary" size="sm" to="/assessments/send">
-            <Send className="w-4 h-4" /> Send assessment
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" to="/assessments/links">
+              <Link className="w-4 h-4" /> Intake Links
+            </Button>
+            <Button variant="primary" size="sm" to="/assessments/send">
+              <Send className="w-4 h-4" /> Send assessment
+            </Button>
+          </div>
         }
       />
 

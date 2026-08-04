@@ -102,7 +102,7 @@ export default function ClientsPage() {
       header: 'Employees',
       hideOnMobile: true,
       render: (org) => (
-        <span className="text-neutral-secondary">{org.employee_count_range ?? '—'}</span>
+        <span className="text-neutral-secondary">{org.employee_count ? `${org.employee_count}` : org.employee_count_range ?? '—'}</span>
       ),
     },
     {

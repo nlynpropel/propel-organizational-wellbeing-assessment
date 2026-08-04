@@ -7,14 +7,15 @@ import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
 import { useAuth } from '../context/AuthContext';
 import { createOrganization } from '../services/organizations';
-import { INDUSTRIES, EMPLOYEE_RANGES, FUNDING_TYPES } from '../lib/sampleData';
+import { INDUSTRIES, FUNDING_TYPES } from '../lib/sampleData';
+import { validateEmployeeCount } from '../lib/validation';
 import type { FundingTypeDb } from '../lib/database.types';
 
 type FormState = {
   organization_name: string;
   organization_alias: string;
   industry: string;
-  employee_count_range: string;
+  employee_count: string;
   number_of_locations: string;
   funding_type: string;
   client_contact_name: string;
@@ -25,7 +26,7 @@ const initial: FormState = {
   organization_name: '',
   organization_alias: '',
   industry: '',
-  employee_count_range: '',
+  employee_count: '',
   number_of_locations: '',
   funding_type: '',
   client_contact_name: '',
@@ -53,6 +54,10 @@ export default function NewClientPage() {
     if (form.client_contact_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.client_contact_email)) {
       e.client_contact_email = 'Enter a valid email address.';
     }
+    const empValidation = validateEmployeeCount(form.employee_count);
+    if (!empValidation.valid) {
+      e.employee_count = empValidation.error;
+    }
     if (form.number_of_locations && parseInt(form.number_of_locations, 10) < 0) {
       e.number_of_locations = 'Number of locations cannot be negative.';
     }
@@ -71,7 +76,7 @@ export default function NewClientPage() {
         organization_name: form.organization_name.trim(),
         organization_alias: form.organization_alias.trim() || undefined,
         industry: form.industry || undefined,
-        employee_count_range: form.employee_count_range || undefined,
+        employee_count: form.employee_count ? parseInt(form.employee_count, 10) : undefined,
         number_of_locations: form.number_of_locations ? parseInt(form.number_of_locations, 10) : undefined,
         funding_type: (form.funding_type || undefined) as FundingTypeDb | undefined,
         client_contact_name: form.client_contact_name.trim() || undefined,
@@ -164,17 +169,19 @@ export default function NewClientPage() {
             </div>
 
             <div>
-              <label className={labelCls}>Employee count range</label>
-              <select
-                value={form.employee_count_range}
-                onChange={(e) => update('employee_count_range', e.target.value)}
-                className={fieldCls()}
-              >
-                <option value="">Select a range</option>
-                {EMPLOYEE_RANGES.map((r) => (
-                  <option key={r} value={r}>{r}</option>
-                ))}
-              </select>
+              <label className={labelCls}>Employee count *</label>
+              <input
+                type="number"
+                min={1}
+                step={1}
+                value={form.employee_count}
+                onChange={(e) => update('employee_count', e.target.value)}
+                className={fieldCls(!!errors.employee_count)}
+                placeholder="250"
+              />
+              {errors.employee_count && (
+                <p className="text-xs text-red mt-1">{errors.employee_count}</p>
+              )}
             </div>
 
             <div>

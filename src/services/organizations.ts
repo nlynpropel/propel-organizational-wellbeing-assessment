@@ -17,6 +17,7 @@ export type CreateOrganizationInput = {
   organization_alias?: string;
   industry?: string;
   employee_count_range?: string;
+  employee_count?: number;
   number_of_locations?: number;
   funding_type?: FundingTypeDb;
   renewal_month?: number;

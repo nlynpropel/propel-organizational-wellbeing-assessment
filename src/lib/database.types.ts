@@ -112,6 +112,8 @@ export type OrganizationRow = {
   organization_alias: string | null;
   industry: string | null;
   employee_count_range: string | null;
+  employee_count: number | null;
+  employee_count_needs_confirmation: boolean;
   number_of_locations: number | null;
   funding_type: FundingTypeDb | null;
   renewal_month: number | null;
@@ -479,6 +481,91 @@ export type ResolvedAssessment = {
     }>;
   }>;
   responses: SavedResponse[];
+};
+
+// ============================================================
+// Reusable Assessment Intake Links
+// ============================================================
+
+export type ReusableAssessmentLinkRow = {
+  id: string;
+  assessment_template_id: string;
+  assessment_version_id: string;
+  generating_user_id: string;
+  opaque_token: string;
+  label: string | null;
+  is_active: boolean;
+  expires_at: string | null;
+  submission_count: number;
+  created_at: string;
+};
+
+export type OrganizationDomainRow = {
+  id: string;
+  organization_id: string;
+  normalized_domain: string;
+  is_primary: boolean;
+  verification_status: 'unverified' | 'verified' | 'disputed';
+  created_at: string;
+};
+
+export type IntakeSubmissionRow = {
+  id: string;
+  reusable_link_id: string;
+  organization_name: string;
+  contact_name: string;
+  contact_email: string;
+  normalized_email: string;
+  normalized_domain: string;
+  employee_count: number;
+  industry: string | null;
+  region: string | null;
+  status: 'intake_started' | 'assessment_in_progress' | 'submitted' | 'ambiguous';
+  assessment_instance_id: string | null;
+  matched_organization_id: string | null;
+  idempotency_key: string;
+  created_at: string;
+  submitted_at: string | null;
+};
+
+export type ResolvedReusableLink = {
+  error?: string;
+  template_name: string;
+  template_short_description: string | null;
+  template_full_description: string | null;
+  template_category: string | null;
+  template_estimated_minutes: number | null;
+  version_number: number;
+  version_label: string | null;
+  introduction_text: string | null;
+  completion_message: string | null;
+  sections: Array<{
+    id: string;
+    title: string;
+    description: string | null;
+    display_order: number;
+    questions: Array<{
+      id: string;
+      question_text: string;
+      help_text: string | null;
+      question_type: AssessmentQuestionType;
+      display_order: number;
+      is_required: boolean;
+      numeric_rating_min_value: number;
+      numeric_rating_max_value: number;
+      numeric_rating_step_value: number;
+      numeric_rating_min_label: string | null;
+      numeric_rating_max_label: string | null;
+      maximum_selections: number | null;
+      options: Array<{
+        id: string;
+        option_label: string;
+        option_value: string;
+        display_order: number;
+        is_not_applicable: boolean;
+      }>;
+    }>;
+  }>;
 };
 
 // ============================================================
