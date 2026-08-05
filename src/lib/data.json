@@ -1,0 +1,108 @@
+{
+  "client": {
+    "name": "Java Coffee",
+    "assessment_name": "Propel Well-being Opportunity Index",
+    "assessment_date": "Jul 21, 2026"
+  },
+  "assessment": {
+    "overall_score": 63,
+    "maturity": "Established",
+    "bands": ["Reactive", "Developing", "Established", "Strategic", "Leading"],
+    "dimensions": [
+      { "name": "Strategy and Leadership", "score": 75, "level": "Strategic" },
+      { "name": "Employee Relevance", "score": 55, "level": "Established" },
+      { "name": "Engagement and Communication", "score": 32, "level": "Reactive" },
+      { "name": "Experience and Access", "score": 75, "level": "Strategic" },
+      { "name": "Culture and Social Support", "score": 70, "level": "Established" },
+      { "name": "Measurement and Improvement", "score": 70, "level": "Established" }
+    ],
+    "behavioral_drivers": [
+      { "name": "Clarity of Value", "score": 59, "level": "Meaningful barriers", "body": "The well-being program's value and next actions are presented clearly to employees." },
+      { "name": "Motivation and Overcoming Inertia", "score": 53, "level": "Meaningful barriers", "body": "The program makes healthy action feel achievable, timely, and worth continuing." },
+      { "name": "Trust and Social Proof", "score": 66, "level": "Generally supportive", "body": "Employees see credible support, relatable participation, and clear privacy protections." },
+      { "name": "Structural and Environmental Friction", "score": 65, "level": "Generally supportive", "body": "The program removes access, technology, and administrative barriers to participation." }
+    ]
+  },
+  "strategy": {
+    "executive_summary": "Java Coffee's assessment places its well-being program in the Established band (62.8). Strengths include visible leadership, senior support, accessible mobile access, and measurement scores all at or above ~70. These assets create a reliable platform for faster improvements in participation without major technical investment. However, the Engagement and Communication dimension is a clear bottleneck (32/100) driven by inconsistent year-round communications, weak tailoring, and limited post-launch sustainment. This suggests the gap is more about how the program is described, sequenced, and reinforced than about access or leadership buy-in. Propel experience shows that targeted messaging, near-term activation cycles, and visible progress markers close this gap efficiently.",
+    "current_maturity": "Java Coffee's pattern shows a solid structural foundation: clear ownership, senior support, accessible mobile experience, and measurement capability. These assets create a reliable platform for faster improvements in participation without major technical investment. However, the Engagement and Communication dimension is a bottleneck (32/100) driven by inconsistent year-round communications, weak tailoring, and limited post-launch sustainment. This is more about how the program is described, sequenced, and reinforced than about access or leadership buy-in.",
+    "strengths": [
+      { "title": "Guided Starting Experience", "body": "The program provides a visible starting experience that helps employees understand what is available and identify a relevant first action." },
+      { "title": "Visible Leadership Participation", "body": "Leaders demonstrate consistent support through participation, personal examples, and visible reinforcement." }
+    ],
+    "priority_opportunities": [
+      { "title": "Break Large Goals Into Immediate Micro-Actions", "body": "Translate broad goals into small actions that can be completed quickly and repeated over time." },
+      { "title": "Make Progress Visible Early", "body": "Show employees visible progress after the first action and at meaningful milestones." },
+      { "title": "Replace One Long Program Year With Episodic Campaigns", "body": "Organize year-round engagement into shorter, distinct campaigns with specific themes, goals, and milestones." }
+    ],
+    "holding_back": [
+      { "title": "Fragmented communications and low relevance", "body": "Communications do not consistently explain why actions matter or reach distinct employee groups, reducing awareness-to-action conversion across stores and shifts." },
+      { "title": "Weak activation sequencing and sustainment", "body": "Employees are not consistently retained after initial interest, and the program lacks short activation windows and visible early progress, which undermines momentum." },
+      { "title": "Incentive complexity and delayed rewards", "body": "Current incentive framing creates decision friction and distant payoff perception that reduces follow-through; clarity on required actions and progress is only moderate." },
+      { "title": "Work environment and time constraints for frontline staff", "body": "The work environment only partially supports participation, and programming does not reflect job-type differences, meaning deskless and shift staff may face practical barriers." },
+      { "title": "Opportunity to convert manager support into active reinforcement", "body": "Managers are supportive and visible but lack consistent toolkits and segmented scripts to proactively drive peer participation across stores and shifts." }
+    ],
+    "recommendations": [
+      {
+        "title": "Run a short episodic campaign built from micro-actions with immediate reinforcement",
+        "why_it_matters": "Short campaigns reduce present-bias and create visible early wins that increase activation and retention for a dispersed retail workforce.",
+        "recommended_action": "Design a single 4-week pilot campaign focused on one measurable behavior with weekly micro-goals and immediate recognition mechanisms.",
+        "suggested_first_step": "Map one target behavior, list 8-12 micro-actions, define near-term rewards, and finalize measurement items within 30 days.",
+        "expected_impact": "Expect higher initial activation and improved 30-day retention in the pilot cohort within 2 months, with sustained improvements across cohorts in 3-6 months.",
+        "implementation_order": "Phase 1: Pilot campaign -> Phase 2: Scale to all stores if activation and 30-day retention improve.",
+        "guidance": "Design activation windows of 3-6 weeks with weekly micro-actions, immediate feedback, and visible progress bars. Use short, social challenges first and reserve longer pathways for later cohorts.",
+        "related_findings": "Low Engagement and Communication (32) and low sustainment signals suggest employees need lower-friction, near-term activation sequences and micro-actions."
+      },
+      {
+        "title": "Segment and simplify communications; equip managers with a one-minute toolkit",
+        "why_it_matters": "Tailored, concise messaging raises relevance for distinct retail roles and converts visible manager support into active reinforcement, increasing registration and first-action rates.",
+        "recommended_action": "Build three audience templates, deliver segmented message sequences across each group's primary channels, and provide a manager toolkit with scripts and suggested timing.",
+        "suggested_first_step": "Within 30 days, map three priority employee segments, draft the first awareness and instruction messages, plus a 1-page manager script.",
+        "expected_impact": "Improved awareness and registration for targeted groups, with measurable uplift in registrations and first-actions within 6-8 weeks for piloted segments.",
+        "implementation_order": "Phase 1: Segment definition and manager toolkit -> Phase 2: Segmented campaign rollout -> Phase 3: Iterate by segment performance.",
+        "guidance": "Create audience segments and produce short mobile-first message sequences: awareness, why it matters, one-click instruction, reminder, social proof. Provide managers a 1-minute script and a simple recognition rubric.",
+        "related_findings": "Tailoring and clarity are weak while mobile access is high, indicating a strong opportunity for segmented, mobile-first messages and manager-led nudges."
+      },
+      {
+        "title": "Simplify incentive rules and make progress immediately visible",
+        "why_it_matters": "Complex or distant incentives reduce completion; simplifying rules and showing progress lowers cognitive load and supports the goal-gradient effect to increase completion rates.",
+        "recommended_action": "Redesign incentive tiers to include immediate micro-rewards and a short-term completion reward; update all communication to a one-paragraph incentive explanation with progress bars.",
+        "suggested_first_step": "Draft the one-paragraph incentive explanation and the tiered milestone plan, then update the portal banner and first email/push within 30 days.",
+        "expected_impact": "Faster completion rates and reduced drop-off during the campaign, with improved perceived clarity within the first campaign cycle (4-8 weeks).",
+        "implementation_order": "Phase 1: Incentive simplification and progress visibility -> Phase 2: Pilot with episodic campaign -> Phase 3: Expand if completion improves.",
+        "guidance": "Use plain-language, one-paragraph explanations of required actions and eligibility. Redesign incentives to reward short, repeatable milestones rather than a single distant payout.",
+        "related_findings": "Moderate clarity on incentives combined with low engagement suggests reward structure is not converting registration into completion."
+      },
+      {
+        "title": "Create a centralized 'Start Here' landing page and optimize mobile flows",
+        "why_it_matters": "Java Coffee already has strong access and mobile readiness; turning that into a single, guided starting experience reduces cognitive load and increases the chance of first-action completion.",
+        "recommended_action": "Build or repurpose a landing page titled 'Start Here' that guides employees to their first micro-action and displays progress and rewards clearly.",
+        "suggested_first_step": "Create a one-page mockup and mobile test script, then publish the page and link it from primary communications within 30 days.",
+        "expected_impact": "Smoother onboarding and a higher rate of first-action completion within the first 30 days after launch, supporting the scaling of episodic campaigns and incentives.",
+        "implementation_order": "Phase 1: Create landing page and mobile test -> Phase 2: Link to segmented campaigns and incentives.",
+        "guidance": "A single, plain-language landing page that presents one call to action, pre-populates eligibility or next steps, and shows immediate progress cues lowers friction and improves conversion.",
+        "related_findings": "Experience and Access is strong and employees find it easy to know where to begin, with excellent mobile access; a Guided Starting Experience is already a strength to leverage."
+      },
+      {
+        "title": "Define three priority metrics and close the feedback loop for continuous improvement",
+        "why_it_matters": "Clear, segment-level measures let the team spot where awareness or access is failing and iterate quickly rather than guessing at causes.",
+        "recommended_action": "Agree on three measures, set baselines, and implement a simple weekly dashboard with segment breakdowns and a short employee feedback pulse after each campaign.",
+        "suggested_first_step": "Within 30 days, pick the three success measures, record a baseline for the prior 30 days where available, and schedule a recurring 15-minute weekly review meeting.",
+        "expected_impact": "Faster, evidence-driven decisions and incremental improvement cycles, with the ability to demonstrate measurable program impact within 3 months.",
+        "implementation_order": "Phase 1: Metrics selection and baseline -> Phase 2: Weekly monitoring and campaign iteration -> Phase 3: Quarterly reporting and strategic adjustments.",
+        "guidance": "Select no more than three success measures. Track these weekly at the segment/store level, share a short executive-ready dashboard each quarter, and run brief closed-loop feedback after each campaign.",
+        "related_findings": "Measurement and Improvement scored 70, but the organization should formalize measures and run rapid iteration."
+      }
+    ],
+    "implementation_sequence": {
+      "now": { "title": "Phase 1 - Foundation (30 days)", "body": "Create 'Start Here' landing page, select three metrics, draft manager toolkit, and prepare a 4-week pilot campaign." },
+      "next": { "title": "Phase 2 - Pilot (30-90 days)", "body": "Run the 4-week episodic campaign with segmented communications and immediate reinforcement; monitor weekly feedback." },
+      "later": { "title": "Phase 3 - Scale & Iterate (3-6 months)", "body": "Expand to more stores based on pilot results, refine incentives, and institutionalize a quarterly campaign calendar." }
+    },
+    "discussion_questions": [
+      "Which single behavior should the first 4-week pilot campaign target?",
+      "Who owns the manager toolkit and segmented messaging rollout?",
+      "What three metrics will we track weekly starting next month?"
+    ]
+  }
+}
