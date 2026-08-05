@@ -102,16 +102,23 @@ export async function fetchOrganizationById(
 }
 
 export async function createOrganization(
-  brokerId: string,
+  _brokerId: string,
   input: CreateOrganizationInput
 ): Promise<OrganizationRow> {
-  const { data, error } = await supabase
-    .from('organizations')
-    .insert({ ...input, broker_id: brokerId, organization_type: 'employer' })
-    .select()
-    .single();
+  const { data, error } = await supabase.rpc('create_client_organization', {
+    p_organization_name: input.organization_name,
+    p_organization_alias: input.organization_alias ?? null,
+    p_industry: input.industry ?? null,
+    p_employee_count_range: input.employee_count_range ?? null,
+    p_employee_count: input.employee_count ?? null,
+    p_number_of_locations: input.number_of_locations ?? null,
+    p_funding_type: input.funding_type ?? null,
+    p_renewal_month: input.renewal_month ?? null,
+    p_client_contact_name: input.client_contact_name ?? null,
+    p_client_contact_email: input.client_contact_email ?? null,
+  });
   if (error) throw error;
-  return data;
+  return data as OrganizationRow;
 }
 
 export async function fetchInstancesForOrganization(_brokerId: string, orgId: string): Promise<InstanceWithTemplate[]> {
