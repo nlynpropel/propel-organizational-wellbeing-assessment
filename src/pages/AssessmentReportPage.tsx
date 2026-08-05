@@ -234,7 +234,7 @@ function ScoredReport({
       {recommendations && (hasStrengths || hasPriorities) && (
         <>
           <SectionDivider />
-          <div className={`grid gap-6 mb-6 ${hasStrengths && hasPriorities ? 'md:grid-cols-2' : 'grid-cols-1'}`}>
+          <div className={`grid gap-6 ${hasStrengths && hasPriorities ? 'md:grid-cols-2' : 'grid-cols-1'}`}>
             {hasStrengths && (
               <StrengthsSection recommendations={recommendations.strengths} />
             )}
@@ -249,9 +249,7 @@ function ScoredReport({
       {strategyDimensions.length > 0 && (
         <>
           <SectionDivider />
-          <div className="mb-6">
-            <StrategyDimensionsSection dimensions={strategyDimensions} />
-          </div>
+          <StrategyDimensionsSection dimensions={strategyDimensions} />
         </>
       )}
 
@@ -259,9 +257,7 @@ function ScoredReport({
       {behavioralReadiness && (
         <>
           <SectionDivider />
-          <div className="mb-6">
-            <BehavioralReadinessSection readiness={behavioralReadiness} />
-          </div>
+          <BehavioralReadinessSection readiness={behavioralReadiness} />
         </>
       )}
 
@@ -269,7 +265,7 @@ function ScoredReport({
       {recommendations && (hasQuickWins || hasHighImpact) && (
         <>
           <SectionDivider />
-          <div className={`grid gap-6 mb-6 ${hasQuickWins && hasHighImpact ? 'md:grid-cols-2' : 'grid-cols-1'}`}>
+          <div className={`grid gap-6 ${hasQuickWins && hasHighImpact ? 'md:grid-cols-2' : 'grid-cols-1'}`}>
             {hasQuickWins && (
               <RecommendationGroupCard
                 title="Quick Wins"
@@ -298,7 +294,7 @@ function ScoredReport({
       {recommendations && hasMeetingQs && (
         <>
           <SectionDivider />
-          <div className="rounded-lg bg-navy-deep shadow-md mb-6 p-6">
+          <div className="rounded-lg bg-navy-deep shadow-md p-6">
             <div className="flex items-center gap-2 mb-4">
               <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
                 <MessageCircleQuestion className="w-4 h-4 text-white" />
@@ -326,8 +322,8 @@ function ScoredReport({
       {contextualAnswers.length > 0 && (
         <>
           <SectionDivider />
-          <div className="mb-6">
-            <h2 className="text-sm font-semibold text-neutral-muted uppercase tracking-wide mb-3">Appendix — Response Detail</h2>
+          <div>
+            <h2 className="text-sm font-semibold text-neutral-muted uppercase tracking-wide mb-3.5">Appendix — Response Detail</h2>
             <div className="rounded-lg border border-dashed border-neutral-border bg-transparent p-4 space-y-3">
               {contextualAnswers.map((answer, i) => (
                 <div key={i} className="border-b border-neutral-border-soft pb-3 last:border-0 last:pb-0">
@@ -392,7 +388,7 @@ function RecommendationGroupCard({
   const accent = title === 'Quick Wins' ? 'green' : 'navy';
   return (
     <Card className={`${accentBorder} border-l-4`}>
-      <div className="flex items-center gap-2 mb-4">
+      <div className="flex items-center gap-2 mb-3.5">
         <div className={`w-8 h-8 rounded-full ${iconBg} flex items-center justify-center`}>
           <Icon className={`w-4 h-4 ${iconColor}`} />
         </div>
@@ -454,5 +450,5 @@ function DarkPill({ children }: { children: React.ReactNode }) {
 }
 
 function SectionDivider() {
-  return <hr className="border-0 border-t border-neutral-border-soft -mt-3 mb-3" />;
+  return <hr className="border-0 border-t border-neutral-border-soft my-8" />;
 }

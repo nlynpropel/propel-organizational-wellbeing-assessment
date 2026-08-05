@@ -391,7 +391,7 @@ export default function StrategyReportSection({ assessmentInstanceId, printConte
       {/* Printable document — no border, no card chrome */}
       <div ref={printRef} className="print-area">
         {showReview && output ? (
-          <div className="space-y-8">
+          <div className="space-y-6">
             {/* Print-only client context — begins with org, assessment, date */}
             {printContext && (
               <div className="hidden print:block space-y-0.5 mb-6">

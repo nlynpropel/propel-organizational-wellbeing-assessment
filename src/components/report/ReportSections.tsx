@@ -44,13 +44,13 @@ export function deriveStrategyDimensions(
 export function StrengthsSection({ recommendations }: { recommendations: SelectedRecommendation[] }) {
   return (
     <section className="print-break-avoid">
-      <div className="flex items-center gap-2 mb-4">
+      <div className="flex items-center gap-2 mb-3.5">
         <div className="w-8 h-8 rounded-full bg-green-tint flex items-center justify-center">
           <Star className="w-4 h-4 text-green-dark" />
         </div>
         <h2 className="text-lg font-semibold text-navy">Strengths</h2>
       </div>
-      <div className="space-y-3.5">
+      <div className="space-y-3">
         {recommendations.map((rec) => (
           <div key={rec.id} className="border-l-4 border-l-green pl-4 print-break-avoid">
             <h4 className="text-sm font-semibold text-navy mb-1">{rec.strength_title ?? rec.title}</h4>
@@ -65,13 +65,13 @@ export function StrengthsSection({ recommendations }: { recommendations: Selecte
 export function PriorityOpportunitiesSection({ recommendations }: { recommendations: SelectedRecommendation[] }) {
   return (
     <section className="print-break-avoid">
-      <div className="flex items-center gap-2 mb-4">
+      <div className="flex items-center gap-2 mb-3.5">
         <div className="w-8 h-8 rounded-full bg-orange-tint flex items-center justify-center">
           <Target className="w-4 h-4 text-orange" />
         </div>
         <h2 className="text-lg font-semibold text-navy">Priority Opportunities</h2>
       </div>
-      <div className="space-y-3.5">
+      <div className="space-y-3">
         {recommendations.map((rec) => (
           <div key={rec.id} className="border-l-4 border-l-orange pl-4 print-break-avoid">
             <h4 className="text-sm font-semibold text-navy mb-1">{rec.title}</h4>
@@ -86,8 +86,8 @@ export function PriorityOpportunitiesSection({ recommendations }: { recommendati
 export function StrategyDimensionsSection({ dimensions }: { dimensions: StrategyDimension[] }) {
   return (
     <section>
-      <h2 className="text-lg font-semibold text-navy mb-3 print-break-after-avoid">Strategy Dimensions</h2>
-      <div className="grid gap-x-8 gap-y-4 md:grid-cols-2 print-block">
+      <h2 className="text-lg font-semibold text-navy mb-3.5 print-break-after-avoid">Strategy Dimensions</h2>
+      <div className="grid gap-x-8 gap-y-3.5 md:grid-cols-2 print-block">
         {dimensions.map((dim) => (
           <ScoreRow
             key={dim.id}
@@ -105,8 +105,8 @@ export function BehavioralReadinessSection({ readiness }: { readiness: Behaviora
   return (
     <section>
       <h2 className="text-lg font-semibold text-navy mb-1 print-break-after-avoid">Behavioral Readiness</h2>
-      <p className="text-xs text-neutral-muted mb-3">Higher scores indicate stronger behavioral support for well-being participation.</p>
-      <div className="grid gap-x-8 gap-y-4 md:grid-cols-2 print-block">
+      <p className="text-xs text-neutral-muted mb-3.5">Higher scores indicate stronger behavioral support for well-being participation.</p>
+      <div className="grid gap-x-8 gap-y-3.5 md:grid-cols-2 print-block">
         {(Object.keys(DRIVER_LABELS) as Array<keyof BehavioralReadiness>).map((key) => (
           <BehavioralReadinessRow key={key} driverKey={key} score={readiness[key]} />
         ))}
