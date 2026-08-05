@@ -22,8 +22,9 @@ export default function PublicAssessmentLayout({
       <main className="flex-1 px-6 py-8">
         <div className="max-w-2xl mx-auto">{children}</div>
       </main>
-      <footer className="py-6 text-center text-xs text-neutral-muted">
-        Secure assessment · Powered by Propel
+      <footer className="py-6 flex items-center justify-center gap-2">
+        <span className="text-xs text-neutral-muted">Secure assessment · Powered by</span>
+        <img src="/Propel_Logo_2020_Main.png" alt="Propel" className="h-4 w-auto" />
       </footer>
     </div>
   );

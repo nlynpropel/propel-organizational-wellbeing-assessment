@@ -9,6 +9,8 @@ import {
   AlertCircle,
   Loader2,
   Lock,
+  Presentation,
+  Download,
 } from 'lucide-react';
 
 const LOGO_SRC = '/Propel_Logo_2020_Main.png';
@@ -30,8 +32,21 @@ import {
   GENERATION_STATUS_LABELS,
   GENERATION_STATUS_VARIANTS,
 } from '../services/aiGenerations';
-import type { AnalysisGenerationRow } from '../lib/database.types';
+import type { AnalysisGenerationRow, PresentationGenerationRow } from '../lib/database.types';
 import { shouldShowPrintButton, canTriggerPrint, type PrintDataContext } from '../lib/printHelpers';
+import type { ReportData } from '../services/reportData';
+import { buildDeckPayload } from '../services/deckBuilder';
+import {
+  canGeneratePresentation,
+  canDownloadPresentation,
+  validatePayloadForGeneration,
+  fetchPresentationGenerations,
+  createPresentationGeneration,
+  triggerDeckGeneration,
+  downloadPresentation,
+  PRESENTATION_STATUS_LABELS,
+  PRESENTATION_STATUS_VARIANTS,
+} from '../services/presentationGenerations';
 import {
   StrengthsSection,
   PriorityOpportunitiesSection,
@@ -45,6 +60,7 @@ type Props = {
   printContext?: PrintDataContext | null;
   printableGraph?: ReactNode | null;
   reportSectionsData?: ReportSectionsData | null;
+  reportData?: ReportData | null;
 };
 
 type GenerationOutput = {
@@ -69,8 +85,8 @@ type GenerationOutput = {
 const POLL_INTERVAL_MS = 4000;
 const TERMINAL_STATUSES = new Set(['draft_generated', 'approved', 'failed', 'rejected']);
 
-export default function StrategyReportSection({ assessmentInstanceId, printContext, printableGraph, reportSectionsData }: Props) {
-  const { profile, capabilities } = useAuth();
+export default function StrategyReportSection({ assessmentInstanceId, printContext, printableGraph, reportSectionsData, reportData }: Props) {
+  const { profile, capabilities, role } = useAuth();
   const [generations, setGenerations] = useState<AnalysisGenerationRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -78,6 +94,11 @@ export default function StrategyReportSection({ assessmentInstanceId, printConte
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [showReview, setShowReview] = useState(false);
+  const [presentationGens, setPresentationGens] = useState<PresentationGenerationRow[]>([]);
+  const [generatingDeck, setGeneratingDeck] = useState(false);
+  const [deckError, setDeckError] = useState<string | null>(null);
+  const [deckSuccess, setDeckSuccess] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
   const printingRef = useRef(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -127,14 +148,25 @@ export default function StrategyReportSection({ assessmentInstanceId, printConte
     setLoading(true);
     setError(null);
     try {
-      const gens = await fetchGenerationsForAssessmentInstance(assessmentInstanceId);
+      const [gens, presGens] = await Promise.all([
+        fetchGenerationsForAssessmentInstance(assessmentInstanceId),
+        fetchPresentationGenerations(assessmentInstanceId).catch(() => [] as PresentationGenerationRow[]),
+      ]);
       setGenerations(gens);
+      setPresentationGens(presGens);
       const latest = gens[0];
       if (latest && (latest.status === 'queued' || latest.status === 'generating')) {
         setGenerating(true);
         startPolling(latest.id);
       } else {
         setGenerating(false);
+      }
+      // Poll for in-progress deck generation
+      const latestPres = presGens[0];
+      if (latestPres && (latestPres.status === 'queued' || latestPres.status === 'generating')) {
+        setGeneratingDeck(true);
+      } else {
+        setGeneratingDeck(false);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load strategy report.');
@@ -246,6 +278,75 @@ export default function StrategyReportSection({ assessmentInstanceId, printConte
       img.addEventListener('error', trigger, { once: true });
     }
   }, [showReview, output]);
+
+  const latestPresentationGen = presentationGens[0] ?? null;
+  const isApproved = latestGen?.status === 'approved';
+  const canGenDeck = canGeneratePresentation(capabilities, role) && isApproved && !!reportData && !!output;
+  const canDownload = canDownloadPresentation(capabilities, role);
+
+  const handleGenerateDeck = async () => {
+    if (!profile || !reportData || !output || !latestGen) return;
+    setGeneratingDeck(true);
+    setDeckError(null);
+    setDeckSuccess(null);
+    try {
+      const { payload, errors: buildErrors } = buildDeckPayload(reportData, output as unknown as Parameters<typeof buildDeckPayload>[1]);
+      if (buildErrors.length > 0) {
+        setDeckError(buildErrors.join('; '));
+        setGeneratingDeck(false);
+        return;
+      }
+
+      const validation = validatePayloadForGeneration(payload);
+      if (!validation.valid) {
+        const allErrors = [
+          ...validation.errors,
+          ...validation.overflowViolations,
+          ...validation.metadataViolations,
+          ...validation.placeholderViolations,
+        ];
+        setDeckError(allErrors.join('; '));
+        setGeneratingDeck(false);
+        return;
+      }
+
+      const presGen = await createPresentationGeneration({
+        assessmentInstanceId,
+        strategyGenerationId: latestGen.id,
+        payload,
+        generatedBy: profile.id,
+        supersedesGenerationId: latestPresentationGen?.id,
+      });
+
+      await triggerDeckGeneration({
+        presentationGenerationId: presGen.id,
+        assessmentInstanceId,
+        strategyGenerationId: latestGen.id,
+        payload,
+      });
+
+      setDeckSuccess('PowerPoint generated successfully.');
+      await load();
+    } catch (err) {
+      setDeckError(err instanceof Error ? err.message : 'Failed to generate PowerPoint.');
+      await load();
+    } finally {
+      setGeneratingDeck(false);
+    }
+  };
+
+  const handleDownloadDeck = async () => {
+    if (!latestPresentationGen || !latestPresentationGen.storage_path || !latestPresentationGen.file_name) return;
+    setDownloading(true);
+    setDeckError(null);
+    try {
+      await downloadPresentation(latestPresentationGen.storage_path, latestPresentationGen.file_name);
+    } catch (err) {
+      setDeckError(err instanceof Error ? err.message : 'Failed to download PowerPoint.');
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -386,6 +487,64 @@ export default function StrategyReportSection({ assessmentInstanceId, printConte
         <p className="text-sm text-red flex items-center gap-1.5 mb-3 print:hidden">
           <AlertCircle className="w-4 h-4" /> {error}
         </p>
+      )}
+
+      {/* PowerPoint Generation — only for approved strategy reports */}
+      {canGenDeck && (
+        <div className="rounded-lg border border-neutral-border bg-neutral-bg/30 p-4 mb-3 print:hidden">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-2">
+              <Presentation className="w-5 h-5 text-navy/70" />
+              <span className="text-sm font-medium text-navy">PowerPoint Deck</span>
+              {latestPresentationGen && (
+                <Badge variant={PRESENTATION_STATUS_VARIANTS[latestPresentationGen.status]} dot>
+                  {PRESENTATION_STATUS_LABELS[latestPresentationGen.status]}
+                </Badge>
+              )}
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              {latestPresentationGen?.status === 'completed' && canDownload && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleDownloadDeck}
+                  disabled={downloading}
+                >
+                  {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                  Download PowerPoint
+                </Button>
+              )}
+              <Button
+                size="sm"
+                variant={latestPresentationGen?.status === 'completed' ? 'outline' : 'primary'}
+                onClick={handleGenerateDeck}
+                disabled={generatingDeck}
+              >
+                {generatingDeck ? <Loader2 className="w-4 h-4 animate-spin" /> : <Presentation className="w-4 h-4" />}
+                {generatingDeck ? 'Generating…' : latestPresentationGen?.status === 'completed' ? 'Regenerate' : 'Generate PowerPoint'}
+              </Button>
+            </div>
+          </div>
+
+          {latestPresentationGen?.status === 'completed' && (
+            <div className="mt-3 pt-3 border-t border-neutral-border-soft flex flex-wrap gap-x-6 gap-y-1 text-xs text-neutral-muted">
+              <span>Generated: {new Date(latestPresentationGen.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+              <span>Template: {latestPresentationGen.template_version}</span>
+              <span>Status: {PRESENTATION_STATUS_LABELS[latestPresentationGen.status]}</span>
+            </div>
+          )}
+
+          {deckError && (
+            <p className="text-sm text-red flex items-center gap-1.5 mt-2">
+              <AlertCircle className="w-4 h-4" /> {deckError}
+            </p>
+          )}
+          {deckSuccess && (
+            <p className="text-sm text-green flex items-center gap-1.5 mt-2">
+              <CheckCircle2 className="w-4 h-4" /> {deckSuccess}
+            </p>
+          )}
+        </div>
       )}
 
       {/* Printable document — no border, no card chrome */}

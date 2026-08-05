@@ -974,3 +974,25 @@ export type Propel360ConfigRow = {
   value: string;
   updated_at: string;
 };
+
+// ============================================================
+// Presentation Generations (PowerPoint deck generation)
+// ============================================================
+
+export type PresentationGenerationStatus = 'queued' | 'generating' | 'completed' | 'failed';
+
+export type PresentationGenerationRow = {
+  id: string;
+  assessment_instance_id: string;
+  strategy_generation_id: string;
+  template_version: string;
+  status: PresentationGenerationStatus;
+  payload_snapshot_json: Record<string, unknown> | null;
+  storage_path: string | null;
+  file_name: string | null;
+  generated_by: string;
+  created_at: string;
+  completed_at: string | null;
+  error_message: string | null;
+  supersedes_generation_id: string | null;
+};
