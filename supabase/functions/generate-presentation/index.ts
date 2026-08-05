@@ -1,5 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
-import * as pptxgen from "npm:pptxgenjs@3.12.0";
+import pptxgen from "npm:pptxgenjs@3.12.0";
 
 // ============================================================
 // CORS headers (mandatory for Supabase client compatibility)
@@ -16,7 +16,7 @@ const corsHeaders = {
 // ============================================================
 const TEMPLATE_VERSION = "opportunity-index-deck-v1";
 
-// Brand palette (matches generate_deck.js reference)
+// Brand palette (matches generate_deck.js reference exactly)
 const NAVY = "132340";
 const NAVY_LIGHT = "1F3A5F";
 const ORANGE = "E8813A";
@@ -51,15 +51,64 @@ const PAGE_W = 13.333;
 const PAGE_H = 7.5;
 const MARGIN = 0.6;
 
+type PptxSlide = ReturnType<pptxgen["addSlide"]>;
+type PptxPres = InstanceType<typeof pptxgen>;
+
 function levelColor(level: string): string {
   return BAND_COLORS[level] || BEHAVIOR_COLORS[level] || GRAY;
 }
 
 // ============================================================
-// Shared building blocks (ported from generate_deck.js)
+// Deck payload type (server-authoritative)
+// ============================================================
+type DeckPayload = {
+  client: {
+    name: string;
+    assessment_name: string;
+    assessment_date: string;
+  };
+  assessment: {
+    overall_score: number;
+    maturity: string;
+    bands: string[];
+    dimensions: Array<{ name: string; score: number; level: string }>;
+    behavioral_drivers: Array<{
+      name: string;
+      score: number;
+      level: string;
+      body: string;
+    }>;
+  };
+  strategy: {
+    executive_summary: string;
+    current_maturity: string;
+    strengths: Array<{ title: string; body: string }>;
+    priority_opportunities: Array<{ title: string; body: string }>;
+    holding_back: Array<{ title: string; body: string }>;
+    recommendations: Array<{
+      title: string;
+      why_it_matters: string;
+      recommended_action: string;
+      suggested_first_step: string;
+      expected_impact: string;
+      implementation_order: string;
+      guidance: string;
+      related_findings: string;
+    }>;
+    implementation_sequence: {
+      now: { title: string; body: string };
+      next: { title: string; body: string };
+      later: { title: string; body: string };
+    };
+    discussion_questions: string[];
+  };
+};
+
+// ============================================================
+// Shared building blocks (ported exactly from generate_deck.js)
 // ============================================================
 
-function addFooter(slide: pptxgen.Slide, pageLabel?: string): void {
+function addFooter(slide: PptxSlide, pageLabel?: string): void {
   slide.addText("Powered by Propel", {
     x: MARGIN,
     y: PAGE_H - 0.4,
@@ -84,7 +133,7 @@ function addFooter(slide: pptxgen.Slide, pageLabel?: string): void {
   }
 }
 
-function addHeader(slide: pptxgen.Slide, title: string): void {
+function addHeader(slide: PptxSlide, title: string): void {
   slide.addText(title, {
     x: MARGIN,
     y: 0.45,
@@ -98,7 +147,7 @@ function addHeader(slide: pptxgen.Slide, title: string): void {
 }
 
 function addScoreBar(
-  slide: pptxgen.Slide,
+  slide: PptxSlide,
   x: number,
   y: number,
   w: number,
@@ -162,7 +211,7 @@ function addScoreBar(
 }
 
 function addGauge(
-  slide: pptxgen.Slide,
+  slide: PptxSlide,
   x: number,
   y: number,
   w: number,
@@ -205,7 +254,7 @@ function addGauge(
 }
 
 function addListItem(
-  slide: pptxgen.Slide,
+  slide: PptxSlide,
   x: number,
   y: number,
   w: number,
@@ -246,60 +295,14 @@ function addListItem(
   });
 }
 
-function bg(slide: pptxgen.Slide, color: string): void {
+function bg(slide: PptxSlide, color: string): void {
   slide.background = { color };
 }
 
 // ============================================================
-// Deck payload type (matches client-side DeckPayload)
+// Deck generator (ported exactly from generate_deck.js)
 // ============================================================
-type DeckPayload = {
-  client: {
-    name: string;
-    assessment_name: string;
-    assessment_date: string;
-  };
-  assessment: {
-    overall_score: number;
-    maturity: string;
-    bands: string[];
-    dimensions: Array<{ name: string; score: number; level: string }>;
-    behavioral_drivers: Array<{
-      name: string;
-      score: number;
-      level: string;
-      body: string;
-    }>;
-  };
-  strategy: {
-    executive_summary: string;
-    current_maturity: string;
-    strengths: Array<{ title: string; body: string }>;
-    priority_opportunities: Array<{ title: string; body: string }>;
-    holding_back: Array<{ title: string; body: string }>;
-    recommendations: Array<{
-      title: string;
-      why_it_matters: string;
-      recommended_action: string;
-      suggested_first_step: string;
-      expected_impact: string;
-      implementation_order: string;
-      guidance: string;
-      related_findings: string;
-    }>;
-    implementation_sequence: {
-      now: { title: string; body: string };
-      next: { title: string; body: string };
-      later: { title: string; body: string };
-    };
-    discussion_questions: string[];
-  };
-};
-
-// ============================================================
-// Main deck generator (ported from generate_deck.js)
-// ============================================================
-function generateDeck(data: DeckPayload): pptxgen {
+function generateDeck(data: DeckPayload): PptxPres {
   const pres = new pptxgen();
   pres.defineLayout({ name: "WIDE", width: PAGE_W, height: PAGE_H });
   pres.layout = "WIDE";
@@ -949,37 +952,412 @@ function generateDeck(data: DeckPayload): pptxgen {
 }
 
 // ============================================================
-// Post-generation validation
+// Server-side payload builder
+// Loads all data from the database — never trusts client input
 // ============================================================
-function validateGeneratedDeck(
-  pres: pptxgen,
-  data: DeckPayload
-): { valid: boolean; errors: string[] } {
-  const errors: string[] = [];
 
-  // Check slide count: 8 fixed + 1 per recommendation
-  const expectedSlides = 8 + data.strategy.recommendations.length;
-  // pptxgenjs doesn't expose slide count directly; we track via addSlide calls
-  // This is validated on the caller side by counting slides
+const MATURITY_BANDS = ["Reactive", "Developing", "Established", "Strategic", "Leading"];
 
-  // Check client name appears in slide text
-  // We verify this by checking the payload contains the client name
-  if (!data.client.name || data.client.name === "Unknown Client") {
-    errors.push("Client name is missing or is placeholder");
+const DRIVER_LABELS: Record<string, string> = {
+  clarity_of_value: "Clarity of Value",
+  motivation_overcoming_inertia: "Motivation and Overcoming Inertia",
+  trust_social_proof: "Trust and Social Proof",
+  structural_environmental_friction: "Structural and Environmental Friction",
+};
+
+const DRIVER_DESCRIPTIONS: Record<string, string> = {
+  clarity_of_value: "The well-being program\u2019s value and next actions are presented clearly to employees.",
+  motivation_overcoming_inertia: "The program makes healthy action feel achievable, timely, and worth continuing.",
+  trust_social_proof: "Employees see credible support, relatable participation, and clear privacy protections.",
+  structural_environmental_friction: "The program removes access, technology, workplace, and administrative barriers to participation.",
+};
+
+function getMaturityLevel(score: number): string {
+  if (score >= 85) return "Leading";
+  if (score >= 70) return "Strategic";
+  if (score >= 55) return "Established";
+  if (score >= 35) return "Developing";
+  return "Reactive";
+}
+
+function getDimensionLevel(score: number): string {
+  if (score >= 85) return "Leading";
+  if (score >= 70) return "Strategic";
+  if (score >= 55) return "Established";
+  if (score >= 35) return "Developing";
+  return "Reactive";
+}
+
+function getBehavioralInterpretation(score: number): string {
+  if (score >= 80) return "Strong behavioral support";
+  if (score >= 65) return "Generally supportive";
+  if (score >= 50) return "Meaningful barriers";
+  return "Significant barriers";
+}
+
+function formatDate(dateStr: string | null): string {
+  if (!dateStr) return "";
+  try {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  } catch {
+    return dateStr;
+  }
+}
+
+function parsePhase(text: string): { title: string; body: string } {
+  const colonIdx = text.indexOf(":");
+  const dashIdx = text.indexOf(" - ");
+  let splitIdx = -1;
+  if (colonIdx > 0 && (dashIdx < 0 || colonIdx < dashIdx)) {
+    splitIdx = colonIdx;
+  } else if (dashIdx > 0) {
+    splitIdx = dashIdx;
+  }
+  if (splitIdx > 0) {
+    return {
+      title: text.slice(0, splitIdx).trim(),
+      body: text.slice(splitIdx + (text[splitIdx] === ":" ? 1 : 3)).trim(),
+    };
+  }
+  return { title: text.trim(), body: "" };
+}
+
+// ============================================================
+// Sanitize text for slides — strips internal evidence references
+// without changing the approved strategy content in the database
+// ============================================================
+
+function sanitizeForSlides(text: string): string {
+  if (!text || typeof text !== "string") return text;
+  let cleaned = text;
+
+  // Strip entire "see ... ;" clauses that contain file references
+  cleaned = cleaned.replace(/;\s*see\s+[^;]*\.docx[^;]*/gi, "");
+  cleaned = cleaned.replace(/;\s*see\s+[^;]*\.txt[^;]*/gi, "");
+  cleaned = cleaned.replace(/;\s*see\s+[^;]*\.pdf[^;]*/gi, "");
+
+  // Strip "see X.docx ..." patterns at end of text
+  cleaned = cleaned.replace(/see\s+[^\s]*\.docx[^\n]*$/gi, "");
+  cleaned = cleaned.replace(/see\s+[^\s]*\.txt[^\n]*$/gi, "");
+  cleaned = cleaned.replace(/see\s+[^\s]*\.pdf[^\n]*$/gi, "");
+
+  // Strip remaining file references
+  cleaned = cleaned.replace(/[\w_\-]+\.docx/gi, "");
+  cleaned = cleaned.replace(/[\w_\-]+\.txt/gi, "");
+  cleaned = cleaned.replace(/[\w_\-]+\.pdf/gi, "");
+
+  // Strip internal reference names
+  cleaned = cleaned.replace(/propel_recommendation_bank/gi, "");
+  cleaned = cleaned.replace(/Propel_Wellbeing_Strategy_Knowledge_Master_v1/gi, "");
+  cleaned = cleaned.replace(/propel_knowledge_sources?/gi, "");
+  cleaned = cleaned.replace(/readiness flags?/gi, "");
+  cleaned = cleaned.replace(/readiness:\s*missing[^;.]*/gi, "");
+  cleaned = cleaned.replace(/readiness\.missing[^;.]*/gi, "");
+  cleaned = cleaned.replace(/completeness_level/gi, "");
+  cleaned = cleaned.replace(/snapshot_mode/gi, "");
+  cleaned = cleaned.replace(/assessment-only mode/gi, "");
+
+  // Strip diagnostic references
+  cleaned = cleaned.replace(/diagnostic\s+q\d+\s+response_score=\d+/gi, "");
+  cleaned = cleaned.replace(/diagnostic\s+q\d+=\d+/gi, "");
+  cleaned = cleaned.replace(/diagnostic_findings\[\d+\]/gi, "");
+  cleaned = cleaned.replace(/\bq\d+=\d+/gi, "");
+
+  // Strip evidence path references
+  cleaned = cleaned.replace(/assessment\.scores\.[^\s;.)]*/gi, "");
+  cleaned = cleaned.replace(/assessment\.strategy_dimension_scores\[\d+\]/gi, "");
+  cleaned = cleaned.replace(/assessment\.diagnostic_findings\[\d+\]/gi, "");
+  cleaned = cleaned.replace(/assessment\.behavioral_readiness\.[^\s;.)]*/gi, "");
+
+  // Clean up artifacts
+  cleaned = cleaned.replace(/\s*;\s*;\s*/g, "; ");
+  cleaned = cleaned.replace(/\s*;\s*/g, "; ");
+  cleaned = cleaned.replace(/\s{2,}/g, " ");
+  cleaned = cleaned.replace(/\s*;\s*$/g, "");
+  cleaned = cleaned.replace(/\s*and\s*$/gi, "");
+  cleaned = cleaned.replace(/^\s*and\s+/gi, "");
+  cleaned = cleaned.replace(/\(\s*\)/g, "");
+  cleaned = cleaned.replace(/\(\s*;/g, "(");
+  cleaned = cleaned.replace(/;\s*\)/g, ")");
+  cleaned = cleaned.trim();
+
+  return cleaned;
+}
+
+type BuildResult = { payload: DeckPayload | null; error: string | null };
+
+async function buildDeckPayloadServerSide(
+  supabase: ReturnType<typeof createClient>,
+  assessmentInstanceId: string,
+  strategyGenerationId: string
+): Promise<BuildResult> {
+  // 1. Load the assessment instance
+  const { data: instance, error: instErr } = await supabase
+    .from("assessment_instances")
+    .select("*, organization:organizations(*), template:assessment_templates(*)")
+    .eq("id", assessmentInstanceId)
+    .maybeSingle();
+
+  if (instErr || !instance) {
+    return { payload: null, error: "Assessment instance not found" };
   }
 
-  // Check for placeholder tokens
-  const tokenPattern = /\{\{[^}]+\}\}|\$\{[^}]+\}|\[INSERT[^]]*\]/i;
-  const allTextFields = [
-    data.client.name,
-    data.client.assessment_name,
-    data.strategy.executive_summary,
-    data.strategy.current_maturity,
-    ...data.strategy.recommendations.map((r) => r.title),
+  // 2. Load the strategy generation — must be approved
+  const { data: strategyGen, error: genErr } = await supabase
+    .from("analysis_generations")
+    .select("*")
+    .eq("id", strategyGenerationId)
+    .maybeSingle();
+
+  if (genErr || !strategyGen) {
+    return { payload: null, error: "Strategy generation not found" };
+  }
+
+  if (strategyGen.status !== "approved") {
+    return { payload: null, error: `Strategy generation is not approved (status: ${strategyGen.status})` };
+  }
+
+  // 3. Get the approved output — prefer reviewed_output_json, fall back to output_json
+  const output = (strategyGen.reviewed_output_json ?? strategyGen.output_json) as Record<string, unknown> | null;
+  if (!output) {
+    return { payload: null, error: "Strategy generation has no output" };
+  }
+
+  // 4. Load assessment result for behavioral readiness
+  const { data: result } = await supabase
+    .from("assessment_results")
+    .select("result_snapshot, normalized_score, score_band")
+    .eq("assessment_instance_id", assessmentInstanceId)
+    .maybeSingle();
+
+  // 5. Load section scores
+  const { data: sectionScores } = await supabase
+    .from("assessment_section_scores")
+    .select("*, section:assessment_sections(title, display_order)")
+    .eq("assessment_instance_id", assessmentInstanceId)
+    .order("display_order", { referencedTable: "section" });
+
+  // 6. Load score bands
+  let scoreBands: Array<{ band_label: string }> = [];
+  if (instance.assessment_version_id) {
+    const { data: bands } = await supabase
+      .from("assessment_score_bands")
+      .select("band_label")
+      .eq("assessment_version_id", instance.assessment_version_id)
+      .order("display_order");
+    scoreBands = (bands ?? []) as Array<{ band_label: string }>;
+  }
+
+  // 7. Load deterministic recommendations (strengths, opportunities)
+  let recommendations: Record<string, unknown> | null = null;
+  try {
+    const { data: recData, error: recErr } = await supabase
+      .rpc("get_recommendations_for_report", { p_assessment_instance_id: assessmentInstanceId });
+    if (!recErr && recData) {
+      recommendations = recData as Record<string, unknown>;
+    }
+  } catch {
+    // Recommendations RPC may not exist or may fail — continue without them
+  }
+
+  // ---- Build the payload ----
+  const org = instance.organization as Record<string, unknown> | null;
+  const template = instance.template as Record<string, unknown> | null;
+
+  const clientName = (org?.organization_name as string) ?? "Unknown Client";
+  const assessmentName = (template?.name as string) ?? "Well-being Opportunity Index";
+  const completionDate = formatDate(instance.submitted_at ?? instance.created_at ?? null);
+
+  const overallScore = result?.normalized_score
+    ? Math.round(Number(result.normalized_score))
+    : instance.overall_score
+    ? Math.round(Number(instance.overall_score))
+    : 0;
+
+  const maturity = (result?.score_band as string) ?? getMaturityLevel(overallScore);
+  const bands = scoreBands.length > 0 ? scoreBands.map((b) => b.band_label) : MATURITY_BANDS;
+
+  // Dimensions from section scores
+  const dimensions = ((sectionScores ?? []) as Array<Record<string, unknown>>).map((ss) => {
+    const section = ss.section as Record<string, unknown> | null;
+    const score = Math.round(Number(ss.normalized_score));
+    return {
+      name: (section?.title as string) ?? "Unknown",
+      score,
+      level: getDimensionLevel(score),
+    };
+  });
+
+  // Behavioral drivers from result snapshot
+  const snapshot = (result?.result_snapshot ?? null) as Record<string, unknown> | null;
+  const br = (snapshot?.behavioral_readiness ?? null) as Record<string, unknown> | null;
+  const behavioralDrivers: DeckPayload["assessment"]["behavioral_drivers"] = [];
+  if (br) {
+    const driverKeys = ["clarity_of_value", "motivation_overcoming_inertia", "trust_social_proof", "structural_environmental_friction"];
+    for (const key of driverKeys) {
+      const score = Number(br[key] ?? 0);
+      behavioralDrivers.push({
+        name: DRIVER_LABELS[key],
+        score: Math.round(score),
+        level: getBehavioralInterpretation(score),
+        body: DRIVER_DESCRIPTIONS[key],
+      });
+    }
+  }
+
+  // Strategy from approved output
+  const executiveSummary = sanitizeForSlides((output.executive_summary as string) ?? "");
+  let currentMaturity = sanitizeForSlides((output.maturity_interpretation as string) ?? "");
+  // Truncate current maturity to 120 words if needed
+  const maturityWords = currentMaturity.trim().split(/\s+/).filter(Boolean);
+  if (maturityWords.length > 120) {
+    currentMaturity = maturityWords.slice(0, 120).join(" ") + "...";
+  }
+
+  // Strengths and opportunities from deterministic recommendations
+  const recsData = recommendations as Record<string, unknown> | null;
+  const strengths = ((recsData?.strengths as Array<Record<string, unknown>>) ?? []).map((s) => ({
+    title: (s.title as string) ?? "",
+    body: (s.description as string) ?? "",
+  }));
+  const priorityOpportunities = ((recsData?.priorityOpportunities as Array<Record<string, unknown>>) ?? []).map((o) => ({
+    title: (o.title as string) ?? "",
+    body: (o.description as string) ?? "",
+  }));
+
+  // Holding back from AI prioritized_barriers
+  const holdingBack = ((output.prioritized_barriers as Array<Record<string, unknown>>) ?? []).map((b) => ({
+    title: sanitizeForSlides((b.title as string) ?? ""),
+    body: sanitizeForSlides((b.description as string) ?? ""),
+  }));
+
+  // Recommendations from AI priority_recommendations
+  const deckRecommendations = ((output.priority_recommendations as Array<Record<string, unknown>>) ?? []).map((rec) => ({
+    title: (rec.title as string) ?? "",
+    why_it_matters: sanitizeForSlides((rec.why_this_matters as string) ?? ""),
+    recommended_action: sanitizeForSlides((rec.recommended_action as string) ?? ""),
+    suggested_first_step: sanitizeForSlides((rec.suggested_first_step as string) ?? ""),
+    expected_impact: sanitizeForSlides((rec.expected_strategic_impact as string) ?? ""),
+    implementation_order: sanitizeForSlides((rec.implementation_sequence as string) ?? ""),
+    guidance: sanitizeForSlides((rec.propel_knowledge_evidence as string) ?? ""),
+    related_findings: sanitizeForSlides((rec.assessment_evidence as string) ?? ""),
+  }));
+
+  // Implementation sequence
+  const implSeq = (output.implementation_sequence as string[]) ?? [];
+  const implementationSequence = {
+    now: implSeq[0] ? parsePhase(implSeq[0]) : { title: "", body: "" },
+    next: implSeq[1] ? parsePhase(implSeq[1]) : { title: "", body: "" },
+    later: implSeq[2] ? parsePhase(implSeq[2]) : { title: "", body: "" },
+  };
+
+  // Discussion questions — max 3
+  const discussionQuestions = ((output.client_discussion_questions as string[]) ?? []).slice(0, 3);
+
+  const payload: DeckPayload = {
+    client: {
+      name: clientName,
+      assessment_name: assessmentName,
+      assessment_date: completionDate,
+    },
+    assessment: {
+      overall_score: overallScore,
+      maturity,
+      bands,
+      dimensions,
+      behavioral_drivers: behavioralDrivers,
+    },
+    strategy: {
+      executive_summary: executiveSummary,
+      current_maturity: currentMaturity,
+      strengths,
+      priority_opportunities: priorityOpportunities,
+      holding_back: holdingBack,
+      recommendations: deckRecommendations,
+      implementation_sequence: implementationSequence,
+      discussion_questions: discussionQuestions,
+    },
+  };
+
+  return { payload, error: null };
+}
+
+// ============================================================
+// Validation (server-side)
+// ============================================================
+
+const PROHIBITED_PATTERNS = [
+  "file-", "vs_", "file_id", "vector_store", "source:", "sources:",
+  "according to the document", "see guidance in", "from the knowledge base",
+  "strategy knowledge master", "recommendation bank", "propel knowledge sources",
+  "materials used", "retrieved materials", "readiness flags",
+  "completeness_level", "snapshot_mode", "assessment-only mode",
+  ".docx", ".pdf", ".txt",
+];
+
+function countWords(text: string): number {
+  if (!text || typeof text !== "string") return 0;
+  return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
+function validatePayload(payload: DeckPayload): { valid: boolean; errors: string[] } {
+  const errors: string[] = [];
+
+  // Required fields
+  if (!payload.client.name?.trim()) errors.push("Client name is required");
+  if (!payload.assessment.maturity?.trim()) errors.push("Maturity band is required");
+  if (payload.assessment.dimensions.length !== 6) errors.push("Exactly 6 dimensions required");
+  if (payload.assessment.behavioral_drivers.length !== 4) errors.push("Exactly 4 behavioral drivers required");
+  if (!payload.strategy.executive_summary?.trim()) errors.push("Executive summary is required");
+  if (payload.strategy.recommendations.length < 1) errors.push("At least 1 recommendation is required");
+
+  // Score validation
+  if (payload.assessment.overall_score < 0 || payload.assessment.overall_score > 100) {
+    errors.push("Overall score must be 0-100");
+  }
+  for (const dim of payload.assessment.dimensions) {
+    if (dim.score < 0 || dim.score > 100) errors.push(`Dimension "${dim.name}" score out of range`);
+  }
+  for (const d of payload.assessment.behavioral_drivers) {
+    if (d.score < 0 || d.score > 100) errors.push(`Driver "${d.name}" score out of range`);
+  }
+
+  // Implementation phases
+  const seq = payload.strategy.implementation_sequence;
+  if (!seq.now?.title?.trim() || !seq.now?.body?.trim()) errors.push("Phase 1 (now) is incomplete");
+  if (!seq.next?.title?.trim() || !seq.next?.body?.trim()) errors.push("Phase 2 (next) is incomplete");
+  if (!seq.later?.title?.trim() || !seq.later?.body?.trim()) errors.push("Phase 3 (later) is incomplete");
+
+  // Overflow checks
+  if (countWords(payload.strategy.executive_summary) > 130) errors.push("Executive summary exceeds 130 words");
+  if (countWords(payload.strategy.current_maturity) > 120) errors.push("Current maturity exceeds 120 words");
+
+  // Prohibited metadata
+  const allText = [
+    payload.strategy.executive_summary,
+    payload.strategy.current_maturity,
+    ...payload.strategy.holding_back.map((h) => h.title + " " + h.body),
+    ...payload.strategy.recommendations.map((r) =>
+      r.title + " " + r.why_it_matters + " " + r.guidance + " " + r.related_findings
+    ),
   ];
-  for (const text of allTextFields) {
+  for (const text of allText) {
+    if (typeof text !== "string") continue;
+    const lower = text.toLowerCase();
+    for (const pattern of PROHIBITED_PATTERNS) {
+      if (lower.includes(pattern)) {
+        errors.push(`Prohibited metadata found: '${pattern}'`);
+        break;
+      }
+    }
+  }
+
+  // Placeholder tokens
+  const tokenPattern = /\{\{[^}]+\}\}|\$\{[^}]+\}|\[INSERT[^]]*\]/i;
+  for (const text of [payload.client.name, payload.client.assessment_name, ...payload.strategy.recommendations.map((r) => r.title)]) {
     if (typeof text === "string" && tokenPattern.test(text)) {
-      errors.push("Placeholder token found in generated content");
+      errors.push("Unresolved placeholder token found");
       break;
     }
   }
@@ -991,9 +1369,7 @@ function validateGeneratedDeck(
 // Safe error message
 // ============================================================
 function safeErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message.slice(0, 500);
-  }
+  if (error instanceof Error) return error.message.slice(0, 500);
   return "An unexpected error occurred";
 }
 
@@ -1025,7 +1401,6 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    // ── 1. Create Supabase client with service role ──
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
@@ -1033,7 +1408,7 @@ Deno.serve(async (req: Request) => {
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
-    // ── 2. Verify authenticated user ──
+    // 1. Authenticate the caller
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(
@@ -1043,8 +1418,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const token = authHeader.replace("Bearer ", "");
-    const { data: userData, error: userError } =
-      await supabase.auth.getUser(token);
+    const { data: userData, error: userError } = await supabase.auth.getUser(token);
     if (userError || !userData.user) {
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
@@ -1053,31 +1427,22 @@ Deno.serve(async (req: Request) => {
     }
     const userId = userData.user.id;
 
-    // ── 3. Parse request body ──
+    // 2. Parse request body — only IDs, no payload
     const body = await req.json();
-    const {
-      presentation_generation_id,
-      assessment_instance_id,
-      strategy_generation_id,
-      payload,
-    } = body as {
+    const { presentation_generation_id, assessment_instance_id, strategy_generation_id } = body as {
       presentation_generation_id?: string;
       assessment_instance_id?: string;
       strategy_generation_id?: string;
-      payload?: DeckPayload;
     };
 
-    if (!presentation_generation_id || !assessment_instance_id || !strategy_generation_id || !payload) {
+    if (!presentation_generation_id || !assessment_instance_id || !strategy_generation_id) {
       return new Response(
-        JSON.stringify({
-          error:
-            "presentation_generation_id, assessment_instance_id, strategy_generation_id, and payload are required",
-        }),
+        JSON.stringify({ error: "presentation_generation_id, assessment_instance_id, and strategy_generation_id are required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // ── 4. Verify user permissions ──
+    // 3. Authorize — only superadmin and propel_csm can generate
     const { data: profile } = await supabase
       .from("profiles")
       .select("role")
@@ -1092,16 +1457,15 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Brokers cannot generate decks
-    if (userRole === "broker") {
+    if (userRole !== "superadmin" && userRole !== "propel_csm") {
       return new Response(
-        JSON.stringify({ error: "Brokers cannot generate presentations" }),
+        JSON.stringify({ error: "Only Propel CSMs and superadmins can generate presentations" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Superadmins and propel_csm/propel_sales: verify org access
-    if (userRole !== "superadmin") {
+    // For propel_csm, verify org access
+    if (userRole === "propel_csm") {
       const { data: membership } = await supabase
         .from("organization_memberships")
         .select("role, status")
@@ -1117,7 +1481,7 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // ── 5. Verify the presentation_generation record exists and is queued ──
+    // 4. Verify the presentation_generation record exists and is queued
     const { data: presGen, error: presGenErr } = await supabase
       .from("presentation_generations")
       .select("*")
@@ -1133,21 +1497,64 @@ Deno.serve(async (req: Request) => {
 
     if (presGen.status !== "queued") {
       return new Response(
-        JSON.stringify({
-          error: `Generation is already in progress or completed (status: ${presGen.status})`,
-        }),
+        JSON.stringify({ error: `Generation is already in progress or completed (status: ${presGen.status})` }),
         { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // ── 6. Update status to generating ──
+    // 5. Update status to generating
     await supabase
       .from("presentation_generations")
       .update({ status: "generating" })
       .eq("id", presentation_generation_id);
 
-    // ── 7. Generate the deck ──
-    let pres: pptxgen;
+    // 6. Build the payload server-side
+    const { payload, error: buildError } = await buildDeckPayloadServerSide(
+      supabase,
+      assessment_instance_id,
+      strategy_generation_id
+    );
+
+    if (buildError || !payload) {
+      await supabase
+        .from("presentation_generations")
+        .update({
+          status: "failed",
+          error_message: buildError ?? "Failed to build payload",
+          completed_at: new Date().toISOString(),
+        })
+        .eq("id", presentation_generation_id);
+      return new Response(
+        JSON.stringify({ error: buildError ?? "Failed to build payload" }),
+        { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // 7. Validate the server-built payload
+    const validation = validatePayload(payload);
+    if (!validation.valid) {
+      await supabase
+        .from("presentation_generations")
+        .update({
+          status: "failed",
+          error_message: validation.errors.join("; "),
+          completed_at: new Date().toISOString(),
+        })
+        .eq("id", presentation_generation_id);
+      return new Response(
+        JSON.stringify({ error: "Payload validation failed", details: validation.errors }),
+        { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // 8. Save the server-built payload
+    await supabase
+      .from("presentation_generations")
+      .update({ payload_snapshot_json: payload as unknown as Record<string, unknown> })
+      .eq("id", presentation_generation_id);
+
+    // 9. Generate the deck
+    let pres: PptxPres;
     try {
       pres = generateDeck(payload);
     } catch (genErr) {
@@ -1160,29 +1567,12 @@ Deno.serve(async (req: Request) => {
         })
         .eq("id", presentation_generation_id);
       return new Response(
-        JSON.stringify({ error: "Deck generation failed" }),
+        JSON.stringify({ error: "Deck generation failed", details: safeErrorMessage(genErr) }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // ── 8. Post-generation validation ──
-    const validation = validateGeneratedDeck(pres, payload);
-    if (!validation.valid) {
-      await supabase
-        .from("presentation_generations")
-        .update({
-          status: "failed",
-          error_message: validation.errors.join("; "),
-          completed_at: new Date().toISOString(),
-        })
-        .eq("id", presentation_generation_id);
-      return new Response(
-        JSON.stringify({ error: "Post-generation validation failed", details: validation.errors }),
-        { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // ── 9. Write to buffer and upload to storage ──
+    // 10. Write to buffer
     let fileBuffer: ArrayBuffer;
     try {
       fileBuffer = await pres.write({ outputType: "arraybuffer" }) as ArrayBuffer;
@@ -1196,12 +1586,11 @@ Deno.serve(async (req: Request) => {
         })
         .eq("id", presentation_generation_id);
       return new Response(
-        JSON.stringify({ error: "Failed to write presentation file" }),
+        JSON.stringify({ error: "Failed to write presentation file", details: safeErrorMessage(writeErr) }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Verify file is non-empty
     if (!fileBuffer || fileBuffer.byteLength === 0) {
       await supabase
         .from("presentation_generations")
@@ -1217,7 +1606,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Build storage path
+    // 11. Upload to private bucket
     const { data: instance } = await supabase
       .from("assessment_instances")
       .select("organization_id")
@@ -1230,12 +1619,10 @@ Deno.serve(async (req: Request) => {
     const fileName = `${sanitizedClientName}-wellbeing-opportunity-report-${dateStr}.pptx`;
     const storagePath = `${orgId}/${assessment_instance_id}/${presentation_generation_id}.pptx`;
 
-    // Upload to private bucket
     const { error: uploadErr } = await supabase.storage
       .from("strategy-presentations")
       .upload(storagePath, fileBuffer, {
-        contentType:
-          "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        contentType: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
         upsert: false,
       });
 
@@ -1249,12 +1636,12 @@ Deno.serve(async (req: Request) => {
         })
         .eq("id", presentation_generation_id);
       return new Response(
-        JSON.stringify({ error: "Failed to upload presentation file" }),
+        JSON.stringify({ error: "Failed to upload presentation file", details: safeErrorMessage(uploadErr) }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // ── 10. Update record to completed ──
+    // 12. Update record to completed
     await supabase
       .from("presentation_generations")
       .update({
@@ -1266,7 +1653,8 @@ Deno.serve(async (req: Request) => {
       })
       .eq("id", presentation_generation_id);
 
-    // ── 11. Return success ──
+    // 13. Return success
+    const slideCount = 8 + payload.strategy.recommendations.length;
     return new Response(
       JSON.stringify({
         presentation_generation_id,
@@ -1275,6 +1663,8 @@ Deno.serve(async (req: Request) => {
         file_name: fileName,
         template_version: TEMPLATE_VERSION,
         file_size: fileBuffer.byteLength,
+        slide_count: slideCount,
+        payload_built_by: "server",
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

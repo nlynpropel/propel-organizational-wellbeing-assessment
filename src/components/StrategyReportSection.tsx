@@ -34,12 +34,10 @@ import {
 } from '../services/aiGenerations';
 import type { AnalysisGenerationRow, PresentationGenerationRow } from '../lib/database.types';
 import { shouldShowPrintButton, canTriggerPrint, type PrintDataContext } from '../lib/printHelpers';
-import type { ReportData } from '../services/reportData';
-import { buildDeckPayload } from '../services/deckBuilder';
+
 import {
   canGeneratePresentation,
   canDownloadPresentation,
-  validatePayloadForGeneration,
   fetchPresentationGenerations,
   createPresentationGeneration,
   triggerDeckGeneration,
@@ -60,7 +58,6 @@ type Props = {
   printContext?: PrintDataContext | null;
   printableGraph?: ReactNode | null;
   reportSectionsData?: ReportSectionsData | null;
-  reportData?: ReportData | null;
 };
 
 type GenerationOutput = {
@@ -85,7 +82,7 @@ type GenerationOutput = {
 const POLL_INTERVAL_MS = 4000;
 const TERMINAL_STATUSES = new Set(['draft_generated', 'approved', 'failed', 'rejected']);
 
-export default function StrategyReportSection({ assessmentInstanceId, printContext, printableGraph, reportSectionsData, reportData }: Props) {
+export default function StrategyReportSection({ assessmentInstanceId, printContext, printableGraph, reportSectionsData }: Props) {
   const { profile, capabilities, role } = useAuth();
   const [generations, setGenerations] = useState<AnalysisGenerationRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -281,39 +278,18 @@ export default function StrategyReportSection({ assessmentInstanceId, printConte
 
   const latestPresentationGen = presentationGens[0] ?? null;
   const isApproved = latestGen?.status === 'approved';
-  const canGenDeck = canGeneratePresentation(capabilities, role) && isApproved && !!reportData && !!output;
+  const canGenDeck = canGeneratePresentation(capabilities, role) && isApproved && !!latestGen;
   const canDownload = canDownloadPresentation(capabilities, role);
 
   const handleGenerateDeck = async () => {
-    if (!profile || !reportData || !output || !latestGen) return;
+    if (!profile || !latestGen) return;
     setGeneratingDeck(true);
     setDeckError(null);
     setDeckSuccess(null);
     try {
-      const { payload, errors: buildErrors } = buildDeckPayload(reportData, output as unknown as Parameters<typeof buildDeckPayload>[1]);
-      if (buildErrors.length > 0) {
-        setDeckError(buildErrors.join('; '));
-        setGeneratingDeck(false);
-        return;
-      }
-
-      const validation = validatePayloadForGeneration(payload);
-      if (!validation.valid) {
-        const allErrors = [
-          ...validation.errors,
-          ...validation.overflowViolations,
-          ...validation.metadataViolations,
-          ...validation.placeholderViolations,
-        ];
-        setDeckError(allErrors.join('; '));
-        setGeneratingDeck(false);
-        return;
-      }
-
       const presGen = await createPresentationGeneration({
         assessmentInstanceId,
         strategyGenerationId: latestGen.id,
-        payload,
         generatedBy: profile.id,
         supersedesGenerationId: latestPresentationGen?.id,
       });
@@ -322,7 +298,6 @@ export default function StrategyReportSection({ assessmentInstanceId, printConte
         presentationGenerationId: presGen.id,
         assessmentInstanceId,
         strategyGenerationId: latestGen.id,
-        payload,
       });
 
       setDeckSuccess('PowerPoint generated successfully.');
@@ -336,11 +311,11 @@ export default function StrategyReportSection({ assessmentInstanceId, printConte
   };
 
   const handleDownloadDeck = async () => {
-    if (!latestPresentationGen || !latestPresentationGen.storage_path || !latestPresentationGen.file_name) return;
+    if (!latestPresentationGen) return;
     setDownloading(true);
     setDeckError(null);
     try {
-      await downloadPresentation(latestPresentationGen.storage_path, latestPresentationGen.file_name);
+      await downloadPresentation(latestPresentationGen.id);
     } catch (err) {
       setDeckError(err instanceof Error ? err.message : 'Failed to download PowerPoint.');
     } finally {

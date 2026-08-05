@@ -1,6 +1,7 @@
 // ============================================================
 // Presentation Generations — client-side service
 // Handles creating, fetching, and downloading PowerPoint decks
+// The browser sends only IDs — the server builds the payload.
 // ============================================================
 
 import { supabase } from '../lib/supabase';
@@ -8,16 +9,7 @@ import { logDbError } from '../lib/logger';
 import type {
   PresentationGenerationRow,
   PresentationGenerationStatus,
-  OrganizationCapability,
 } from '../lib/database.types';
-import { hasCapability } from './capabilities';
-import type { DeckPayload } from './deckPayload';
-import {
-  validateDeckPayload,
-  validateDeckOverflow,
-  validateNoProhibitedMetadata,
-  validateNoPlaceholderTokens,
-} from './deckPayload';
 
 export const TEMPLATE_VERSION = 'opportunity-index-deck-v1';
 
@@ -26,51 +18,17 @@ export const TEMPLATE_VERSION = 'opportunity-index-deck-v1';
 // ============================================================
 
 export function canGeneratePresentation(
-  capabilities: Set<OrganizationCapability>,
+  _capabilities: Set<string>,
   role: string | null
 ): boolean {
-  if (role === 'superadmin') return true;
-  if (role === 'propel_csm') return hasCapability(capabilities, 'generate_ai_analysis');
-  if (role === 'propel_sales') return hasCapability(capabilities, 'generate_ai_analysis');
-  return false;
+  return role === 'superadmin' || role === 'propel_csm';
 }
 
 export function canDownloadPresentation(
-  capabilities: Set<OrganizationCapability>,
+  _capabilities: Set<string>,
   role: string | null
 ): boolean {
-  if (role === 'superadmin') return true;
-  if (role === 'propel_csm') return true;
-  if (role === 'propel_sales') return hasCapability(capabilities, 'view_reports') || hasCapability(capabilities, 'generate_ai_analysis');
-  if (role === 'broker') return true; // RLS enforces per-instance access
-  return false;
-}
-
-// ============================================================
-// Validation — runs before creating the generation record
-// ============================================================
-
-export type ValidationResult = {
-  valid: boolean;
-  errors: string[];
-  overflowViolations: string[];
-  metadataViolations: string[];
-  placeholderViolations: string[];
-};
-
-export function validatePayloadForGeneration(payload: DeckPayload): ValidationResult {
-  const errors = validateDeckPayload(payload);
-  const overflow = validateDeckOverflow(payload);
-  const metadata = validateNoProhibitedMetadata(payload);
-  const placeholders = validateNoPlaceholderTokens(payload);
-
-  return {
-    valid: errors.length === 0 && overflow.length === 0 && metadata.length === 0 && placeholders.length === 0,
-    errors: errors.map(e => e.message),
-    overflowViolations: overflow.map(v => v.message),
-    metadataViolations: metadata,
-    placeholderViolations: placeholders,
-  };
+  return role === 'superadmin' || role === 'propel_csm' || role === 'propel_sales' || role === 'broker';
 }
 
 // ============================================================
@@ -95,13 +53,12 @@ export async function fetchPresentationGenerations(
 }
 
 // ============================================================
-// Create a presentation generation record
+// Create a presentation generation record (no payload — server builds it)
 // ============================================================
 
 export async function createPresentationGeneration(input: {
   assessmentInstanceId: string;
   strategyGenerationId: string;
-  payload: DeckPayload;
   generatedBy: string;
   supersedesGenerationId?: string;
 }): Promise<PresentationGenerationRow> {
@@ -112,7 +69,6 @@ export async function createPresentationGeneration(input: {
       strategy_generation_id: input.strategyGenerationId,
       template_version: TEMPLATE_VERSION,
       status: 'queued',
-      payload_snapshot_json: input.payload as unknown as Record<string, unknown>,
       generated_by: input.generatedBy,
       supersedes_generation_id: input.supersedesGenerationId ?? null,
     })
@@ -128,14 +84,13 @@ export async function createPresentationGeneration(input: {
 }
 
 // ============================================================
-// Trigger deck generation via edge function
+// Trigger deck generation via edge function (sends only IDs)
 // ============================================================
 
 export async function triggerDeckGeneration(input: {
   presentationGenerationId: string;
   assessmentInstanceId: string;
   strategyGenerationId: string;
-  payload: DeckPayload;
 }): Promise<void> {
   const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-presentation`;
   const { data: session } = await supabase.auth.getSession();
@@ -153,7 +108,6 @@ export async function triggerDeckGeneration(input: {
       presentation_generation_id: input.presentationGenerationId,
       assessment_instance_id: input.assessmentInstanceId,
       strategy_generation_id: input.strategyGenerationId,
-      payload: input.payload,
     }),
   });
 
@@ -164,35 +118,50 @@ export async function triggerDeckGeneration(input: {
 }
 
 // ============================================================
-// Get a signed download URL
+// Get a signed download URL via authorized edge function
 // ============================================================
 
 export async function getSignedDownloadUrl(
-  storagePath: string
-): Promise<string> {
-  const { data, error } = await supabase.storage
-    .from('strategy-presentations')
-    .createSignedUrl(storagePath, 300); // 5 minutes
+  presentationGenerationId: string
+): Promise<{ signedUrl: string; fileName: string }> {
+  const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/download-presentation`;
+  const { data: session } = await supabase.auth.getSession();
+  const token = session.session?.access_token;
+  if (!token) throw new Error('Not authenticated');
 
-  if (error || !data?.signedUrl) {
-    logDbError({ fn: 'getSignedDownloadUrl', error });
-    throw new Error('Failed to generate download link');
+  const response = await fetch(apiUrl, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+    },
+    body: JSON.stringify({
+      presentation_generation_id: presentationGenerationId,
+    }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => '');
+    throw new Error(`Failed to get download link: ${response.status} ${body}`);
   }
 
-  return data.signedUrl;
+  const data = await response.json();
+  return {
+    signedUrl: data.signed_url,
+    fileName: data.file_name,
+  };
 }
 
 // ============================================================
-// Download the file (triggers browser download)
+// Download the file (triggers browser download via signed URL)
 // ============================================================
 
 export async function downloadPresentation(
-  storagePath: string,
-  fileName: string
+  presentationGenerationId: string
 ): Promise<void> {
-  const signedUrl = await getSignedDownloadUrl(storagePath);
+  const { signedUrl, fileName } = await getSignedDownloadUrl(presentationGenerationId);
 
-  // Fetch the file content and trigger download
   const response = await fetch(signedUrl);
   if (!response.ok) throw new Error('Failed to download file');
 

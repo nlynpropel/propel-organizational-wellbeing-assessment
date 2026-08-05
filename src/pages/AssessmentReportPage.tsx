@@ -211,7 +211,6 @@ function ScoredReport({
       {/* Strategy Report Section — broker-facing generation, review, approve, print */}
       <StrategyReportSection
         assessmentInstanceId={instanceId}
-        reportData={report}
         printContext={mapPrintData({
           organizationName: organization?.organization_name,
           templateName: template?.name,
