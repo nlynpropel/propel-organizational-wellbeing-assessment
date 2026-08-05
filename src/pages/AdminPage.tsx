@@ -410,7 +410,7 @@ export default function AdminPage() {
               <EmptyState
                 icon={Users}
                 title="No registered users yet"
-                description="Users who sign in via a magic link from an approved domain will appear here. You can also invite users manually."
+                description="Users who self-register with an approved email domain will appear here. You can also invite users manually."
               />
             ) : (
               <div className="overflow-x-auto">
@@ -548,7 +548,7 @@ export default function AdminPage() {
               </div>
               <div>
                 <h2 className="text-lg font-semibold text-navy">Invite User</h2>
-                <p className="text-sm text-neutral-secondary">Send a magic-link invitation to a new or existing user.</p>
+                <p className="text-sm text-neutral-secondary">Send an email invitation to a new or existing user. The invited user will set their own password.</p>
               </div>
             </div>
 

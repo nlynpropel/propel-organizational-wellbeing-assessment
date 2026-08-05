@@ -6,6 +6,15 @@ import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import { useAuth } from '../context/AuthContext';
 
+type CanonicalRole = 'superadmin' | 'propel_csm' | 'propel_sales' | 'broker';
+
+const ROLE_LABELS: Record<CanonicalRole, string> = {
+  superadmin: 'Superadmin',
+  propel_csm: 'Propel Client Services',
+  propel_sales: 'Propel Sales',
+  broker: 'Broker',
+};
+
 function getInitials(profile: { first_name: string | null; last_name: string | null; email: string } | null) {
   if (!profile) return '?';
   if (profile.first_name && profile.last_name) {
@@ -44,7 +53,7 @@ export default function SettingsPage() {
               <p className="font-medium text-navy">{getDisplayName(profile)}</p>
               <p className="text-sm text-neutral-muted">{profile?.email}</p>
               <div className="flex items-center gap-2 mt-1">
-                <Badge variant="neutral">{profile?.role === 'superadmin' ? 'Superadmin' : 'Broker'}</Badge>
+                <Badge variant="neutral">{profile?.role ? ROLE_LABELS[profile.role as CanonicalRole] ?? profile.role : '—'}</Badge>
                 <Badge variant={profile?.status === 'active' ? 'success' : 'warning'}>
                   {profile?.status ?? 'unknown'}
                 </Badge>
@@ -78,7 +87,7 @@ export default function SettingsPage() {
             <h2 className="text-base font-semibold text-navy">Security</h2>
           </div>
           <p className="text-sm text-neutral-secondary">
-            You sign in with a secure magic link sent to your email. No password required.
+            You sign in with your email and password. If you forget your password, use the "Forgot password" link on the sign-in page to reset it.
           </p>
         </Card>
 

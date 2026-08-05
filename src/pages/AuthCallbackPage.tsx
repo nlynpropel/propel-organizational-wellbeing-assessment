@@ -81,16 +81,16 @@ export default function AuthCallbackPage() {
         </div>
         {status === 'expired' ? (
           <>
-            <h1 className="text-xl font-semibold text-navy">Sign-in link is invalid or expired</h1>
+            <h1 className="text-xl font-semibold text-navy">Invitation or reset link is invalid or expired</h1>
             <p className="text-sm text-neutral-secondary mt-2">
-              This sign-in link has expired or already been used. Request a new one to continue.
+              This link has expired or already been used. Request a new invitation or password reset to continue.
             </p>
           </>
         ) : (
           <>
-            <h1 className="text-xl font-semibold text-navy">No sign-in data found</h1>
+            <h1 className="text-xl font-semibold text-navy">No authentication data found</h1>
             <p className="text-sm text-neutral-secondary mt-2">
-              You arrived at the sign-in callback without authentication parameters.
+              You arrived at the authentication callback without the expected parameters.
             </p>
           </>
         )}
