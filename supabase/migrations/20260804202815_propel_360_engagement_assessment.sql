@@ -38,6 +38,9 @@ internal-planning assessment — no scoring, no maturity, no respondent-facing r
 - recommendations_enabled = false
 */
 
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA extensions;
+SET search_path TO public, extensions;
+
 -- ============================================================
 -- 1. Create the assessment template
 -- ============================================================

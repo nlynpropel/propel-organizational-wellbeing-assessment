@@ -2,6 +2,8 @@
 # Propel 360 — Rebuild assessment to match source document exactly
 */
 
+SET search_path TO public, extensions;
+
 -- Disable triggers temporarily
 ALTER TABLE assessment_versions DISABLE TRIGGER trg_protect_published_version;
 ALTER TABLE assessment_sections DISABLE TRIGGER trg_protect_published_sections;
