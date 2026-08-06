@@ -119,7 +119,7 @@ JSON SCHEMA:
       ]
     }
   ],
-  "implementation_sequence": ["string — ordered phase description"],
+  "implementation_sequence": ["string — exactly 3 entries, one per phase (Foundation, Pilot/Build, Scale). Format each as 'Phase N - Name (timeframe): 1-2 sentence description of the concrete actions for this client in this phase, referencing specific recommendations or metrics where relevant.' Each entry must be substantive (40-70 words) and specific to this client's assessment results — never just a phase name."],
   "client_discussion_questions": ["string — open-ended question for the client"],
   "limitations": "string — concise, client-relevant caveats. Only mention genuine analytical constraints that directly qualify a claim in the report. Empty string if none apply.",
   "source_references": [],
