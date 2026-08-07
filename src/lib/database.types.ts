@@ -150,7 +150,7 @@ export type AssessmentQuestionType =
   | 'date'
   | 'information';
 
-export type AssessmentScoringMethod = 'none' | 'simple' | 'weighted_sections';
+export type AssessmentScoringMethod = 'none' | 'simple' | 'weighted_sections' | 'category_weighted';
 
 export type AssessmentTemplateRow = {
   id: string;
