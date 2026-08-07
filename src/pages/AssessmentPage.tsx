@@ -20,6 +20,7 @@ import Button from '../components/ui/Button';
 import LoadingState from '../components/ui/LoadingState';
 import ErrorState from '../components/ui/ErrorState';
 import type { ResponseUpdate } from '../components/respondent/questionTypes';
+import ParticipationOpportunityResults from '../components/respondent/ParticipationOpportunityResults';
 
 type Phase = 'loading' | 'intro' | 'section' | 'review' | 'submitting' | 'complete' | 'error';
 
@@ -213,10 +214,14 @@ export default function AssessmentPage() {
     );
   }
 
-  if (phase === 'complete') {
+if (phase === 'complete') {
     return (
       <PublicAssessmentLayout organizationName={assessment.instance.organization_name}>
-        <AssessmentCompletion assessment={assessment} result={result} />
+        {assessment.version.scoring_method === 'category_weighted' ? (
+          <ParticipationOpportunityResults token={token!} />
+        ) : (
+          <AssessmentCompletion assessment={assessment} result={result} />
+        )}
       </PublicAssessmentLayout>
     );
   }
