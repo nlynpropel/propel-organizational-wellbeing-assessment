@@ -1,6 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import pptxgen from "npm:pptxgenjs@3.12.0";
 
+
 // ============================================================
 // CORS headers (mandatory for Supabase client compatibility)
 // ============================================================
@@ -17,17 +18,20 @@ const corsHeaders = {
 const TEMPLATE_VERSION = "opportunity-index-deck-v1";
 
 // Brand palette (matches generate_deck.js reference exactly)
-const NAVY = "132340";
-const NAVY_LIGHT = "1F3A5F";
-const ORANGE = "E8813A";
-const GREEN = "7CB342";
-const DARKGREEN = "4A7C1F";
-const GRAY = "9AA5B1";
-const BLUEGRAY = "5C7C99";
-const CARD_BG = "F7F8FA";
-const LINE = "E8EBEF";
-const TEXT_DARK = "1F2937";
-const TEXT_GRAY = "667085";
+// Propel brand tokens
+const NAVY = "031C40";
+const NAVY_LIGHT = "12345F";
+const ORANGE = "FF6600";
+const GREEN = "8BC64E";
+const DARKGREEN = "5C9433";
+const RED = "FF1C00";
+const GRAY = "667180";
+const BLUEGRAY = "4A6B8A";
+const DARK = "303640";
+const CARD_BG = "F5F7F9";
+const LINE = "E4E8EC";
+const TEXT_DARK = "303640";
+const TEXT_GRAY = "667180";
 const WHITE = "FFFFFF";
 
 const BAND_COLORS: Record<string, string> = {
@@ -46,7 +50,7 @@ const BEHAVIOR_COLORS: Record<string, string> = {
   "Significant barriers": GRAY,
 };
 
-const FONT = "Arial";
+const FONT = "Calibri";
 const PAGE_W = 13.333;
 const PAGE_H = 7.5;
 const MARGIN = 0.6;
@@ -108,24 +112,57 @@ type DeckPayload = {
 // Shared building blocks (ported exactly from generate_deck.js)
 // ============================================================
 
-function addFooter(slide: PptxSlide, pageLabel?: string): void {
-  slide.addText("Powered by Propel", {
-    x: MARGIN,
-    y: PAGE_H - 0.4,
-    w: 3,
-    h: 0.3,
-    fontSize: 8,
-    color: TEXT_GRAY,
-    fontFace: FONT,
-    italic: true,
+// "Powered by" + Propel logo mark, used in the footer everywhere.
+// Edge functions can't read the frontend's local public/ folder, so the
+// logo is fetched once per invocation (from the deployed site's public
+// URL) and embedded as base64 -- see fetchLogoDataUri() near the bottom
+// of this file. Falls back to text-only if the fetch fails for any
+// reason (site down, SITE_URL unset, etc.) so a logo outage never
+// blocks report generation.
+const LOGO_ASPECT = 366 / 1299;
+let CURRENT_LOGO_DATA_URI: string | null = null;
+
+function addPoweredByPropel(
+  slide: PptxSlide,
+  x: number,
+  y: number,
+  align: "left" | "right" = "left"
+): void {
+  const textW = 0.62, logoW = 0.55, gap = 0.02;
+  const logoH = logoW * LOGO_ASPECT;
+  const rowH = 0.3;
+  const totalW = textW + gap + logoW;
+  const startX = align === "right" ? x - totalW : x;
+  slide.addText("Powered by", {
+    x: startX, y, w: textW, h: rowH,
+    fontSize: 9, color: GRAY, fontFace: FONT, italic: true, valign: "middle", margin: 0,
   });
+  if (CURRENT_LOGO_DATA_URI) {
+    slide.addImage({
+      data: CURRENT_LOGO_DATA_URI,
+      x: startX + textW + gap,
+      y: y + (rowH - logoH) / 2,
+      w: logoW,
+      h: logoH,
+    });
+  } else {
+    // Graceful fallback if the logo couldn't be fetched this run.
+    slide.addText("Propel", {
+      x: startX + textW + gap, y, w: logoW, h: rowH,
+      fontSize: 9.5, bold: true, italic: true, color: GREEN, fontFace: FONT, valign: "middle", margin: 0,
+    });
+  }
+}
+
+function addFooter(slide: PptxSlide, pageLabel?: string): void {
+  addPoweredByPropel(slide, MARGIN, PAGE_H - 0.42, "left");
   if (pageLabel) {
     slide.addText(pageLabel, {
       x: PAGE_W - MARGIN - 2,
       y: PAGE_H - 0.4,
       w: 2,
       h: 0.3,
-      fontSize: 8,
+      fontSize: 9,
       color: TEXT_GRAY,
       fontFace: FONT,
       align: "right",
@@ -143,6 +180,42 @@ function addHeader(slide: PptxSlide, title: string): void {
     bold: true,
     color: NAVY,
     fontFace: FONT,
+  });
+}
+
+// Full band-scale bar: all five maturity bands (Reactive -> Leading),
+// sized proportionally to their actual score thresholds (NOT equal
+// fifths -- Established and Strategic are narrower bands than Reactive
+// or Developing), with a marker showing exactly where this score falls.
+const BAND_BOUNDARIES = [0, 35, 55, 70, 85, 100];
+
+function addBandScale(
+  slide: PptxSlide,
+  x: number,
+  y: number,
+  w: number,
+  score: number,
+  bands: string[]
+): void {
+  let cursor = x;
+  bands.forEach((b, i) => {
+    const segW = ((BAND_BOUNDARIES[i + 1] - BAND_BOUNDARIES[i]) / 100) * w;
+    slide.addShape("rect", {
+      x: cursor, y, w: segW, h: 0.32,
+      fill: { color: BAND_COLORS[b] || GRAY },
+      line: { color: WHITE, width: 1.5 },
+    });
+    slide.addText(b, {
+      x: cursor - 0.08, y: y + 0.36, w: segW + 0.16, h: 0.2,
+      fontSize: 9.5, color: TEXT_GRAY, fontFace: FONT, align: "center", margin: 0, wrap: false,
+    });
+    cursor += segW;
+  });
+  const clamped = Math.min(100, Math.max(0, score));
+  const markerX = x + (w * clamped) / 100 - 0.03;
+  slide.addShape("rect", {
+    x: markerX, y: y - 0.06, w: 0.06, h: 0.44,
+    fill: { color: WHITE }, line: { color: NAVY, width: 1.25 },
   });
 }
 
@@ -176,25 +249,27 @@ function addScoreBar(
     align: "right",
     margin: 0,
   });
-  const barY = y + 0.3;
-  const barH = 0.14;
-  slide.addShape("rect", {
+  const barY = y + 0.32;
+  const barH = 0.16;
+  slide.addShape("roundRect", {
     x,
     y: barY,
     w,
     h: barH,
-    fill: { color: LINE },
+    rectRadius: barH / 2,
+    fill: { color: CARD_BG },
     line: { type: "none" },
   });
   const filledW = Math.max(
-    0.06,
+    barH,
     (w * Math.min(100, Math.max(0, item.score))) / 100
   );
-  slide.addShape("rect", {
+  slide.addShape("roundRect", {
     x,
     y: barY,
     w: filledW,
     h: barH,
+    rectRadius: barH / 2,
     fill: { color: levelColor(item.level) },
     line: { type: "none" },
   });
@@ -203,53 +278,77 @@ function addScoreBar(
     y: barY + barH + 0.04,
     w,
     h: 0.2,
-    fontSize: 9,
+    fontSize: 10,
     color: TEXT_GRAY,
     fontFace: FONT,
     margin: 0,
   });
 }
 
-function addGauge(
+// Radial arc gauge -- the deck's signature element. A 250-degree sweep
+// (matching the forward "propel" motion of the brand) filled to the
+// score, with the number set inside the arc rather than beside it.
+function addRadialGauge(
   slide: PptxSlide,
-  x: number,
-  y: number,
-  w: number,
+  cx: number,
+  cy: number,
+  size: number,
   score: number,
-  bands: string[]
+  maturity: string,
+  opts: { trackColor: string; textColor: string; subTextColor: string }
 ): void {
-  const segW = w / bands.length;
-  bands.forEach((b, i) => {
-    slide.addShape("rect", {
-      x: x + i * segW,
-      y,
-      w: segW,
-      h: 0.32,
-      fill: { color: BAND_COLORS[b] || GRAY },
-      line: { color: WHITE, width: 1.5 },
-    });
-    slide.addText(b, {
-      x: x + i * segW - 0.08,
-      y: y + 0.36,
-      w: segW + 0.16,
-      h: 0.2,
-      fontSize: 7,
-      color: TEXT_GRAY,
-      fontFace: FONT,
-      align: "center",
-      margin: 0,
-      wrap: false,
-    });
-  });
+  const START = -125;
+  const SWEEP = 250;
   const clamped = Math.min(100, Math.max(0, score));
-  const markerX = x + (w * clamped) / 100 - 0.03;
-  slide.addShape("rect", {
-    x: markerX,
-    y: y - 0.06,
-    w: 0.06,
-    h: 0.44,
-    fill: { color: WHITE },
-    line: { color: NAVY, width: 1.25 },
+  const endAngle = START + (SWEEP * clamped) / 100;
+  const fillColor = levelColor(maturity);
+
+  slide.addShape("blockArc", {
+    x: cx,
+    y: cy,
+    w: size,
+    h: size,
+    angleRange: [START, START + SWEEP],
+    fill: { color: opts.trackColor },
+    line: { type: "none" },
+    arcThicknessRatio: 0.26,
+  } as unknown as Record<string, unknown>);
+
+  slide.addShape("blockArc", {
+    x: cx,
+    y: cy,
+    w: size,
+    h: size,
+    angleRange: [START, Math.max(START + 8, endAngle)],
+    fill: { color: fillColor },
+    line: { type: "none" },
+    arcThicknessRatio: 0.26,
+  } as unknown as Record<string, unknown>);
+
+  const textW = size * 0.62;
+  const textX = cx + (size - textW) / 2;
+  slide.addText(String(Math.round(clamped)), {
+    x: textX,
+    y: cy + size * 0.4,
+    w: textW,
+    h: size * 0.32,
+    fontSize: Math.round(size * 15),
+    bold: true,
+    align: "center",
+    color: opts.textColor,
+    fontFace: FONT,
+    margin: 0,
+  });
+  slide.addText("/ 100", {
+    x: textX,
+    y: cy + size * 0.68,
+    w: textW,
+    h: size * 0.14,
+    fontSize: Math.round(size * 5),
+    align: "center",
+    color: opts.subTextColor,
+    fontFace: FONT,
+    margin: 0,
   });
 }
 
@@ -299,10 +398,44 @@ function bg(slide: PptxSlide, color: string): void {
   slide.background = { color };
 }
 
+// Concentric-ring background texture -- template-inspired signature
+// device. Faint, radiating from one focal point, never competing with
+// content. Used behind the cover and section-divider-style slides.
+function addConcentricRings(slide: PptxSlide, cx: number, cy: number, opts: { color: string; count?: number; step?: number }): void {
+  const count = opts.count ?? 6;
+  const step = opts.step ?? 1.15;
+  for (let i = 1; i <= count; i++) {
+    const r = i * step;
+    slide.addShape("ellipse", {
+      x: cx - r, y: cy - r, w: r * 2, h: r * 2,
+      fill: { type: "none" },
+      line: { color: opts.color, width: 0.75, transparency: 55 },
+    });
+  }
+}
+
 // ============================================================
 // Deck generator (ported exactly from generate_deck.js)
 // ============================================================
-function generateDeck(data: DeckPayload): PptxPres {
+async function fetchLogoDataUri(): Promise<string | null> {
+  try {
+    const siteUrl = Deno.env.get("SITE_URL");
+    if (!siteUrl) return null;
+    const res = await fetch(`${siteUrl.replace(/\/$/, "")}/Propel_Logo_2020_Main.png`);
+    if (!res.ok) return null;
+    const buf = await res.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    let binary = "";
+    for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+    return `data:image/png;base64,${btoa(binary)}`;
+  } catch (err) {
+    console.error("Failed to fetch Propel logo for deck:", err);
+    return null;
+  }
+}
+
+function generateDeck(data: DeckPayload, logoDataUri?: string | null): PptxPres {
+  CURRENT_LOGO_DATA_URI = logoDataUri ?? null;
   const pres = new pptxgen();
   pres.defineLayout({ name: "WIDE", width: PAGE_W, height: PAGE_H });
   pres.layout = "WIDE";
@@ -312,139 +445,60 @@ function generateDeck(data: DeckPayload): PptxPres {
   // ---- Slide 1: Cover ----
   {
     const slide = pres.addSlide();
-    bg(slide, NAVY);
+    bg(slide, WHITE);
+    addConcentricRings(slide, PAGE_W - 1.2, PAGE_H / 2, { color: GREEN, count: 7, step: 1.3 });
+
     slide.addText("WELL-BEING OPPORTUNITY REPORT", {
-      x: MARGIN,
-      y: 1.4,
-      w: 7,
-      h: 0.35,
-      fontSize: 12,
-      color: "9FB3D1",
-      bold: true,
-      fontFace: FONT,
-      charSpacing: 2,
+      x: MARGIN, y: 1.3, w: 8, h: 0.35,
+      fontSize: 12, color: GRAY, bold: true, fontFace: FONT, charSpacing: 2,
     });
-    slide.addText(client.name, {
-      x: MARGIN,
-      y: 1.8,
-      w: 7.2,
-      h: 1.1,
-      fontSize: 40,
-      bold: true,
-      color: WHITE,
-      fontFace: FONT,
-      margin: 0,
+    slide.addText(client.name.toUpperCase(), {
+      x: MARGIN, y: 1.7, w: 9.5, h: 1.7,
+      fontSize: 52, bold: true, color: NAVY, fontFace: FONT, margin: 0, valign: "top",
     });
     slide.addText(client.assessment_name, {
-      x: MARGIN,
-      y: 2.85,
-      w: 7,
-      h: 0.4,
-      fontSize: 18,
-      color: "C9D6E8",
-      fontFace: FONT,
-      margin: 0,
-    });
-    slide.addText(client.assessment_date, {
-      x: MARGIN,
-      y: 3.25,
-      w: 7,
-      h: 0.35,
-      fontSize: 12,
-      color: "8FA3C0",
-      fontFace: FONT,
-      margin: 0,
+      x: MARGIN, y: 3.15, w: 7, h: 0.4,
+      fontSize: 16, color: TEXT_GRAY, fontFace: FONT, margin: 0,
     });
 
-    const cardX = 9.0, cardY = 1.6, cardW = 3.6, cardH = 3.3;
-    slide.addShape("rect", {
-      x: cardX,
-      y: cardY,
-      w: cardW,
-      h: cardH,
-      fill: { color: WHITE },
-      line: { type: "none" },
-      shadow: {
-        type: "outer",
-        color: "000000",
-        opacity: 0.25,
-        blur: 12,
-        offset: 3,
-        angle: 90,
-      },
+    // Floating content pills -- echoes the template's abstract concept
+    // badges, but grounded in this client's actual top dimensions.
+    const topDims = [...assessment.dimensions].sort((a, b) => b.score - a.score).slice(0, 2);
+    const pillData: Array<{ label: string; color: string; x: number; y: number; dark?: boolean }> = [
+      { label: assessment.maturity, color: NAVY, x: 8.7, y: 1.5, dark: true },
+      { label: topDims[0]?.name ?? "", color: CARD_BG, x: 10.55, y: 2.15 },
+      { label: topDims[1]?.name ?? "", color: CARD_BG, x: 9.2, y: 2.85 },
+    ];
+    pillData.forEach((p) => {
+      if (!p.label) return;
+      const w = Math.min(3.2, 0.35 + p.label.length * 0.095);
+      slide.addShape("roundRect", {
+        x: p.x, y: p.y, w, h: 0.5, rectRadius: 0.25,
+        fill: { color: p.color }, line: p.dark ? { type: "none" } : { color: LINE, width: 1 },
+      });
+      slide.addText(p.label, {
+        x: p.x, y: p.y, w, h: 0.5,
+        fontSize: 11, bold: true, color: p.dark ? WHITE : NAVY, fontFace: FONT,
+        align: "center", valign: "middle", margin: 0,
+      });
     });
-    slide.addText("Overall Opportunity Index", {
-      x: cardX + 0.3,
-      y: cardY + 0.3,
-      w: cardW - 0.6,
-      h: 0.3,
-      fontSize: 11,
-      color: TEXT_GRAY,
-      fontFace: FONT,
-      bold: true,
-    });
+
+    // Score, presented plainly -- large numeral, no card, letting the
+    // whitespace and rings carry the visual weight instead.
     slide.addText(String(assessment.overall_score), {
-      x: cardX + 0.3,
-      y: cardY + 0.65,
-      w: cardW - 1.4,
-      h: 1.0,
-      fontSize: 54,
-      bold: true,
-      color: NAVY,
-      fontFace: FONT,
-      margin: 0,
+      x: MARGIN, y: 4.35, w: 3, h: 1.3,
+      fontSize: 72, bold: true, color: levelColor(assessment.maturity), fontFace: FONT, margin: 0,
     });
-    slide.addText("/100", {
-      x: cardX + 1.9,
-      y: cardY + 1.15,
-      w: 1.0,
-      h: 0.4,
-      fontSize: 16,
-      color: TEXT_GRAY,
-      fontFace: FONT,
-      margin: 0,
+    slide.addText("OVERALL OPPORTUNITY INDEX  /  100", {
+      x: MARGIN, y: 5.55, w: 5, h: 0.3,
+      fontSize: 10.5, color: GRAY, bold: true, fontFace: FONT, charSpacing: 1,
     });
-    slide.addShape("roundRect", {
-      x: cardX + 0.3,
-      y: cardY + 1.75,
-      w: 1.7,
-      h: 0.4,
-      rectRadius: 0.08,
-      fill: { color: levelColor(assessment.maturity) },
-      line: { type: "none" },
-    });
-    slide.addText(assessment.maturity, {
-      x: cardX + 0.3,
-      y: cardY + 1.75,
-      w: 1.7,
-      h: 0.4,
-      fontSize: 12,
-      bold: true,
-      color: WHITE,
-      fontFace: FONT,
-      align: "center",
-      valign: "middle",
-      margin: 0,
-    });
-    addGauge(
-      slide,
-      cardX + 0.3,
-      cardY + 2.4,
-      cardW - 0.6,
-      assessment.overall_score,
-      assessment.bands
-    );
 
-    slide.addText("Powered by Propel", {
-      x: MARGIN,
-      y: PAGE_H - 0.55,
-      w: 4,
-      h: 0.3,
-      fontSize: 9,
-      color: "8FA3C0",
-      fontFace: FONT,
-      italic: true,
+    slide.addText(client.assessment_date, {
+      x: MARGIN, y: PAGE_H - 0.55, w: 4, h: 0.3,
+      fontSize: 9.5, color: GRAY, fontFace: FONT, italic: true,
     });
+    addPoweredByPropel(slide, PAGE_W - MARGIN, PAGE_H - 0.55, "right");
   }
 
   // ---- Slide 2: Opportunity Index Overview ----
@@ -453,69 +507,108 @@ function generateDeck(data: DeckPayload): PptxPres {
     bg(slide, WHITE);
     addHeader(slide, "Opportunity Index Overview");
 
-    addGauge(slide, MARGIN, 1.15, 4.6, assessment.overall_score, assessment.bands);
+    slide.addText(strategy.executive_summary, {
+      x: MARGIN, y: 0.98, w: PAGE_W - MARGIN * 2, h: 0.95,
+      fontSize: 11.5, color: TEXT_DARK, fontFace: FONT, valign: "top", lineSpacingMultiple: 1.2,
+    });
+
     slide.addText(String(assessment.overall_score), {
-      x: MARGIN,
-      y: 1.75,
-      w: 2,
-      h: 0.6,
-      fontSize: 30,
-      bold: true,
-      color: NAVY,
-      fontFace: FONT,
-      margin: 0,
+      x: MARGIN, y: 2.05, w: 1.7, h: 0.9,
+      fontSize: 42, bold: true, color: levelColor(assessment.maturity), fontFace: FONT, margin: 0,
     });
-    slide.addText(`/100  ·  ${assessment.maturity}`, {
-      x: MARGIN + 1.4,
-      y: 1.9,
-      w: 3,
-      h: 0.4,
-      fontSize: 13,
-      color: TEXT_GRAY,
-      fontFace: FONT,
-      margin: 0,
+    slide.addShape("roundRect", {
+      x: MARGIN + 1.75, y: 2.28, w: 1.5, h: 0.42, rectRadius: 0.1,
+      fill: { color: levelColor(assessment.maturity) }, line: { type: "none" },
+    });
+    slide.addText(assessment.maturity, {
+      x: MARGIN + 1.75, y: 2.28, w: 1.5, h: 0.42,
+      fontSize: 12, bold: true, color: WHITE, fontFace: FONT, align: "center", valign: "middle", margin: 0,
     });
 
-    const colY = 2.9, colW = 3.55;
+    addBandScale(slide, MARGIN, 3.15, PAGE_W - MARGIN * 2, assessment.overall_score, assessment.bands);
+
+    // Strengths as 2-up icon cards -- shortened to make room above.
     slide.addText("STRENGTHS", {
-      x: MARGIN,
-      y: colY,
-      w: colW,
-      h: 0.3,
-      fontSize: 12,
-      bold: true,
-      color: DARKGREEN,
-      fontFace: FONT,
-      charSpacing: 1,
+      x: MARGIN, y: 4.05, w: 6, h: 0.3,
+      fontSize: 12, bold: true, color: DARKGREEN, fontFace: FONT, charSpacing: 1,
     });
-    let sy = colY + 0.45;
-    strategy.strengths.forEach((s) => {
-      addListItem(slide, MARGIN, sy, colW, s.title, s.body, GREEN);
-      sy += 1.15;
-    });
-
-    const col2X = MARGIN + colW + 0.5;
-    slide.addText("PRIORITY OPPORTUNITIES", {
-      x: col2X,
-      y: colY,
-      w: colW + 1,
-      h: 0.3,
-      fontSize: 12,
-      bold: true,
-      color: "B45C1F",
-      fontFace: FONT,
-      charSpacing: 1,
-    });
-    let oy = colY + 0.45;
-    strategy.priority_opportunities.forEach((o) => {
-      addListItem(slide, col2X, oy, colW + 1, o.title, o.body, ORANGE);
-      oy += 1.15;
+    const cardGap = 0.4;
+    const cardW = (PAGE_W - MARGIN * 2 - cardGap) / 2;
+    strategy.strengths.slice(0, 2).forEach((s, i) => {
+      const x = MARGIN + i * (cardW + cardGap);
+      const y = 4.45;
+      slide.addShape("roundRect", {
+        x, y, w: cardW, h: 1.9, rectRadius: 0.08,
+        fill: { color: CARD_BG }, line: { type: "none" },
+      });
+      slide.addShape("roundRect", {
+        x: x + 0.28, y: y + 0.25, w: 0.48, h: 0.48, rectRadius: 0.12,
+        fill: { color: "DCEDC8" }, line: { type: "none" },
+      });
+      slide.addShape("ellipse", {
+        x: x + 0.42, y: y + 0.39, w: 0.2, h: 0.2,
+        fill: { color: DARKGREEN }, line: { type: "none" },
+      });
+      slide.addText(s.title, {
+        x: x + 0.28, y: y + 0.85, w: cardW - 0.56, h: 0.4,
+        fontSize: 13.5, bold: true, color: NAVY, fontFace: FONT, margin: 0, valign: "top",
+      });
+      slide.addText(s.body, {
+        x: x + 0.28, y: y + 1.28, w: cardW - 0.56, h: 0.55,
+        fontSize: 10, color: TEXT_DARK, fontFace: FONT, margin: 0, valign: "top",
+      });
     });
 
     addFooter(slide);
   }
 
-  // ---- Slide 3: Strategy Dimensions ----
+  // ---- Slide 3: Priority Opportunities (numbered circles) ----
+  {
+    const slide = pres.addSlide();
+    bg(slide, WHITE);
+    addHeader(slide, "Priority Opportunities");
+    slide.addText("The three areas most likely to move the needle first.", {
+      x: MARGIN, y: 1.0, w: 10, h: 0.3, fontSize: 11, color: TEXT_GRAY, fontFace: FONT, italic: true,
+    });
+
+    const priItems = strategy.priority_opportunities.slice(0, 3);
+    const priN = priItems.length;
+    const priUsable = PAGE_W - MARGIN * 2;
+    const priGap = 0.35;
+    const priColW = (priUsable - priGap * (priN - 1)) / priN;
+    const cardY = 1.65, cardH = 4.7;
+    const circleY = cardY + 0.4, circleSize = 0.85;
+    const circleColors = [ORANGE, GREEN, NAVY];
+    const tintColors = ["FFEDDF", "EEF6E3", "E3E9F0"];
+
+    priItems.forEach((item, i) => {
+      const colX = MARGIN + i * (priColW + priGap);
+      slide.addShape("roundRect", {
+        x: colX, y: cardY, w: priColW, h: cardH, rectRadius: 0.08,
+        fill: { color: tintColors[i % tintColors.length] }, line: { type: "none" },
+      });
+      const cx = colX + priColW / 2 - circleSize / 2;
+      slide.addShape("ellipse", {
+        x: cx, y: circleY, w: circleSize, h: circleSize,
+        fill: { color: circleColors[i % circleColors.length] }, line: { type: "none" },
+      });
+      slide.addText(String(i + 1).padStart(2, "0"), {
+        x: cx, y: circleY, w: circleSize, h: circleSize,
+        fontSize: 22, bold: true, color: WHITE, fontFace: FONT, align: "center", valign: "middle", margin: 0,
+      });
+      slide.addText(item.title, {
+        x: colX + 0.3, y: circleY + circleSize + 0.35, w: priColW - 0.6, h: 0.9,
+        fontSize: 15, bold: true, color: NAVY, fontFace: FONT, align: "center", valign: "top", margin: 0,
+      });
+      slide.addText(item.body, {
+        x: colX + 0.4, y: circleY + circleSize + 1.3, w: priColW - 0.8, h: 1.6,
+        fontSize: 11, color: TEXT_DARK, fontFace: FONT, align: "center", valign: "top", margin: 0,
+      });
+    });
+    addFooter(slide);
+  }
+
+  // ---- Slide 5: Strategy Dimensions (detail bars) ----
   {
     const slide = pres.addSlide();
     bg(slide, WHITE);
@@ -539,132 +632,78 @@ function generateDeck(data: DeckPayload): PptxPres {
       const y = 1.7 + r * gapY;
       addScoreBar(slide, x, y, colW, dim);
     });
-    addFooter(slide);
-  }
 
-  // ---- Slide 4: Behavioral Readiness ----
-  {
-    const slide = pres.addSlide();
-    bg(slide, WHITE);
-    addHeader(slide, "Behavioral Readiness");
-    slide.addText(
-      "Higher scores indicate stronger behavioral support for well-being participation.",
-      {
-        x: MARGIN,
-        y: 1.0,
-        w: 11,
-        h: 0.3,
-        fontSize: 11,
-        color: TEXT_GRAY,
-        fontFace: FONT,
-        italic: true,
-      }
-    );
-
-    const cols = 2, gapX = 0.6, gapY = 1.6;
-    const colW = (PAGE_W - MARGIN * 2 - gapX) / cols;
-    assessment.behavioral_drivers.forEach((d, i) => {
-      const c = i % cols, r = Math.floor(i / cols);
-      const x = MARGIN + c * (colW + gapX);
-      const y = 1.7 + r * gapY;
-      addScoreBar(slide, x, y, colW, d);
-      slide.addText(d.body, {
-        x,
-        y: y + 0.65,
-        w: colW,
-        h: 0.7,
-        fontSize: 10,
-        color: TEXT_GRAY,
-        fontFace: FONT,
-        margin: 0,
-        valign: "top",
-      });
+    slide.addShape("line", {
+      x: MARGIN, y: 4.55, w: PAGE_W - MARGIN * 2, h: 0,
+      line: { color: LINE, width: 1 },
     });
-    addFooter(slide);
-  }
-
-  // ---- Slide 5: Executive Summary + Current Maturity ----
-  {
-    const slide = pres.addSlide();
-    bg(slide, WHITE);
-    addHeader(slide, "Executive Summary");
-    slide.addText(strategy.executive_summary, {
-      x: MARGIN,
-      y: 1.2,
-      w: PAGE_W - MARGIN * 2,
-      h: 2.6,
-      fontSize: 13,
-      color: TEXT_DARK,
-      fontFace: FONT,
-      valign: "top",
-      lineSpacingMultiple: 1.25,
-    });
-
     slide.addText("CURRENT MATURITY", {
-      x: MARGIN,
-      y: 4.1,
-      w: 6,
-      h: 0.3,
-      fontSize: 12,
-      bold: true,
-      color: NAVY,
-      fontFace: FONT,
-      charSpacing: 1,
+      x: MARGIN, y: 4.75, w: 6, h: 0.3,
+      fontSize: 12, bold: true, color: NAVY, fontFace: FONT, charSpacing: 1,
     });
     slide.addText(strategy.current_maturity, {
-      x: MARGIN,
-      y: 4.5,
-      w: PAGE_W - MARGIN * 2,
-      h: 2.3,
-      fontSize: 12,
-      color: TEXT_GRAY,
-      fontFace: FONT,
-      valign: "top",
-      lineSpacingMultiple: 1.2,
+      x: MARGIN, y: 5.1, w: PAGE_W - MARGIN * 2, h: 1.6,
+      fontSize: 11.5, color: TEXT_GRAY, fontFace: FONT, valign: "top", lineSpacingMultiple: 1.2,
     });
     addFooter(slide);
   }
 
-  // ---- Slide 6: What Is Holding Impact Back ----
+  // ---- Slide 4: Behavioral Readiness + What's Holding Participation Back (merged) ----
   {
     const slide = pres.addSlide();
     bg(slide, WHITE);
-    addHeader(slide, "What Is Holding Impact Back");
+    addHeader(slide, "What's Holding Participation Back");
+    slide.addText(
+      "Behavioral readiness scores, and the specific findings behind them.",
+      { x: MARGIN, y: 1.0, w: 11, h: 0.3, fontSize: 11, color: TEXT_GRAY, fontFace: FONT, italic: true }
+    );
 
-    let y = 1.35;
-    strategy.holding_back.forEach((f) => {
+    // Left: compact behavioral driver bars
+    const leftX = MARGIN, leftW = 4.5;
+    slide.addText("BEHAVIORAL READINESS", {
+      x: leftX, y: 1.55, w: leftW, h: 0.28,
+      fontSize: 11, bold: true, color: NAVY, fontFace: FONT, charSpacing: 1,
+    });
+    let by = 2.05;
+    assessment.behavioral_drivers.forEach((d) => {
+      addScoreBar(slide, leftX, by, leftW, d);
+      by += 0.85;
+    });
+
+    // Right: findings, in a tinted panel for visual contrast
+    const panelX = leftX + leftW + 0.5;
+    const panelW = PAGE_W - MARGIN - panelX;
+    const panelY = 1.5, panelH = 5.0;
+    slide.addShape("roundRect", {
+      x: panelX, y: panelY, w: panelW, h: panelH, rectRadius: 0.08,
+      fill: { color: NAVY }, line: { type: "none" },
+    });
+    slide.addText("WHAT'S HOLDING PARTICIPATION BACK", {
+      x: panelX + 0.35, y: panelY + 0.3, w: panelW - 0.7, h: 0.3,
+      fontSize: 11, bold: true, color: "9FB3D1", fontFace: FONT, charSpacing: 1,
+    });
+    let fy = panelY + 0.85;
+    const findingH = (panelH - 1.1) / Math.max(1, strategy.holding_back.length);
+    strategy.holding_back.forEach((f, i) => {
       slide.addShape("ellipse", {
-        x: MARGIN,
-        y: y + 0.06,
-        w: 0.12,
-        h: 0.12,
-        fill: { color: NAVY_LIGHT },
-        line: { type: "none" },
+        x: panelX + 0.35, y: fy, w: 0.34, h: 0.34,
+        fill: { color: ORANGE }, line: { type: "none" },
+      });
+      slide.addText(String(i + 1), {
+        x: panelX + 0.35, y: fy, w: 0.34, h: 0.34,
+        fontSize: 12, bold: true, color: WHITE, fontFace: FONT, align: "center", valign: "middle", margin: 0,
       });
       slide.addText(f.title, {
-        x: MARGIN + 0.28,
-        y: y - 0.03,
-        w: PAGE_W - MARGIN * 2 - 0.28,
-        h: 0.26,
-        fontSize: 12,
-        bold: true,
-        color: TEXT_DARK,
-        fontFace: FONT,
-        margin: 0,
+        x: panelX + 0.85, y: fy - 0.03, w: panelW - 1.2, h: 0.32,
+        fontSize: 13, bold: true, color: WHITE, fontFace: FONT, margin: 0,
       });
       slide.addText(f.body, {
-        x: MARGIN + 0.28,
-        y: y + 0.24,
-        w: PAGE_W - MARGIN * 2 - 0.28,
-        h: 0.45,
-        fontSize: 10,
-        color: TEXT_GRAY,
-        fontFace: FONT,
-        margin: 0,
-        valign: "top",
+        x: panelX + 0.85, y: fy + 0.3, w: panelW - 1.2, h: findingH - 0.4,
+        fontSize: 12, color: "C9D6E8", fontFace: FONT, margin: 0, valign: "top",
       });
-      y += 0.95;
+      fy += findingH;
     });
+
     addFooter(slide);
   }
 
@@ -704,7 +743,7 @@ function generateDeck(data: DeckPayload): PptxPres {
         y: ly,
         w: leftW,
         h: 0.22,
-        fontSize: 9,
+        fontSize: 9.5,
         bold: true,
         color: TEXT_GRAY,
         fontFace: FONT,
@@ -741,7 +780,7 @@ function generateDeck(data: DeckPayload): PptxPres {
       y: 1.95,
       w: rightW - 0.5,
       h: 0.22,
-      fontSize: 9,
+      fontSize: 9.5,
       bold: true,
       color: TEXT_GRAY,
       fontFace: FONT,
@@ -763,7 +802,7 @@ function generateDeck(data: DeckPayload): PptxPres {
       y: 3.25,
       w: rightW - 0.5,
       h: 0.22,
-      fontSize: 9,
+      fontSize: 9.5,
       bold: true,
       color: TEXT_GRAY,
       fontFace: FONT,
@@ -785,7 +824,7 @@ function generateDeck(data: DeckPayload): PptxPres {
       y: 5.1,
       w: rightW - 0.5,
       h: 0.22,
-      fontSize: 9,
+      fontSize: 9.5,
       bold: true,
       color: TEXT_GRAY,
       fontFace: FONT,
@@ -796,7 +835,7 @@ function generateDeck(data: DeckPayload): PptxPres {
       y: 5.35,
       w: rightW - 0.5,
       h: 1.25,
-      fontSize: 9.5,
+      fontSize: 10,
       italic: true,
       color: TEXT_GRAY,
       fontFace: FONT,
@@ -818,26 +857,38 @@ function generateDeck(data: DeckPayload): PptxPres {
       strategy.implementation_sequence.next,
       strategy.implementation_sequence.later,
     ];
-    const gap = 0.4;
+    const gap = 0.5;
     const cardW = (PAGE_W - MARGIN * 2 - gap * 2) / 3;
-    const colors = [ORANGE, GREEN, NAVY_LIGHT];
+    const colors = [ORANGE, GREEN, NAVY];
+    const badgeY = 1.55, badgeSize = 0.4;
+
+    // Flow line connecting the three phases -- makes the sequence read
+    // left-to-right at a glance, not just three separate cards.
+    slide.addShape("line", {
+      x: MARGIN + badgeSize / 2, y: badgeY + badgeSize / 2,
+      w: PAGE_W - MARGIN * 2 - badgeSize, h: 0,
+      line: { color: LINE, width: 2, dashType: "dash" },
+    });
+
     phases.forEach((p, i) => {
       const x = MARGIN + i * (cardW + gap);
-      slide.addShape("rect", {
+      slide.addShape("roundRect", {
         x,
         y: 1.3,
         w: cardW,
         h: 3.3,
+        rectRadius: 0.06,
         fill: { color: CARD_BG },
         line: { type: "none" },
+        shadow: { type: "outer", color: "000000", opacity: 0.1, blur: 8, offset: 3, angle: 90 },
       });
       slide.addShape("ellipse", {
         x: x + 0.25,
-        y: 1.55,
-        w: 0.4,
-        h: 0.4,
+        y: badgeY,
+        w: badgeSize,
+        h: badgeSize,
         fill: { color: colors[i] },
-        line: { type: "none" },
+        line: { color: WHITE, width: 2 },
       });
       slide.addText(String(i + 1), {
         x: x + 0.25,
@@ -914,38 +965,30 @@ function generateDeck(data: DeckPayload): PptxPres {
   // ---- Closing ----
   {
     const slide = pres.addSlide();
-    bg(slide, NAVY);
+    bg(slide, WHITE);
+    addConcentricRings(slide, PAGE_W - 1.2, PAGE_H / 2, { color: GREEN, count: 7, step: 1.3 });
     slide.addText("Thank you", {
       x: MARGIN,
       y: 2.8,
       w: 8,
       h: 0.9,
-      fontSize: 34,
+      fontSize: 40,
       bold: true,
-      color: WHITE,
+      color: NAVY,
       fontFace: FONT,
       margin: 0,
     });
-    slide.addText(`${client.name}  ·  ${client.assessment_name}`, {
+    slide.addText(`${client.name}  \u00b7  ${client.assessment_name}`, {
       x: MARGIN,
-      y: 3.6,
+      y: 3.75,
       w: 9,
       h: 0.4,
       fontSize: 14,
-      color: "C9D6E8",
+      color: TEXT_GRAY,
       fontFace: FONT,
       margin: 0,
     });
-    slide.addText("Powered by Propel", {
-      x: MARGIN,
-      y: PAGE_H - 0.55,
-      w: 4,
-      h: 0.3,
-      fontSize: 9,
-      color: "8FA3C0",
-      fontFace: FONT,
-      italic: true,
-    });
+    addPoweredByPropel(slide, MARGIN, PAGE_H - 0.55, "left");
   }
 
   return pres;
@@ -971,6 +1014,7 @@ const DRIVER_DESCRIPTIONS: Record<string, string> = {
   trust_social_proof: "Employees see credible support, relatable participation, and clear privacy protections.",
   structural_environmental_friction: "The program removes access, technology, workplace, and administrative barriers to participation.",
 };
+
 
 function getMaturityLevel(score: number): string {
   if (score >= 85) return "Leading";
@@ -1553,10 +1597,14 @@ Deno.serve(async (req: Request) => {
       .update({ payload_snapshot_json: payload as unknown as Record<string, unknown> })
       .eq("id", presentation_generation_id);
 
+    // 8b. Fetch the Propel logo for the footer (best-effort -- generateDeck
+    //     falls back to text-only "Propel" if this returns null)
+    const logoDataUri = await fetchLogoDataUri();
+
     // 9. Generate the deck
     let pres: PptxPres;
     try {
-      pres = generateDeck(payload);
+      pres = generateDeck(payload, logoDataUri);
     } catch (genErr) {
       await supabase
         .from("presentation_generations")
