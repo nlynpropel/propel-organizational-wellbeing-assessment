@@ -160,7 +160,7 @@ function RootRedirect() {
   if (!profile) return <Navigate to="/new-account" replace />;
   // Invited users who haven't set a password yet go to the Set Password page.
   if (!profile.password_set) return <Navigate to="/set-password" replace />;
-  if (!profile.account_setup_complete && status === 'invited' && profile.role !== 'superadmin') {
+if (!profile.account_setup_complete && (status === 'invited' || status === 'setup_incomplete') && profile.role !== 'superadmin') {
     return <Navigate to="/new-account" replace />;
   }
   if (status === 'active') return <Navigate to="/dashboard" replace />;
