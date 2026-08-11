@@ -72,7 +72,7 @@ Deno.serve(async (req: Request) => {
       return await handleResend(adminClient, body as ResendRequestBody);
     }
 
-    return await handleInvite(adminClient, body as InviteRequestBody);
+    return await handleInvite(adminClient, userClient, body as InviteRequestBody);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     return new Response(JSON.stringify({ error: message }), {
