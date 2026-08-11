@@ -13,6 +13,7 @@ import { getDimensionLabel, getDriverLabel, getEffortLabel, getImpactLabel, type
 import { CUSTOM_ASSESSMENT_DISCLAIMER, CUSTOM_SCORING_DISCLAIMER } from '../lib/assessmentScoring';
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import StrategyReportSection from '../components/StrategyReportSection';
+import ParticipationOpportunityResults from '../components/respondent/ParticipationOpportunityResults';
 import { mapPrintData } from '../lib/printHelpers';
 import {
   StrengthsSection,
@@ -160,6 +161,7 @@ function ScoredReport({
     : null;
 
   const strategyDimensions = deriveStrategyDimensions(sections, sectionScores, scoreBands);
+  const isCategoryWeighted = version?.scoring_method === 'category_weighted';
 
   const reportSectionsData = {
     strengths: recommendations?.strengths ?? [],
@@ -208,27 +210,34 @@ function ScoredReport({
         </div>
       )}
 
-      {/* Strategy Report Section — broker-facing generation, review, approve, print */}
-      <StrategyReportSection
-        assessmentInstanceId={instanceId}
-        printContext={mapPrintData({
-          organizationName: organization?.organization_name,
-          templateName: template?.name,
-          submittedAt: instance.submitted_at,
-          overallScore,
-          scoreBandLabel: scoreBand,
-        })}
-        printableGraph={
-          overallScore !== null && version?.show_overall_score ? (
-            <OpportunitySpectrum
-              score={overallScore}
-              scoreBandLabel={scoreBand ?? '—'}
-              bands={scoreBands}
-            />
-          ) : null
-        }
-        reportSectionsData={reportSectionsData}
-      />
+      {/* Strategy Report Section — broker-facing generation, review, approve, print.
+          Not applicable to category_weighted assessments (e.g. the Participation
+          Finder) -- those show the same AI-generated result the respondent saw
+          instead, since there's no broker-reviewed strategy report for this type. */}
+      {isCategoryWeighted ? (
+        <ParticipationOpportunityResults token={instance.secure_token} />
+      ) : (
+        <StrategyReportSection
+          assessmentInstanceId={instanceId}
+          printContext={mapPrintData({
+            organizationName: organization?.organization_name,
+            templateName: template?.name,
+            submittedAt: instance.submitted_at,
+            overallScore,
+            scoreBandLabel: scoreBand,
+          })}
+          printableGraph={
+            overallScore !== null && version?.show_overall_score ? (
+              <OpportunitySpectrum
+                score={overallScore}
+                scoreBandLabel={scoreBand ?? '—'}
+                bands={scoreBands}
+              />
+            ) : null
+          }
+          reportSectionsData={reportSectionsData}
+        />
+      )}
 
       {/* Strengths & Priority Opportunities — side by side */}
       {recommendations && (hasStrengths || hasPriorities) && (
@@ -245,8 +254,9 @@ function ScoredReport({
         </>
       )}
 
-      {/* Strategy dimensions — two-column grid */}
-      {strategyDimensions.length > 0 && (
+      {/* Strategy dimensions — two-column grid. Not applicable to
+          category_weighted assessments (no comparable dimension model). */}
+      {!isCategoryWeighted && strategyDimensions.length > 0 && (
         <>
           <SectionDivider />
           <StrategyDimensionsSection dimensions={strategyDimensions} />
