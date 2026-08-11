@@ -48,34 +48,36 @@ export default function ParticipationOpportunityResults({ token }: { token: stri
           <p className="text-xs font-semibold uppercase tracking-wide">Your Primary Opportunity</p>
         </div>
         <h2 className="font-display text-xl font-semibold text-navy mt-2">{result.primary.title}</h2>
-        <p className="text-sm text-neutral-text leading-relaxed mt-3">{result.primary.explanation}</p>
 
-        {result.primary.likely_cause && (
-          <div className="mt-4">
-            <p className="text-xs font-semibold text-neutral-muted uppercase tracking-wide">Likely Cause</p>
-            <p className="text-sm text-neutral-secondary mt-1">{result.primary.likely_cause}</p>
+        {/* Section 1: The opportunity */}
+        <div className="mt-4">
+          <p className="text-xs font-bold text-orange-dark uppercase tracking-wide mb-1.5">The Opportunity</p>
+          <p className="text-sm text-neutral-text leading-relaxed">{result.primary.explanation}</p>
+          {result.primary.likely_cause && (
+            <p className="text-sm text-neutral-text leading-relaxed mt-2">{result.primary.likely_cause}</p>
+          )}
+        </div>
+
+        {/* Section 2: 30-day action */}
+        {(result.primary.thirty_day_action || result.primary.measure) && (
+          <div className="mt-5 pt-4 border-t border-orange/20">
+            <p className="text-xs font-bold text-orange-dark uppercase tracking-wide mb-1.5">Your 30-Day Action</p>
+            {result.primary.thirty_day_action && (
+              <p className="text-sm text-neutral-text leading-relaxed">{result.primary.thirty_day_action}</p>
+            )}
+            {result.primary.measure && (
+              <p className="text-sm text-neutral-secondary leading-relaxed mt-2">
+                <strong>What to track:</strong> {result.primary.measure}
+              </p>
+            )}
           </div>
         )}
 
-        {result.primary.thirty_day_action && (
-          <div className="mt-4">
-            <p className="text-xs font-semibold text-neutral-muted uppercase tracking-wide">Your First 30-Day Action</p>
-            <p className="text-sm text-neutral-secondary mt-1">{result.primary.thirty_day_action}</p>
-          </div>
-        )}
-
-        {result.primary.measure && (
-          <div className="mt-4">
-            <p className="text-xs font-semibold text-neutral-muted uppercase tracking-wide">What to Measure</p>
-            <p className="text-sm text-neutral-secondary mt-1">{result.primary.measure}</p>
-          </div>
-        )}
-
+        {/* Section 3: How Connect helps */}
         {result.primary.how_connect_can_help && (
           <div className="mt-5 pt-4 border-t border-orange/20">
-            <p className="text-sm text-navy">
-              <strong>How Propel Connect can help:</strong> {result.primary.how_connect_can_help}
-            </p>
+            <p className="text-xs font-bold text-orange-dark uppercase tracking-wide mb-1.5">How Propel Connect Can Help</p>
+            <p className="text-sm text-navy leading-relaxed">{result.primary.how_connect_can_help}</p>
           </div>
         )}
       </div>
