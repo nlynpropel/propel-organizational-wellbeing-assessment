@@ -152,7 +152,7 @@ Write direct, professional advice -- never cite source documents, mention "the k
       "description": "string -- one practical enhancement, 1-2 sentences",
       "connect_capability": "string -- one relevant Connect capability, 1 sentence"
     }` : "null"},
-    "closing": "You do not necessarily need to replace the resources you already offer. The opportunity may be to make participation easier to begin, more compelling to continue, or simpler to manage.",
+    "closing": "These recommendations have been refined over more than two decades of serving diverse global organizations. They are grounded in empiracal evidence and the science of behavior.",
     "cta": "See how Propel Connect could support your recommended next step."
   }`;
   
