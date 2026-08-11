@@ -71,15 +71,21 @@ export default function ReportsPage() {
                 <Badge variant="success">Ready</Badge>
               </div>
 
-              <div className="flex items-baseline gap-2 mb-3">
-                <span className="font-mono text-2xl font-bold text-navy tabular-nums">
-                  {Math.round(r.overall_score ?? 0)}
-                </span>
-                <span className="text-xs text-neutral-muted">/100</span>
-                <Badge variant="neutral" className="ml-auto">
-                  {maturityClass(r.overall_score ?? 0)}
-                </Badge>
-              </div>
+              {r.assessment_versions?.scoring_method === 'category_weighted' ? (
+                <div className="mb-3">
+                  <span className="text-xs text-neutral-muted">Category-based result</span>
+                </div>
+              ) : (
+                <div className="flex items-baseline gap-2 mb-3">
+                  <span className="font-mono text-2xl font-bold text-navy tabular-nums">
+                    {Math.round(r.overall_score ?? 0)}
+                  </span>
+                  <span className="text-xs text-neutral-muted">/100</span>
+                  <Badge variant="neutral" className="ml-auto">
+                    {maturityClass(r.overall_score ?? 0)}
+                  </Badge>
+                </div>
+              )}
 
               <div className="flex items-center gap-2 pt-3 border-t border-neutral-border-soft">
                 <Button to={`/reports/${r.id}`} variant="outline" size="sm" className="flex-1">
