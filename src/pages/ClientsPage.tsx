@@ -121,8 +121,10 @@ export default function ClientsPage() {
       header: 'Score',
       mobileLabel: 'Score',
       render: (org) =>
-        org.latest_assessment?.overall_score !== null &&
-        org.latest_assessment?.overall_score !== undefined ? (
+        org.latest_assessment?.assessment_versions?.scoring_method === 'category_weighted' ? (
+          <span className="text-neutral-muted text-xs">Category-based</span>
+        ) : org.latest_assessment?.overall_score !== null &&
+          org.latest_assessment?.overall_score !== undefined ? (
           <div className="flex items-center gap-2">
             <span className="font-mono font-bold text-navy tabular-nums">
               {Math.round(org.latest_assessment.overall_score)}
