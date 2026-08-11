@@ -18,6 +18,7 @@ import AssessmentProgress from '../components/respondent/AssessmentProgress';
 import AssessmentSection from '../components/respondent/AssessmentSection';
 import AssessmentReview from '../components/respondent/AssessmentReview';
 import AssessmentAccessError from '../components/respondent/AssessmentAccessError';
+import ParticipationOpportunityResults from '../components/respondent/ParticipationOpportunityResults';
 import Button from '../components/ui/Button';
 import LoadingState from '../components/ui/LoadingState';
 import ErrorState from '../components/ui/ErrorState';
@@ -51,6 +52,7 @@ export default function IntakePage() {
   const { token } = useParams<{ token: string }>();
   const [phase, setPhase] = useState<Phase>('loading');
   const [assessment, setAssessment] = useState<ResolvedReusableLink | null>(null);
+  const [resultToken, setResultToken] = useState<string | null>(null);
   const [intakeError, setIntakeError] = useState<string | null>(null);
   const [form, setForm] = useState<IntakeForm>(initialForm);
   const [errors, setErrors] = useState<Partial<Record<keyof IntakeForm, string>>>({});
@@ -191,6 +193,7 @@ export default function IntakePage() {
         return;
       }
 
+      setResultToken(result.secure_token);
       setPhase('complete');
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to submit assessment';
@@ -356,6 +359,13 @@ export default function IntakePage() {
 
   // Complete phase
   if (phase === 'complete') {
+    if (assessment.template_respondent_result_mode === 'instant_result' && resultToken) {
+      return (
+        <PublicAssessmentLayout organizationName={form.organization_name}>
+          <ParticipationOpportunityResults token={resultToken} />
+        </PublicAssessmentLayout>
+      );
+    }
     return (
       <PublicAssessmentLayout organizationName={form.organization_name}>
         <div className="bg-white rounded-lg shadow-md border border-neutral-border p-8 max-w-2xl mx-auto text-center">
