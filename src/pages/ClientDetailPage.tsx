@@ -356,7 +356,7 @@ function AssessmentInstanceCard({
               <p className="text-navy font-medium">{inst.submitted_at ? new Date(inst.submitted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}</p>
             </div>
           </div>
-          {hasScore && (
+          {hasScore && inst.version?.scoring_method !== 'category_weighted' && (
             <div className="flex items-center gap-3 mt-3 pt-3 border-t border-neutral-border-soft">
               <div>
                 <span className="text-xs text-neutral-muted uppercase tracking-wide">Overall score</span>
