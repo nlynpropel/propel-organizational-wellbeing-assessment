@@ -100,12 +100,14 @@ export default function ParticipationOpportunityResults({ token }: { token: stri
         {result.closing}
       </p>
 
-      <div className="mt-6 rounded-md bg-navy p-5 text-center">
-        <p className="text-white text-sm font-medium flex items-center justify-center gap-2">
-          {result.cta}
-          <ArrowRight className="w-4 h-4" />
-        </p>
-      </div>
+      <a href="https://propelwellbeing.com/connect"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-6 rounded-md bg-navy p-5 text-center flex items-center justify-center gap-2 hover:bg-navy/90 transition-colors"
+      >
+        <span className="text-white text-sm font-medium">{result.cta}</span>
+        <ArrowRight className="w-4 h-4 text-white" />
+      </a>
 
       <p className="text-xs text-neutral-muted mt-6 text-center">
         You may close this page. Your results have been saved.
