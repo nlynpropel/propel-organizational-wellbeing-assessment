@@ -4,6 +4,7 @@ import type { OrganizationRow } from './organizations';
 
 export type AssessmentWithOrganization = AssessmentInstanceRow & {
   organization: Pick<OrganizationRow, 'id' | 'organization_name' | 'industry'>;
+  assessment_versions?: { scoring_method: string } | null;
 };
 
 /**
@@ -114,7 +115,7 @@ export async function fetchReportsReady(
 ): Promise<AssessmentWithOrganization[]> {
   const { data, error } = await supabase
     .from('assessment_instances')
-    .select('*, organization:organizations(id, organization_name, industry)')
+    .select('*, organization:organizations(id, organization_name, industry), assessment_versions(scoring_method)')
     .in('status', ['submitted', 'report_ready'])
     .not('overall_score', 'is', null)
     .order('submitted_at', { ascending: false });
