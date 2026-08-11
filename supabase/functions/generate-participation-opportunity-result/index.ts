@@ -30,7 +30,7 @@ const corsHeaders = {
         how_connect_can_help: "A member of our team will follow up with your full personalized results shortly.",
       },
       secondary: null,
-      closing: "This feedback draws upon more than two decades of experience helping organizations make well-being work for their organization.",
+      closing: "You do not necessarily need to replace the resources you already offer. The opportunity may be to make participation easier to begin, more compelling to continue, or simpler to manage.",
       cta: "See how Propel Connect could support your recommended next step.",
     };
   }
@@ -130,6 +130,8 @@ const corsHeaders = {
   
         const systemPrompt = `You write short, practical results for "The Well-being Participation Improvement Finder," a lead-magnet assessment. Before writing anything, search the attached knowledge base for the approved recommendation entry matching the primary (and secondary, if present) opportunity category named below. Adapt that entry's diagnosis, 30-day action, suggested measure, and Connect-supported next level to this organization -- do not invent generic best-practice text instead of what you find there.
 
+Write directly to ${orgName}, by name, in second person -- never "the organization," never third person. Address them and their program directly: "${orgName} can improve its well-being offering by...", "Your program may...", "Your goal should be...", "your employees," "your team." Every sentence in explanation, likely_cause, thirty_day_action, and measure should read as if written specifically to someone at ${orgName}, not as a generic description of a category.
+
 Follow the knowledge base's tone guidance: helpful, nonjudgmental language that identifies an opportunity without implying failure (e.g. "Your strongest opportunity appears to be..."), never phrases like "your program is immature" or "your score is poor."
 
 Only describe Propel Connect capabilities that appear in the knowledge base's approved capability list. Never say Connect assigns goals, promises clinical or predictive analytics, automated communication delivery, custom manager dashboards, or any capability not explicitly documented -- if you're unsure whether a capability is approved, describe the opportunity without naming a specific Connect feature.
@@ -141,18 +143,18 @@ Write direct, professional advice -- never cite source documents, mention "the k
     "header": "Your Employee Participation Opportunity",
     "primary": {
       "title": "string",
-      "explanation": "string -- 2-3 sentences on what this opportunity is",
-      "likely_cause": "string -- 1-2 sentences on why this is likely happening here",
-      "thirty_day_action": "string -- one concrete, low-lift action to take within 30 days",
-      "measure": "string -- one simple thing to track",
-      "how_connect_can_help": "string -- 1-2 sentences, specific to this opportunity"
+      "explanation": "string -- 2-3 sentences, written directly to ${orgName} by name and in second person (e.g. '${orgName} can improve its well-being offering by...'), on what this opportunity is",
+      "likely_cause": "string -- 1-2 sentences, second person ('Your program may...'), on why this is likely happening at ${orgName}",
+      "thirty_day_action": "string -- one concrete, low-lift action, addressed directly to ${orgName} ('your team', 'your employees')",
+      "measure": "string -- one simple thing for ${orgName} to track",
+      "how_connect_can_help": "string -- 1-2 sentences, second person, specific to this opportunity"
     },
     "secondary": ${secondaryCat ? `{
       "title": "string",
-      "description": "string -- one practical enhancement, 1-2 sentences",
+      "description": "string -- one practical enhancement for ${orgName}, second person, 1-2 sentences",
       "connect_capability": "string -- one relevant Connect capability, 1 sentence"
     }` : "null"},
-    "closing": "These recommendations have been refined over more than two decades of serving diverse global organizations. They are grounded in empiracal evidence and the science of behavior.",
+    "closing": "These recommendations have been refined over more than two decades of serving diverse global organizations. They are grounded in empirical evidence and the science of behavior.",
     "cta": "See how Propel Connect could support your recommended next step."
   }`;
   
