@@ -179,7 +179,14 @@ const corsHeaders = {
   
         if (!aiRes.ok) throw new Error(`OpenAI request failed (${aiRes.status}): ${await aiRes.text()}`);
         const aiData = await aiRes.json();
-        const text = aiData.output_text ?? aiData.output?.[0]?.content?.[0]?.text;
+       const messageItem = (aiData.output ?? []).find(
+          (item: Record<string, unknown>) => item.type === "message"
+        );
+        const text =
+          aiData.output_text ??
+          (messageItem?.content as Array<Record<string, unknown>> | undefined)?.find(
+            (c) => c.type === "output_text"
+          )?.text;
         if (!text) throw new Error("No text in OpenAI response");
         outputJson = JSON.parse(text);
       } catch (err) {
