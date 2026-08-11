@@ -98,6 +98,7 @@ function normalizeDomain(email: string): string {
 
 async function handleInvite(
   adminClient: ReturnType<typeof createClient>,
+  userClient: ReturnType<typeof createClient>,
   body: InviteRequestBody
 ): Promise<Response> {
   const { email, role, organization_id } = body;
