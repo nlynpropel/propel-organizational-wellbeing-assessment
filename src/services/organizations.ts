@@ -3,7 +3,7 @@ import type { OrganizationRow, FundingTypeDb } from '../lib/database.types';
 import type { AssessmentInstanceRow, AssessmentTemplateRow, AssessmentVersionRow } from '../lib/database.types';
 
 export type OrganizationWithAssessment = OrganizationRow & {
-  latest_assessment: AssessmentInstanceRow | null;
+  latest_assessment: (AssessmentInstanceRow & { assessment_versions?: { scoring_method: string } | null }) | null;
   assessment_instances: AssessmentInstanceRow[];
 };
 
@@ -56,7 +56,7 @@ export async function fetchOrganizations(
 ): Promise<OrganizationWithAssessment[]> {
   let query = supabase
     .from('organizations')
-    .select('*, assessment_instances(*)');
+    .select('*, assessment_instances(*, assessment_versions(scoring_method))');
 
   if (!opts?.includeArchived) {
     query = query.is('archived_at', null);
@@ -72,7 +72,7 @@ export async function fetchOrganizations(
   if (error) throw error;
 
   return (data ?? []).map((org) => {
-    const instances = (org.assessment_instances ?? []) as AssessmentInstanceRow[];
+    const instances = (org.assessment_instances ?? []) as (AssessmentInstanceRow & { assessment_versions?: { scoring_method: string } | null })[];
     const sorted = instances.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     const latest = sorted.length > 0 ? sorted[0] : null;
     const { assessment_instances, ...orgFields } = org;
@@ -87,13 +87,13 @@ export async function fetchOrganizationById(
 ): Promise<OrganizationWithAssessment | null> {
   const { data, error } = await supabase
     .from('organizations')
-    .select('*, assessment_instances(*)')
+    .select('*, assessment_instances(*, assessment_versions(scoring_method))')
     .eq('id', orgId)
     .maybeSingle();
   if (error) throw error;
   if (!data) return null;
 
-  const instances = (data.assessment_instances ?? []) as AssessmentInstanceRow[];
+  const instances = (data.assessment_instances ?? []) as (AssessmentInstanceRow & { assessment_versions?: { scoring_method: string } | null })[];
   const sorted = instances.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   const latest = sorted.length > 0 ? sorted[0] : null;
   const { assessment_instances, ...orgFields } = data;
