@@ -149,7 +149,7 @@ async function handleInvite(
   }
 
   const orgId = organization_id || null;
-  const { data: userId, error: rpcErr } = await adminClient.rpc("admin_invite_user", {
+  const { data: userId, error: rpcErr } = await userClient.rpc("admin_invite_user", {
     p_email: email,
     p_role: role,
     p_organization_id: orgId,
