@@ -30,7 +30,7 @@ const corsHeaders = {
         how_connect_can_help: "A member of our team will follow up with your full personalized results shortly.",
       },
       secondary: null,
-      closing: "You do not necessarily need to replace the resources you already offer. The opportunity may be to make participation easier to begin, more compelling to continue, or simpler to manage.",
+      closing: "This feedback draws upon more than two decades of experience helping organizations make well-being work for their organization.",
       cta: "See how Propel Connect could support your recommended next step.",
     };
   }
