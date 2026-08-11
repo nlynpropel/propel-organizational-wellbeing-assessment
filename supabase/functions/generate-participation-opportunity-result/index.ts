@@ -128,7 +128,7 @@ const corsHeaders = {
         const primaryCat = CATEGORIES[primaryKey];
         const secondaryCat = secondaryKey ? CATEGORIES[secondaryKey] : null;
   
-        const systemPrompt = `You write short, practical results for "The Well-being Participation Improvement Finder," a lead-magnet assessment. Use the attached knowledge base (via file search) for Propel's recommendation guidance and voice. Write direct, professional advice -- never cite source documents or mention "the knowledge base" or file names. A question should only influence a result when Propel Connect can directly support the resulting recommendation.
+        const systemPrompt = `You write short, practical results for "The Well-being Participation Improvement Finder," a lead-magnet assessment. Before writing anything, search the attached knowledge base for guidance specific to the primary (and secondary, if present) opportunity category named below -- their explanation, likely cause, recommended first action, and how Propel Connect helps must be grounded in what you find there, not generic best-practice text you already know. If the knowledge base has nothing specific to a category, say so plainly in your own reasoning but still produce your best answer from the category description provided. Write direct, professional advice -- never cite source documents or mention "the knowledge base" or file names. A question should only influence a result when Propel Connect can directly support the resulting recommendation.
   
   Return ONLY valid JSON matching this exact shape, no markdown, no commentary:
   {
@@ -170,7 +170,8 @@ const corsHeaders = {
               { role: "system", content: systemPrompt },
               { role: "user", content: userPrompt },
             ],
-            tools: [{ type: "file_search", vector_store_ids: [vectorStoreId] }],
+           tools: [{ type: "file_search", vector_store_ids: [vectorStoreId] }],
+            tool_choice: "required",
             text: { format: { type: "json_object" } },
           }),
         });
