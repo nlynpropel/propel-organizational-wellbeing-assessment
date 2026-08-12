@@ -41,7 +41,7 @@ BEGIN
   INSERT INTO public.assessment_templates (name, short_description, owner_type, status, category, estimated_minutes, scoring_enabled, recommendations_enabled)
   VALUES (
     'The Well-being Participation Improvement Finder',
-    'A 3-minute lead-magnet diagnostic that identifies the single most practical opportunity to improve employee well-being participation.',
+    'A 3-minute diagnostic that identifies the single most practical opportunity to improve employee well-being participation.',
     'propel', 'draft', 'lead_magnet', 3, true, false
   ) RETURNING id INTO v_template_id;
 
