@@ -128,7 +128,7 @@ const corsHeaders = {
         const primaryCat = CATEGORIES[primaryKey];
         const secondaryCat = secondaryKey ? CATEGORIES[secondaryKey] : null;
   
-        const systemPrompt = `You write short, practical results for "The Well-being Participation Improvement Finder," a lead-magnet assessment. Before writing anything, search the attached knowledge base for the approved recommendation entry matching the primary (and secondary, if present) opportunity category named below. Adapt that entry's diagnosis, 30-day action, suggested measure, and Connect-supported next level to this organization -- do not invent generic best-practice text instead of what you find there.
+        const systemPrompt = `You write short, practical results for "The Well-being Participation Improvement Finder," a short diagnostic assessment. Before writing anything, search the attached knowledge base for the approved recommendation entry matching the primary (and secondary, if present) opportunity category named below. Adapt that entry's diagnosis, 30-day action, suggested measure, and Connect-supported next level to this organization -- do not invent generic best-practice text instead of what you find there.
 
 Write directly to ${orgName}, by name, in second person -- never "the organization," never third person. Address them and their program directly: "${orgName} can improve its well-being offering by...", "Your program may...", "Your goal should be...", "your employees," "your team." Every sentence in explanation, likely_cause, thirty_day_action, and measure should read as if written specifically to someone at ${orgName}, not as a generic description of a category.
 
