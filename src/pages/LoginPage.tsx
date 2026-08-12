@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowRight, Lock, Mail, AlertTriangle, UserPlus } from 'lucide-react';
+import { ArrowRight, Lock, Mail, AlertTriangle, UserPlus, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { isEmailDomainApproved } from '../services/domains';
 
@@ -13,6 +13,8 @@ export default function LoginPage() {
   const errorParam = params.get('error');
 
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -43,14 +45,16 @@ export default function LoginPage() {
     }
 
     if (mode === 'signup') {
-      const { error } = await signUp(email, password);
+      const { error } = await signUp(email, password, firstName, lastName);
       setSubmitting(false);
       if (error) {
         setErrorMsg(error);
         setState('error');
       } else {
-        setInfoMsg('Account created. You can now sign in.');
+        setInfoMsg('Account created. Check your email to confirm your account, then sign in.');
         setMode('signin');
+        setFirstName('');
+        setLastName('');
         setPassword('');
       }
     } else {
@@ -90,7 +94,7 @@ export default function LoginPage() {
             <p className="text-sm text-neutral-secondary mt-1.5">
               {mode === 'signin'
                 ? 'Enter your work email and password to access the platform.'
-                : 'Enter your work email and choose a password to get started.'}
+                : 'Enter your name, work email, and choose a password to get started.'}
             </p>
 
             {state === 'restricted' && (
@@ -116,6 +120,41 @@ export default function LoginPage() {
             )}
 
             <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+              {mode === 'signup' && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-navy mb-1.5">First name</label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-muted" />
+                      <input
+                        type="text"
+                        required
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                        placeholder="Jordan"
+                        autoComplete="given-name"
+                        className="w-full pl-10 pr-3 py-2.5 rounded-sm border border-neutral-border bg-white text-navy placeholder-neutral-muted focus:outline-none focus:border-green focus:ring-2 focus:ring-green/20 transition"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-navy mb-1.5">Last name</label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-muted" />
+                      <input
+                        type="text"
+                        required
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                        placeholder="Ellis"
+                        autoComplete="family-name"
+                        className="w-full pl-10 pr-3 py-2.5 rounded-sm border border-neutral-border bg-white text-navy placeholder-neutral-muted focus:outline-none focus:border-green focus:ring-2 focus:ring-green/20 transition"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div>
                 <label className="block text-sm font-medium text-navy mb-1.5">Work email</label>
                 <div className="relative">
@@ -126,8 +165,9 @@ export default function LoginPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="you@workemail.com"
+                    autoComplete="email"
                     className="w-full pl-10 pr-3 py-2.5 rounded-sm border border-neutral-border bg-white text-navy placeholder-neutral-muted focus:outline-none focus:border-green focus:ring-2 focus:ring-green/20 transition"
-                    autoFocus
+                    autoFocus={mode === 'signin'}
                   />
                 </div>
               </div>
@@ -143,6 +183,7 @@ export default function LoginPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
+                    autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
                     className="w-full pl-10 pr-3 py-2.5 rounded-sm border border-neutral-border bg-white text-navy placeholder-neutral-muted focus:outline-none focus:border-green focus:ring-2 focus:ring-green/20 transition"
                   />
                 </div>
