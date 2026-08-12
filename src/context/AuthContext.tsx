@@ -37,7 +37,7 @@ type AuthContextValue = {
   terminology: TerminologyContext;
   orgLoadError: boolean;
   refreshProfile: () => Promise<void>;
-  signUp: (email: string, password: string) => Promise<{ error: AuthError }>;
+  signUp: (email: string, password: string, firstName: string, lastName: string) => Promise<{ error: AuthError }>;
   signIn: (email: string, password: string) => Promise<{ error: AuthError }>;
   resetPassword: (email: string) => Promise<{ error: AuthError }>;
   updatePassword: (password: string) => Promise<{ error: AuthError }>;
@@ -118,8 +118,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const signUp = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({ email, password });
+  const signUp = async (email: string, password: string, firstName: string, lastName: string) => {
+    const emailRedirectTo = `${window.location.origin}/auth/callback`;
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo,
+        data: {
+          first_name: firstName.trim(),
+          last_name: lastName.trim(),
+        },
+      },
+    });
     return { error: error?.message ?? null };
   };
 
