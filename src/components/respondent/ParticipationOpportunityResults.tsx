@@ -42,8 +42,8 @@ export default function ParticipationOpportunityResults({ token }: { token: stri
       <h1 className="font-display text-2xl font-semibold text-navy text-center">{result.header}</h1>
 
       {/* Primary opportunity */}
-      <div className="mt-8 rounded-md border border-orange/20 bg-orange-tint p-6">
-        <div className="flex items-center gap-2 text-orange-dark">
+      <div className="mt-8 rounded-md border border-green/20 bg-green-tint p-6">
+        <div className="flex items-center gap-2 text-green-dark">
           <Target className="w-5 h-5" />
           <p className="text-xs font-semibold uppercase tracking-wide">Your Primary Opportunity</p>
         </div>
@@ -51,7 +51,7 @@ export default function ParticipationOpportunityResults({ token }: { token: stri
 
         {/* Section 1: The opportunity */}
         <div className="mt-4">
-          <p className="text-xs font-bold text-orange-dark uppercase tracking-wide mb-1.5">The Opportunity</p>
+          <p className="text-xs font-bold text-green-dark uppercase tracking-wide mb-1.5">The Opportunity</p>
           <p className="text-sm text-neutral-text leading-relaxed">{result.primary.explanation}</p>
           {result.primary.likely_cause && (
             <p className="text-sm text-neutral-text leading-relaxed mt-2">{result.primary.likely_cause}</p>
@@ -60,8 +60,8 @@ export default function ParticipationOpportunityResults({ token }: { token: stri
 
         {/* Section 2: 30-day action */}
         {(result.primary.thirty_day_action || result.primary.measure) && (
-          <div className="mt-5 pt-4 border-t border-orange/20">
-            <p className="text-xs font-bold text-orange-dark uppercase tracking-wide mb-1.5">Your 30-Day Action</p>
+          <div className="mt-5 pt-4 border-t border-green/20">
+            <p className="text-xs font-bold text-green-dark uppercase tracking-wide mb-1.5">Your 30-Day Action</p>
             {result.primary.thirty_day_action && (
               <p className="text-sm text-neutral-text leading-relaxed">{result.primary.thirty_day_action}</p>
             )}
@@ -75,8 +75,8 @@ export default function ParticipationOpportunityResults({ token }: { token: stri
 
         {/* Section 3: How Connect helps */}
         {result.primary.how_connect_can_help && (
-          <div className="mt-5 pt-4 border-t border-orange/20">
-            <p className="text-xs font-bold text-orange-dark uppercase tracking-wide mb-1.5">How Propel Connect Can Help</p>
+          <div className="mt-5 pt-4 border-t border-green/20">
+            <p className="text-xs font-bold text-green-dark uppercase tracking-wide mb-1.5">How Propel Connect Can Help</p>
             <p className="text-sm text-navy leading-relaxed">{result.primary.how_connect_can_help}</p>
           </div>
         )}
@@ -84,8 +84,8 @@ export default function ParticipationOpportunityResults({ token }: { token: stri
 
       {/* Secondary opportunity */}
       {result.secondary && (
-        <div className="mt-5 rounded-md border border-green/20 bg-green-tint p-6">
-          <div className="flex items-center gap-2 text-green-dark">
+        <div className="mt-5 rounded-md border border-orange/20 bg-orange-tint p-6">
+          <div className="flex items-center gap-2 text-orange-dark">
             <TrendingUp className="w-5 h-5" />
             <p className="text-xs font-semibold uppercase tracking-wide">A Secondary Opportunity</p>
           </div>
