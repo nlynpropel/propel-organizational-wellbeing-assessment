@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, AlertTriangle } from 'lucide-react';
+import type { EmailOtpType } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 
 type CallbackStatus = 'completing' | 'expired' | 'no_auth';
@@ -17,6 +18,8 @@ export default function AuthCallbackPage() {
     const url = new URL(window.location.href);
     const hasError = url.searchParams.has('error');
     const hasErrorDescription = url.searchParams.has('error_description');
+    const tokenHash = url.searchParams.get('token_hash');
+    const otpType = url.searchParams.get('type');
     const hasCode = url.searchParams.has('code');
     const hasFragment = url.hash.length > 1;
 
@@ -25,7 +28,7 @@ export default function AuthCallbackPage() {
       return;
     }
 
-    if (!hasCode && !hasFragment) {
+    if (!tokenHash && !hasCode && !hasFragment) {
       setStatus('no_auth');
       return;
     }
@@ -34,18 +37,35 @@ export default function AuthCallbackPage() {
 
     const finish = async () => {
       try {
-        // With detectSessionInUrl enabled, supabase-js parses the hash/query
-        // and establishes the session automatically on mount. We just verify
-        // it landed, then redirect to the root so RootRedirect can route
-        // the user to the right place (dashboard, set-password, etc.).
-        await new Promise((resolve) => setTimeout(resolve, 200));
+        if (tokenHash) {
+          if (!otpType) {
+            setStatus('expired');
+            return;
+          }
 
-        const { data, error } = await supabase.auth.getSession();
-        if (cancelled) return;
+          const { error } = await supabase.auth.verifyOtp({
+            token_hash: tokenHash,
+            type: otpType as EmailOtpType,
+          });
 
-        if (error || !data.session) {
-          setStatus('expired');
-          return;
+          if (cancelled) return;
+          if (error) {
+            setStatus('expired');
+            return;
+          }
+        } else {
+          // With detectSessionInUrl enabled, supabase-js parses the hash/query
+          // and establishes the session automatically on mount for the legacy
+          // confirmation/invitation/reset flow. Verify that the session landed.
+          await new Promise((resolve) => setTimeout(resolve, 200));
+
+          const { data, error } = await supabase.auth.getSession();
+          if (cancelled) return;
+
+          if (error || !data.session) {
+            setStatus('expired');
+            return;
+          }
         }
 
         history.replaceState(null, '', window.location.pathname);
@@ -81,9 +101,9 @@ export default function AuthCallbackPage() {
         </div>
         {status === 'expired' ? (
           <>
-            <h1 className="text-xl font-semibold text-navy">Invitation or reset link is invalid or expired</h1>
+            <h1 className="text-xl font-semibold text-navy">Invitation or confirmation link is invalid or expired</h1>
             <p className="text-sm text-neutral-secondary mt-2">
-              This link has expired or already been used. Request a new invitation or password reset to continue.
+              This link has expired or already been used. Request a new confirmation, invitation, or password reset to continue.
             </p>
           </>
         ) : (
