@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, User, AlertTriangle, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -13,7 +13,7 @@ const clientSizeOptions: { value: AverageClientSize; label: string; hint: string
 
 export default function NewAccountPage() {
   const navigate = useNavigate();
-  const { user, refreshProfile, signOut } = useAuth();
+  const { user, profile, refreshProfile, signOut } = useAuth();
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -21,6 +21,11 @@ export default function NewAccountPage() {
   const [territory, setTerritory] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!firstName && profile?.first_name) setFirstName(profile.first_name);
+    if (!lastName && profile?.last_name) setLastName(profile.last_name);
+  }, [profile?.first_name, profile?.last_name, firstName, lastName]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -87,6 +92,7 @@ export default function NewAccountPage() {
                     onChange={(e) => setFirstName(e.target.value)}
                     placeholder="Jordan"
                     className={inputClass}
+                    autoComplete="given-name"
                     autoFocus
                   />
                 </Field>
@@ -98,6 +104,7 @@ export default function NewAccountPage() {
                     onChange={(e) => setLastName(e.target.value)}
                     placeholder="Ellis"
                     className={inputClass}
+                    autoComplete="family-name"
                   />
                 </Field>
               </div>
