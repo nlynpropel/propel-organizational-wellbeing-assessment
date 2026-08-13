@@ -6,9 +6,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
-const PROMPT_VERSION = "360-v1";
+const PROMPT_VERSION = "360-v2";
 const MODEL = "gpt-4o";
 const GUIDE_FILE_ID = "file-5sddQHMVKz7ALqZzJtb1ri";
+const SUCCESS_MEASURE_QUESTION_ID = "fdc0f589-fb1c-584c-af76-7f8245978b8d";
 
 const SYSTEM_PROMPT = `You are an internal planning analyst for Propel, an employee health and well-being engagement platform.
 You analyze responses from the Propel 360 Engagement Assessment and produce an internal analysis document.
@@ -16,15 +17,23 @@ You analyze responses from the Propel 360 Engagement Assessment and produce an i
 Your output must follow this exact structure:
 
 1. Executive Readout
-2. What the Organization Is Trying to Accomplish
-3. What Is Working and Should Be Leveraged
-4. Primary Constraints and Likely Root Causes
-5. Cross-Response Findings
-6. Recommended Propel Program Design
-7. Recommendations (Corporate, Peer, and Personal where relevant)
-8. NOW / NEXT / LATER Implementation Sequence
-9. Questions to Resolve
-10. Confidence and Missing Information
+2. Respondent-Defined Measure of Success
+3. What the Organization Is Trying to Accomplish
+4. What Is Working and Should Be Leveraged
+5. Primary Constraints and Likely Root Causes
+6. Cross-Response Findings
+7. Recommended Propel Program Design
+8. Recommendations (Corporate, Peer, and Personal where relevant)
+9. NOW / NEXT / LATER Implementation Sequence
+10. Questions to Resolve
+11. Confidence and Missing Information
+
+Requirements for section 2, "Respondent-Defined Measure of Success":
+- Use the dedicated respondent_success_measure field from the input payload as the primary source.
+- Start the section with a bold line in this format: **How success will be measured:** [respondent's answer]
+- Preserve the respondent's intended meaning and specificity. Do not replace their stated measures with Propel's preferred measures.
+- After the highlighted answer, briefly explain what that definition of success implies for program design, measurement, or sequencing when useful.
+- If the respondent did not answer the success-measure question, state that the success measure was not provided; do not infer one.
 
 Guardrails:
 - Do NOT produce an overall score or maturity label.
@@ -198,6 +207,7 @@ Deno.serve(async (req: Request) => {
     const version = instance.assessment_version as Record<string, unknown>;
     const sections = (version?.sections ?? []) as Array<Record<string, unknown>>;
     const structuredResponses: Array<Record<string, unknown>> = [];
+    let respondentSuccessMeasure: string | null = null;
 
     for (const section of sections) {
       const questions = (section.questions ?? []) as Array<Record<string, unknown>>;
@@ -224,6 +234,10 @@ Deno.serve(async (req: Request) => {
           answerText = "(no response)";
         }
 
+        if (qId === SUCCESS_MEASURE_QUESTION_ID) {
+          respondentSuccessMeasure = answerText === "(no response)" ? null : answerText;
+        }
+
         structuredResponses.push({
           section_title: section.title,
           question_text: question.question_text,
@@ -239,6 +253,7 @@ Deno.serve(async (req: Request) => {
       industry: ((instance.organization as Record<string, unknown>)?.industry) ?? null,
       respondent_name: instance.respondent_name,
       submitted_at: instance.submitted_at,
+      respondent_success_measure: respondentSuccessMeasure,
       responses: structuredResponses,
     };
 
@@ -297,7 +312,7 @@ Deno.serve(async (req: Request) => {
       .update({
         status: "completed",
         output_markdown: outputText,
-        output_json: { raw_output: outputText },
+        output_json: { raw_output: outputText, respondent_success_measure: respondentSuccessMeasure },
         model: MODEL,
         prompt_version: PROMPT_VERSION,
         vector_store_id: vectorStoreId,
