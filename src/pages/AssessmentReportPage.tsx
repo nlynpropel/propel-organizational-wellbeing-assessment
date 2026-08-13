@@ -14,6 +14,7 @@ import { CUSTOM_ASSESSMENT_DISCLAIMER, CUSTOM_SCORING_DISCLAIMER } from '../lib/
 import { FEATURE_FLAGS } from '../lib/featureFlags';
 import StrategyReportSection from '../components/StrategyReportSection';
 import ParticipationOpportunityResults from '../components/respondent/ParticipationOpportunityResults';
+import Print360ResponsesButton from '../components/report/Print360ResponsesButton';
 import { mapPrintData } from '../lib/printHelpers';
 import {
   StrengthsSection,
@@ -110,7 +111,10 @@ function UnscoredInternalReport({
               </span>
             </div>
           </div>
-          <Button variant="ghost" size="sm" to="/reports"><ArrowLeft className="w-4 h-4" /> Back to Reports</Button>
+          <div className="flex items-center gap-2">
+            <Print360ResponsesButton report={report} />
+            <Button variant="ghost" size="sm" to="/reports"><ArrowLeft className="w-4 h-4" /> Back to Reports</Button>
+          </div>
         </div>
       </Card>
 
@@ -319,7 +323,7 @@ function ScoredReport({
                     <div className="flex flex-wrap gap-2 mt-3">
                       {rec.dimension_key && <DarkPill>{getDimensionLabel(rec.dimension_key)}</DarkPill>}
                       {rec.driver_key && <DarkPill>{getDriverLabel(rec.driver_key)}</DarkPill>}
-                  </div>
+                    </div>
                   )}
                 </div>
               ))}
