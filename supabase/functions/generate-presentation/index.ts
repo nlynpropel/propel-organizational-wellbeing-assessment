@@ -7,8 +7,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
-const TEMPLATE_VERSION = "wellbeing-scorecard-deck-v2";
+const TEMPLATE_VERSION = "wellbeing-scorecard-deck-v3";
 const MATURITY_BANDS = ["Reactive", "Developing", "Established", "Strategic", "Leading"];
+const COVER_IMAGE_FILE = "business-meeting-cover-1280.jpg";
+const COVER_IMAGE_RAW_FALLBACK = "https://raw.githubusercontent.com/nlynpropel/propel-organizational-wellbeing-assessment/main/public/business-meeting-cover-1280.jpg";
 
 const DRIVER_LABELS: Record<string, string> = {
   clarity_of_value: "Clarity of Value",
@@ -25,11 +27,7 @@ const DRIVER_DESCRIPTIONS: Record<string, string> = {
 };
 
 type DeckPayload = {
-  client: {
-    name: string;
-    assessment_name: string;
-    assessment_date: string;
-  };
+  client: { name: string; assessment_name: string; assessment_date: string };
   assessment: {
     overall_score: number;
     maturity: string;
@@ -73,10 +71,6 @@ function getMaturityLevel(score: number): string {
   return "Reactive";
 }
 
-function getDimensionLevel(score: number): string {
-  return getMaturityLevel(score);
-}
-
 function getBehavioralInterpretation(score: number): string {
   if (score >= 80) return "Strong behavioral support";
   if (score >= 65) return "Generally supportive";
@@ -93,26 +87,23 @@ function formatDate(dateStr: string | null): string {
   }
 }
 
-function parsePhase(text: string): { title: string; body: string } {
-  const clean = String(text ?? "").trim();
+function parsePhase(value: string): { title: string; body: string } {
+  const clean = String(value ?? "").trim();
   const colonIdx = clean.indexOf(":");
   const dashIdx = clean.indexOf(" - ");
   let splitIdx = -1;
   if (colonIdx > 0 && (dashIdx < 0 || colonIdx < dashIdx)) splitIdx = colonIdx;
   else if (dashIdx > 0) splitIdx = dashIdx;
-  if (splitIdx > 0) {
-    return {
-      title: clean.slice(0, splitIdx).trim(),
-      body: clean.slice(splitIdx + (clean[splitIdx] === ":" ? 1 : 3)).trim(),
-    };
-  }
-  return { title: clean, body: "" };
+  if (splitIdx <= 0) return { title: clean, body: "" };
+  return {
+    title: clean.slice(0, splitIdx).trim(),
+    body: clean.slice(splitIdx + (clean[splitIdx] === ":" ? 1 : 3)).trim(),
+  };
 }
 
 function sanitizeForSlides(value: unknown): string {
   if (typeof value !== "string") return "";
   let cleaned = value;
-
   cleaned = cleaned.replace(/;\s*see\s+[^;]*\.(docx|txt|pdf)[^;]*/gi, "");
   cleaned = cleaned.replace(/see\s+[^\s]*\.(docx|txt|pdf)[^\n]*$/gi, "");
   cleaned = cleaned.replace(/[\w_-]+\.(docx|txt|pdf)/gi, "");
@@ -140,35 +131,79 @@ function sanitizeForSlides(value: unknown): string {
   cleaned = cleaned.replace(/\s*and\s*$/gi, "");
   cleaned = cleaned.replace(/^\s*and\s+/gi, "");
   cleaned = cleaned.replace(/\(\s*\)/g, "");
-
   return cleaned.trim();
 }
 
 function truncateWords(value: string, maxWords: number): string {
   const words = value.trim().split(/\s+/).filter(Boolean);
-  if (words.length <= maxWords) return value;
-  return `${words.slice(0, maxWords).join(" ")}...`;
+  return words.length <= maxWords ? value : `${words.slice(0, maxWords).join(" ")}...`;
 }
 
 function asArray(value: unknown): Array<Record<string, unknown>> {
-  return Array.isArray(value) ? value.filter((item): item is Record<string, unknown> => item && typeof item === "object") : [];
+  return Array.isArray(value)
+    ? value.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
+    : [];
+}
+
+function bufferToDataUri(buffer: ArrayBuffer, mime: string): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+  return `data:${mime};base64,${btoa(binary)}`;
+}
+
+async function fetchPublicImageDataUri(
+  fileName: string,
+  mime: string,
+  fallbackUrl?: string,
+): Promise<string | null> {
+  const urls: string[] = [];
+  const siteUrl = Deno.env.get("SITE_URL");
+  if (siteUrl) urls.push(`${siteUrl.replace(/\/$/, "")}/${fileName.replace(/^\//, "")}`);
+  if (fallbackUrl) urls.push(fallbackUrl);
+
+  for (const url of urls) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) continue;
+      return bufferToDataUri(await res.arrayBuffer(), mime);
+    } catch (err) {
+      console.error(`Failed to fetch presentation asset ${fileName} from ${url}:`, err);
+    }
+  }
+  return null;
 }
 
 async function fetchLogoDataUri(): Promise<string | null> {
-  try {
-    const siteUrl = Deno.env.get("SITE_URL");
-    if (!siteUrl) return null;
-    const res = await fetch(`${siteUrl.replace(/\/$/, "")}/Propel_Logo_2020_Main.png`);
-    if (!res.ok) return null;
-    const buf = await res.arrayBuffer();
-    const bytes = new Uint8Array(buf);
-    let binary = "";
-    for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
-    return `data:image/png;base64,${btoa(binary)}`;
-  } catch (err) {
-    console.error("Failed to fetch Propel logo for deck:", err);
-    return null;
-  }
+  return fetchPublicImageDataUri("Propel_Logo_2020_Main.png", "image/png");
+}
+
+async function fetchCoverDataUri(): Promise<string | null> {
+  return fetchPublicImageDataUri(COVER_IMAGE_FILE, "image/jpeg", COVER_IMAGE_RAW_FALLBACK);
+}
+
+function applyCoverImage(pres: ReturnType<typeof generateDeckV2>, coverDataUri: string | null): void {
+  if (!coverDataUri) return;
+  const coverSlide = (pres as unknown as { slides?: Array<Record<string, unknown>> }).slides?.[0] as any;
+  if (!coverSlide) return;
+
+  // Fill the edited deck's right-side image frame while preserving image aspect ratio.
+  coverSlide.addImage({
+    data: coverDataUri,
+    x: 6.65,
+    y: 0.32,
+    sizing: { type: "cover", w: 6.15, h: 6.70 },
+  });
+
+  // Recreate the prominent rounded lower-left image treatment from the edited cover.
+  coverSlide.addShape("ellipse", {
+    x: 5.36,
+    y: 4.76,
+    w: 2.62,
+    h: 2.62,
+    fill: { color: "FFFFFF" },
+    line: { type: "none" },
+  });
 }
 
 async function buildDeckPayloadServerSide(
@@ -181,7 +216,6 @@ async function buildDeckPayloadServerSide(
     .select("*, organization:organizations(*), template:assessment_templates(*)")
     .eq("id", assessmentInstanceId)
     .maybeSingle();
-
   if (instErr || !instance) return { payload: null, error: "Assessment instance not found" };
 
   const { data: strategyGen, error: genErr } = await supabase
@@ -189,7 +223,6 @@ async function buildDeckPayloadServerSide(
     .select("*")
     .eq("id", strategyGenerationId)
     .maybeSingle();
-
   if (genErr || !strategyGen) return { payload: null, error: "Strategy generation not found" };
   if (strategyGen.status !== "approved") {
     return { payload: null, error: `Strategy generation is not approved (status: ${strategyGen.status})` };
@@ -210,7 +243,7 @@ async function buildDeckPayloadServerSide(
     .eq("assessment_instance_id", assessmentInstanceId)
     .order("display_order", { referencedTable: "section" });
 
-  let scoreBands: string[] = MATURITY_BANDS;
+  let scoreBands = MATURITY_BANDS;
   if (instance.assessment_version_id) {
     const { data: bands } = await supabase
       .from("assessment_score_bands")
@@ -251,7 +284,7 @@ async function buildDeckPayloadServerSide(
     return {
       name: String(section?.title ?? "Unknown"),
       score,
-      level: getDimensionLevel(score),
+      level: getMaturityLevel(score),
     };
   });
 
@@ -273,22 +306,18 @@ async function buildDeckPayloadServerSide(
   const executiveSummary = truncateWords(sanitizeForSlides(output.executive_summary), 130);
   const currentMaturity = truncateWords(sanitizeForSlides(output.maturity_interpretation), 120);
   const recsData = recommendations as Record<string, unknown> | null;
-
   const strengths = asArray(recsData?.strengths).map((item) => ({
     title: sanitizeForSlides(item.title),
     body: sanitizeForSlides(item.description),
   }));
-
   const priorityOpportunities = asArray(recsData?.priorityOpportunities).map((item) => ({
     title: sanitizeForSlides(item.title),
     body: sanitizeForSlides(item.description),
   }));
-
   const holdingBack = asArray(output.prioritized_barriers).map((item) => ({
     title: sanitizeForSlides(item.title),
     body: sanitizeForSlides(item.description),
   }));
-
   const deckRecommendations = asArray(output.priority_recommendations).map((rec) => ({
     title: sanitizeForSlides(rec.title),
     why_it_matters: sanitizeForSlides(rec.why_this_matters),
@@ -299,7 +328,6 @@ async function buildDeckPayloadServerSide(
     guidance: sanitizeForSlides(rec.propel_knowledge_evidence),
     related_findings: sanitizeForSlides(rec.assessment_evidence),
   }));
-
   const implSeq = Array.isArray(output.implementation_sequence) ? output.implementation_sequence.map(String) : [];
   const discussionQuestions = Array.isArray(output.client_discussion_questions)
     ? output.client_discussion_questions.map((q) => sanitizeForSlides(q)).filter(Boolean).slice(0, 3)
@@ -307,11 +335,7 @@ async function buildDeckPayloadServerSide(
 
   return {
     payload: {
-      client: {
-        name: clientName,
-        assessment_name: assessmentName,
-        assessment_date: completionDate,
-      },
+      client: { name: clientName, assessment_name: assessmentName, assessment_date: completionDate },
       assessment: {
         overall_score: overallScore,
         maturity,
@@ -344,7 +368,6 @@ function countWords(value: string): number {
 
 function validatePayload(payload: DeckPayload): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
-
   if (!payload.client.name.trim()) errors.push("Client name is required");
   if (!payload.assessment.maturity.trim()) errors.push("Maturity band is required");
   if (payload.assessment.dimensions.length !== 6) errors.push("Exactly 6 dimensions required");
@@ -389,13 +412,11 @@ function validatePayload(payload: DeckPayload): { valid: boolean; errors: string
       }
     }
   }
-
   return { valid: errors.length === 0, errors };
 }
 
 function safeErrorMessage(error: unknown): string {
-  if (error instanceof Error) return error.message.slice(0, 500);
-  return "An unexpected error occurred";
+  return error instanceof Error ? error.message.slice(0, 500) : "An unexpected error occurred";
 }
 
 function sanitizeFileName(name: string): string {
@@ -409,7 +430,6 @@ function sanitizeFileName(name: string): string {
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 200, headers: corsHeaders });
-
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
       status: 405,
@@ -431,7 +451,6 @@ Deno.serve(async (req: Request) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
     const token = authHeader.replace("Bearer ", "");
     const { data: userData, error: userError } = await supabase.auth.getUser(token);
     if (userError || !userData.user) {
@@ -447,7 +466,6 @@ Deno.serve(async (req: Request) => {
       assessment_instance_id?: string;
       strategy_generation_id?: string;
     };
-
     if (!presentation_generation_id || !assessment_instance_id || !strategy_generation_id) {
       return new Response(JSON.stringify({ error: "presentation_generation_id, assessment_instance_id, and strategy_generation_id are required" }), {
         status: 400,
@@ -455,12 +473,7 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", userData.user.id)
-      .maybeSingle();
-
+    const { data: profile } = await supabase.from("profiles").select("role").eq("id", userData.user.id).maybeSingle();
     const userRole = profile?.role as string | undefined;
     if (userRole !== "superadmin" && userRole !== "propel_csm") {
       return new Response(JSON.stringify({ error: "Only Propel CSMs and superadmins can generate presentations" }), {
@@ -489,14 +502,12 @@ Deno.serve(async (req: Request) => {
       .select("*")
       .eq("id", presentation_generation_id)
       .maybeSingle();
-
     if (presGenErr || !presGen) {
       return new Response(JSON.stringify({ error: "Presentation generation record not found" }), {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
     if (presGen.status !== "queued") {
       return new Response(JSON.stringify({ error: `Generation is already in progress or completed (status: ${presGen.status})` }), {
         status: 409,
@@ -532,15 +543,15 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    await supabase
-      .from("presentation_generations")
+    await supabase.from("presentation_generations")
       .update({ payload_snapshot_json: payload as unknown as Record<string, unknown> })
       .eq("id", presentation_generation_id);
 
     let fileBuffer: ArrayBuffer;
     try {
-      const logoDataUri = await fetchLogoDataUri();
+      const [logoDataUri, coverDataUri] = await Promise.all([fetchLogoDataUri(), fetchCoverDataUri()]);
       const pres = generateDeckV2(payload, logoDataUri);
+      applyCoverImage(pres, coverDataUri);
       fileBuffer = await pres.write({ outputType: "arraybuffer" }) as ArrayBuffer;
     } catch (genErr) {
       await supabase.from("presentation_generations").update({
@@ -571,7 +582,6 @@ Deno.serve(async (req: Request) => {
       .select("organization_id")
       .eq("id", assessment_instance_id)
       .maybeSingle();
-
     const orgId = instance?.organization_id ?? "unknown";
     const sanitizedClientName = sanitizeFileName(payload.client.name);
     const dateStr = new Date().toISOString().slice(0, 10);
@@ -584,7 +594,6 @@ Deno.serve(async (req: Request) => {
         contentType: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
         upsert: false,
       });
-
     if (uploadErr) {
       await supabase.from("presentation_generations").update({
         status: "failed",
