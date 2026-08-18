@@ -1,25 +1,46 @@
 import { useState, useEffect } from 'react';
 import { Target, TrendingUp, ArrowRight } from 'lucide-react';
 import { fetchParticipationOpportunityResult, type ParticipationOpportunityResult } from '../../services/participationOpportunityResult';
+import { fetchIntakeOpportunityIndexSummary } from '../../services/intakeOpportunityIndexSummary';
+import IntakeOpportunityIndexResults from './IntakeOpportunityIndexResults';
 import LoadingState from '../ui/LoadingState';
 import ErrorState from '../ui/ErrorState';
 
+type ResultMode = 'checking' | 'intake_opportunity_index' | 'participation_opportunity';
+
 export default function ParticipationOpportunityResults({ token }: { token: string }) {
+  const [mode, setMode] = useState<ResultMode>('checking');
   const [result, setResult] = useState<ParticipationOpportunityResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = () => {
     setError(null);
     setResult(null);
-    fetchParticipationOpportunityResult(token)
-      .then(setResult)
-      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load your result'));
+    setMode('checking');
+
+    // Reusable intake links can now expose a limited Opportunity Index summary.
+    // Probe that token-scoped endpoint first; non-Opportunity-Index tokens are
+    // rejected by the RPC and continue through the existing participation flow.
+    fetchIntakeOpportunityIndexSummary(token)
+      .then(() => {
+        setMode('intake_opportunity_index');
+      })
+      .catch(() => {
+        setMode('participation_opportunity');
+        fetchParticipationOpportunityResult(token)
+          .then(setResult)
+          .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load your result'));
+      });
   };
 
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
+
+  if (mode === 'intake_opportunity_index') {
+    return <IntakeOpportunityIndexResults secureToken={token} />;
+  }
 
   if (error) {
     return (
@@ -29,7 +50,7 @@ export default function ParticipationOpportunityResults({ token }: { token: stri
     );
   }
 
-  if (!result) {
+  if (mode === 'checking' || !result) {
     return (
       <div className="bg-white rounded-lg shadow-md border border-neutral-border p-8">
         <LoadingState label="Preparing your personalized results…" />
