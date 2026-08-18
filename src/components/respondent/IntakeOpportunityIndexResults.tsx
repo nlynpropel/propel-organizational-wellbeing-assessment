@@ -22,7 +22,7 @@ const CTA_BENEFITS = [
   'Program maturity analysis',
   'Key barriers holding back success',
   'Actionable program recommendations',
-  'PDF of your results and a powerpoint presentation you can share with your internal stakeholders.',
+  'PDF of your results and a PowerPoint presentation you can share with your internal stakeholders.',
 ];
 
 const DIMENSION_MEANINGS: Record<string, { high: string; low: string }> = {
@@ -205,7 +205,7 @@ export default function IntakeOpportunityIndexResults({ secureToken }: { secureT
       )}
 
       <div className="rounded-lg bg-navy-deep shadow-md p-6 md:p-8 text-white">
-        <h2 className="text-xl font-semibold mb-3 text-[#ffffff]">Turn your results into an action plan</h2>
+        <h2 className="text-xl font-semibold mb-3 text-[#ffffff]">Turn Your Results into an Action Plan</h2>
         <p className="text-sm text-white/80 leading-relaxed max-w-3xl">
           {CTA_INTRO}
         </p>
