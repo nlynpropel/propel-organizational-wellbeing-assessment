@@ -22,7 +22,7 @@ const CTA_BENEFITS = [
   'Program maturity analysis',
   'Key barriers holding back success',
   'Actionable program recommendations',
-  'PDF of your results and a powerpoint presentation you can share with your internal stakeholders, schedule a 15 minute session with Propel to review your results.',
+  'PDF of your results and a powerpoint presentation you can share with your internal stakeholders.',
 ];
 
 function buildExecutiveSummary(summary: IntakeOpportunityIndexSummary): string {
