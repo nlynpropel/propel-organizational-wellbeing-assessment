@@ -52,8 +52,8 @@ BEGIN
   INSERT INTO public.assessment_templates (name, short_description, full_description, owner_type, status, category, estimated_minutes, scoring_enabled, recommendations_enabled)
   VALUES (
     'Propel Well-being Opportunity Index',
-    'A broker-enabled organizational assessment for identifying well-being strategy maturity, behavioral barriers, and priority opportunities.',
-    'The Propel Well-being Opportunity Index helps a benefits broker and employer evaluate the maturity of the employer''s well-being strategy, identify behavioral barriers that may limit employee action, and prioritize practical opportunities for the next client conversation.\n\nThis is a strategy maturity and opportunity assessment. It is not a clinical, diagnostic, or validated health-risk instrument.\n\nRespondents should answer based on the organization''s current, typical experience rather than its desired future state. Responses should reflect what is consistently in place for the majority of employees.',
+    'An organizational assessment for identifying well-being strategy maturity, behavioral barriers, and priority opportunities.',
+    'The Propel Well-being Opportunity Index helps an employer evaluate the maturity of the employer''s well-being strategy, identify behavioral barriers that may limit employee action, and prioritize practical opportunities for the next client conversation.\n\nThis is a strategy maturity and opportunity assessment. It is not a clinical, diagnostic, or validated health-risk instrument.\n\nRespondents should answer based on the organization''s current, typical experience rather than its desired future state. Responses should reflect what is consistently in place for the majority of employees.',
     'propel', 'draft', 'Organizational Well-being Strategy', 12, true, true
   ) RETURNING id INTO v_template_id;
 
