@@ -64,22 +64,39 @@ export default function Print360ResponsesButton({ report }: { report: ReportData
       <style>{`
         .print-360-responses { display: none; }
         @media print {
+          @page { size: 8.5in 11in; margin: 0.55in; }
+          html, body {
+            width: 8.5in !important;
+            min-width: 8.5in !important;
+            max-width: 8.5in !important;
+            overflow: visible !important;
+            -webkit-font-smoothing: antialiased !important;
+            text-rendering: geometricPrecision !important;
+          }
           body * { visibility: hidden !important; }
           .print-360-responses, .print-360-responses * { visibility: visible !important; }
           .print-360-responses {
             display: block !important;
             position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
+            left: 0.55in;
+            top: 0.55in;
+            width: 7.4in !important;
+            min-width: 7.4in !important;
+            max-width: 7.4in !important;
+            box-sizing: border-box !important;
+            transform: none !important;
+            zoom: 1 !important;
             color: #031c40;
             background: white;
             font-family: Arial, Helvetica, sans-serif;
-            line-height: 1.45;
+            font-size: 11pt;
+            line-height: 1.5;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            text-rendering: geometricPrecision !important;
           }
           .print-360-section { break-inside: avoid-page; margin-bottom: 24px; }
           .print-360-item { break-inside: avoid; }
-          @page { margin: 0.55in; }
         }
       `}</style>
 
