@@ -4,7 +4,8 @@
 Rename the assessment and remove runtime routing dependencies on its display
 name. The intake-result functions now identify this assessment by its unique
 Propel scored organizational-strategy configuration so future display-name
-changes do not break intake routing.
+changes do not break intake routing. The published version record retains its
+historical internal name to preserve version immutability.
 */
 
 DO $$
@@ -32,12 +33,6 @@ BEGIN
   SET name = 'Propel Well-being Scorecard',
       updated_at = now()
   WHERE id = v_template_id;
-
-  UPDATE public.assessment_versions
-  SET name = regexp_replace(name, '^Propel Well-being Opportunity Index', 'Propel Well-being Scorecard'),
-      updated_at = now()
-  WHERE assessment_template_id = v_template_id
-    AND name LIKE 'Propel Well-being Opportunity Index%';
 END;
 $$;
 
