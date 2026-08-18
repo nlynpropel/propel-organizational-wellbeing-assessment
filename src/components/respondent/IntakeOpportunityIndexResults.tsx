@@ -16,7 +16,14 @@ import {
 
 export const PROPEL_RESULTS_REVIEW_URL = 'https://outlook.office.com/book/Propel1@propelwellness.com/s/bvm2IO9QmE6nwShU51E3xg2?ismsaljsauthenabled';
 
-const CTA_COPY = "If you want to understand your program's specific strengths and priority opportunities, schedule a 15 minute session with Propel to review your results. You'll receive actionable program recommendations, a pdf of your results and a powerpoint presentation you can share with your internal stakeholders, schedule a 15 minute session with Propel to review your results.";
+const CTA_INTRO = "If you want to understand your program's specific strengths and priority opportunities, schedule a 15 minute session with Propel to review your results.";
+
+const CTA_BENEFITS = [
+  'Program maturity analysis',
+  'Key barriers holding back success',
+  'Actionable program recommendations',
+  'PDF of your results and a powerpoint presentation you can share with your internal stakeholders, schedule a 15 minute session with Propel to review your results.',
+];
 
 function buildExecutiveSummary(summary: IntakeOpportunityIndexSummary): string {
   const overall = Math.round(summary.overall_score);
@@ -158,10 +165,16 @@ export default function IntakeOpportunityIndexResults({ secureToken }: { secureT
       )}
 
       <div className="rounded-lg bg-navy-deep shadow-md p-6 md:p-8 text-white">
-        <h2 className="text-xl font-semibold mb-3">Turn your results into an action plan</h2>
+        <h2 className="text-xl font-semibold mb-3 text-[#ffffff]">Turn your results into an action plan</h2>
         <p className="text-sm text-white/80 leading-relaxed max-w-3xl">
-          {CTA_COPY}
+          {CTA_INTRO}
         </p>
+        <h3 className="text-lg font-semibold mt-6 mb-2 text-[#ffffff]">What You'll Get</h3>
+        <ul className="list-disc pl-5 space-y-1 text-sm text-white/80 leading-relaxed max-w-3xl">
+          {CTA_BENEFITS.map((benefit) => (
+            <li key={benefit}>{benefit}</li>
+          ))}
+        </ul>
         <div className="mt-5">
           {PROPEL_RESULTS_REVIEW_URL ? (
             <a
