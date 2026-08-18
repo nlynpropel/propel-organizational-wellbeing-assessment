@@ -116,3 +116,13 @@ $$;
 
 REVOKE ALL ON FUNCTION public.get_intake_opportunity_index_summary(uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.get_intake_opportunity_index_summary(uuid) TO anon, authenticated;
+
+-- IntakePage uses respondent_result_mode to decide whether a reusable-link
+-- submission should render an immediate result component. The conventional
+-- /assessment/:token flow does not use this field for the Opportunity Index,
+-- so this enables the summary specifically in the reusable intake experience.
+UPDATE public.assessment_templates
+SET respondent_result_mode = 'instant_result',
+    updated_at = now()
+WHERE name = 'Propel Well-being Opportunity Index'
+  AND owner_type = 'propel';
