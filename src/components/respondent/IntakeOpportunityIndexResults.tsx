@@ -14,8 +14,7 @@ import {
   type IntakeOpportunityIndexSummary,
 } from '../../services/intakeOpportunityIndexSummary';
 
-// Replace with the Propel scheduling URL when supplied.
-export const PROPEL_RESULTS_REVIEW_URL = '';
+export const PROPEL_RESULTS_REVIEW_URL = 'https://outlook.office.com/book/Propel1@propelwellness.com/s/bvm2IO9QmE6nwShU51E3xg2?ismsaljsauthenabled';
 
 const CTA_COPY = "If you want to understand your program's specific strengths and priority opportunities, schedule a 15 minute session with Propel to review your results. You'll receive actionable program recommendations, a pdf of your results and a powerpoint presentation you can share with your internal stakeholders, schedule a 15 minute session with Propel to review your results.";
 
