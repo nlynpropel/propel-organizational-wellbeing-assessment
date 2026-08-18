@@ -25,11 +25,48 @@ const CTA_BENEFITS = [
   'PDF of your results and a powerpoint presentation you can share with your internal stakeholders.',
 ];
 
+const DIMENSION_MEANINGS: Record<string, { high: string; low: string }> = {
+  'Strategy and Leadership': {
+    high: 'your well-being strategy is clearly defined, supported by leadership, and connected to organizational priorities',
+    low: 'your well-being strategy may need clearer leadership support, ownership, or connection to organizational priorities',
+  },
+  'Employee Relevance': {
+    high: 'your program is well aligned with the needs, interests, and realities of your employee population',
+    low: 'your program may not yet be consistently aligned with the needs, interests, and realities of your employee population',
+  },
+  'Engagement and Communication': {
+    high: 'your communication and engagement approach is well positioned to build awareness and prompt employee action',
+    low: 'your communication and engagement approach may not consistently translate awareness into employee action',
+  },
+  'Experience and Access': {
+    high: 'employees are likely to find the program easy to access, understand, and use across different work environments',
+    low: 'friction in access, usability, or the employee experience may make participation more difficult',
+  },
+  'Culture and Social Support': {
+    high: 'workplace culture, managers, and peers are likely reinforcing participation and healthy behaviors',
+    low: 'employees may have limited cultural, manager, or peer reinforcement for participation and healthy behaviors',
+  },
+  'Measurement and Improvement': {
+    high: 'your organization is effectively using program data and results to guide ongoing improvement',
+    low: 'program data and results may not yet be used consistently to guide decisions and ongoing improvement',
+  },
+};
+
+function getDimensionMeaning(title: string, level: 'high' | 'low'): string {
+  return DIMENSION_MEANINGS[title]?.[level]
+    ?? (level === 'high'
+      ? 'this is a comparatively strong area of your current well-being strategy'
+      : 'this area may present more opportunity for strengthening your current well-being strategy');
+}
+
 function buildExecutiveSummary(summary: IntakeOpportunityIndexSummary): string {
   const overall = Math.round(summary.overall_score);
-  const dimensionScores = summary.strategy_dimensions
-    .map((dimension) => dimension.normalized_score)
-    .filter((score): score is number => score !== null && Number.isFinite(score));
+  const scoredDimensions = summary.strategy_dimensions
+    .filter((dimension) => dimension.normalized_score !== null && Number.isFinite(dimension.normalized_score))
+    .map((dimension) => ({
+      ...dimension,
+      normalized_score: dimension.normalized_score as number,
+    }));
   const readinessScores = summary.behavioral_readiness
     ? Object.values(summary.behavioral_readiness).filter((score) => Number.isFinite(score))
     : [];
@@ -38,16 +75,20 @@ function buildExecutiveSummary(summary: IntakeOpportunityIndexSummary): string {
     `Your overall Well-being Opportunity Index score is ${overall}/100${summary.score_band ? `, placing your program in the ${summary.score_band} range` : ''}.`,
   ];
 
-  if (dimensionScores.length > 0) {
-    const min = Math.round(Math.min(...dimensionScores));
-    const max = Math.round(Math.max(...dimensionScores));
-    const spread = max - min;
-    const profileDescription = spread <= 10
-      ? 'a relatively consistent profile across the strategy dimensions'
-      : spread >= 25
-        ? 'meaningful variation across the strategy dimensions'
-        : 'some variation across the strategy dimensions';
-    parts.push(`Your strategy dimension scores range from ${min} to ${max}, showing ${profileDescription}.`);
+  if (scoredDimensions.length > 0) {
+    const topDimension = scoredDimensions.reduce((top, current) => (
+      current.normalized_score > top.normalized_score ? current : top
+    ));
+    const lowestDimension = scoredDimensions.reduce((lowest, current) => (
+      current.normalized_score < lowest.normalized_score ? current : lowest
+    ));
+
+    parts.push(
+      `Your top strategic score was in the category of ${topDimension.title}, meaning ${getDimensionMeaning(topDimension.title, 'high')}.`,
+    );
+    parts.push(
+      `Your lowest strategic score was in the category of ${lowestDimension.title}, meaning ${getDimensionMeaning(lowestDimension.title, 'low')}.`,
+    );
   }
 
   if (readinessScores.length > 0) {
@@ -59,10 +100,9 @@ function buildExecutiveSummary(summary: IntakeOpportunityIndexSummary): string {
         : average >= 50
           ? 'meaningful behavioral barriers that may affect participation'
           : 'significant behavioral barriers that may affect participation';
-    parts.push(`Across the behavioral readiness measures, the average score is ${average}/100, indicating ${interpretation}.`);
+    parts.push(`In the behavioral readiness section, your average score was ${average}/100, indicating ${interpretation}.`);
   }
 
-  parts.push('This is a directional summary of your results; the detailed review translates the score pattern into specific strengths, priority opportunities, and recommended actions.');
   return parts.join(' ');
 }
 
