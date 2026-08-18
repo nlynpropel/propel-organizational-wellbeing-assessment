@@ -61,7 +61,7 @@
 
 @media print {
   @page {
-    size: Letter portrait;
+    size: 8.5in 11in;
     margin: 0.55in 0.6in 0.75in;
     @bottom-right {
       content: counter(page);
@@ -76,8 +76,13 @@
     background: white !important;
     margin: 0 !important;
     padding: 0 !important;
-    width: auto !important;
+    width: 8.5in !important;
+    min-width: 8.5in !important;
+    max-width: 8.5in !important;
     height: auto !important;
+    overflow: visible !important;
+    -webkit-font-smoothing: antialiased !important;
+    text-rendering: geometricPrecision !important;
   }
 
   /* Hide everything by default */
@@ -91,18 +96,51 @@
     visibility: visible;
   }
 
-  /* Position the print area at the top of the page */
+  /* Explicit Letter portrait content box: 8.5in minus 0.6in side margins. */
   .print-area {
     position: absolute;
-    left: 0;
-    top: 0;
-    width: 100% !important;
+    left: 0.6in;
+    top: 0.55in;
+    width: 7.3in !important;
+    min-width: 7.3in !important;
+    max-width: 7.3in !important;
+    box-sizing: border-box !important;
     height: auto !important;
     min-height: 0 !important;
     max-height: none !important;
     background: white !important;
-    padding: 0 !important;
+    padding: 0 0 0.25in !important;
     margin: 0 !important;
+    transform: none !important;
+    zoom: 1 !important;
+    overflow: visible !important;
+  }
+
+  /* Slightly stronger print typography for PDF readability. */
+  .print-area p,
+  .print-area li,
+  .print-area span {
+    text-rendering: geometricPrecision !important;
+  }
+
+  .print-area .text-sm {
+    font-size: 10.5pt !important;
+    line-height: 1.5 !important;
+  }
+
+  .print-area .text-xs {
+    font-size: 9pt !important;
+    line-height: 1.4 !important;
+  }
+
+  .print-area .text-lg {
+    font-size: 14pt !important;
+    line-height: 1.3 !important;
+  }
+
+  .print-area .text-neutral-secondary,
+  .print-area .text-neutral-muted {
+    color: #4b5563 !important;
   }
 
   /* Remove card chrome in print — no borders, shadows, or rounded corners */
@@ -170,16 +208,26 @@
     page-break-after: avoid;
   }
 
-  /* Ensure colors print */
+  /* Preserve brand colors and vector-quality browser PDF rendering. */
   * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
 
-  /* Print-only graph container — keep navy background, fit page width */
+  svg {
+    shape-rendering: geometricPrecision !important;
+    text-rendering: geometricPrecision !important;
+  }
+
+  img {
+    image-rendering: auto !important;
+  }
+
+  /* Print-only graph container — keep navy background, fit portrait content width */
   .print-area .print-graph-container {
     width: 100% !important;
     max-width: 100% !important;
+    box-sizing: border-box !important;
     padding: 1rem !important;
     background-color: #031c40 !important;
     color: white !important;
@@ -194,7 +242,7 @@
     width: 100% !important;
   }
 
-  /* Graph score number — readable in grayscale */
+  /* Graph score number */
   .print-area .print-graph-container .text-5xl {
     font-size: 2rem !important;
     color: white !important;
@@ -204,7 +252,7 @@
   .print-area .print-graph-container .text-white\/80,
   .print-area .print-graph-container .text-white\/60,
   .print-area .print-graph-container .text-white\/50 {
-    color: rgba(255, 255, 255, 0.9) !important;
+    color: rgba(255, 255, 255, 0.95) !important;
   }
 
   /* Print-only context block */
@@ -239,16 +287,11 @@
   }
 
   .print-footer-logo {
-    width: 64px;
+    width: 72px;
     height: auto;
     object-fit: contain;
     display: inline-block;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
-  }
-
-  /* Ensure print-area content doesn't overlap the fixed footer */
-  .print-area {
-    padding-bottom: 0.25in !important;
   }
 }
