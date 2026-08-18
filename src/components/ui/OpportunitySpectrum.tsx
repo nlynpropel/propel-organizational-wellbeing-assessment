@@ -7,13 +7,52 @@ type Props = {
   bands: AssessmentScoreBandRow[];
 };
 
-export default function OpportunitySpectrum({ score, scoreBandLabel, bands }: Props) {
-  const zoneColors = MATURITY_BANDS.map((b) => maturityColor(b.label));
-  const markerPct = Math.max(0, Math.min(100, score));
+type DisplayBand = {
+  label: string;
+  min: number;
+  max: number;
+  width: number;
+};
 
-  const bandLabels = bands.length > 0
-    ? bands.map((b) => b.band_name)
-    : MATURITY_BANDS.map((b) => b.label);
+function buildDisplayBands(bands: AssessmentScoreBandRow[]): DisplayBand[] {
+  if (bands.length > 0) {
+    const sorted = [...bands].sort(
+      (a, b) => Number(a.min_threshold) - Number(b.min_threshold),
+    );
+
+    return sorted.map((band, index) => {
+      const min = Math.max(0, Math.min(100, Number(band.min_threshold)));
+      const nextMin = index < sorted.length - 1
+        ? Math.max(0, Math.min(100, Number(sorted[index + 1].min_threshold)))
+        : 100;
+      const width = Math.max(0, nextMin - min);
+
+      return {
+        label: band.band_name,
+        min,
+        max: Number(band.max_threshold),
+        width,
+      };
+    });
+  }
+
+  return MATURITY_BANDS.map((band, index) => {
+    const nextMin = index < MATURITY_BANDS.length - 1
+      ? MATURITY_BANDS[index + 1].min
+      : 100;
+
+    return {
+      label: band.label,
+      min: band.min,
+      max: band.max,
+      width: Math.max(0, nextMin - band.min),
+    };
+  });
+}
+
+export default function OpportunitySpectrum({ score, scoreBandLabel, bands }: Props) {
+  const markerPct = Math.max(0, Math.min(100, score));
+  const displayBands = buildDisplayBands(bands);
 
   return (
     <div>
@@ -30,11 +69,13 @@ export default function OpportunitySpectrum({ score, scoreBandLabel, bands }: Pr
 
       <div className="relative h-3 rounded-full overflow-hidden mt-4">
         <div className="absolute inset-0 flex">
-          {zoneColors.map((color, i) => (
+          {displayBands.map((band) => (
             <div
-              key={i}
-              className="flex-1"
-              style={{ backgroundColor: color }}
+              key={band.label}
+              style={{
+                backgroundColor: maturityColor(band.label),
+                width: `${band.width}%`,
+              }}
             />
           ))}
         </div>
@@ -44,9 +85,15 @@ export default function OpportunitySpectrum({ score, scoreBandLabel, bands }: Pr
         />
       </div>
 
-      <div className="flex justify-between mt-2 text-[10px] font-semibold text-white/60">
-        {bandLabels.map((label, i) => (
-          <span key={i} className="text-center flex-1">{label}</span>
+      <div className="flex mt-2 text-[10px] font-semibold text-white/60">
+        {displayBands.map((band) => (
+          <span
+            key={band.label}
+            className="text-center"
+            style={{ width: `${band.width}%` }}
+          >
+            {band.label}
+          </span>
         ))}
       </div>
     </div>
