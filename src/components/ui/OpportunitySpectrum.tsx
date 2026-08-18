@@ -57,7 +57,7 @@ export default function OpportunitySpectrum({ score, scoreBandLabel, bands }: Pr
   return (
     <div>
       <div className="flex items-baseline justify-between mb-1">
-        <span className="text-sm font-medium text-white/80">Overall Opportunity Index</span>
+        <span className="text-sm font-medium text-white/80">Overall Score</span>
         <Badge variant="custom" className="text-sm px-3 py-1 bg-white/10 text-white border-white/20">
           {scoreBandLabel}
         </Badge>
