@@ -72,7 +72,7 @@ function buildExecutiveSummary(summary: IntakeOpportunityIndexSummary): string {
     : [];
 
   const parts = [
-    `Your overall Well-being Opportunity Index score is ${overall}/100${summary.score_band ? `, placing your program in the ${summary.score_band} range` : ''}.`,
+    `Your overall Well-being Scorecard score is ${overall}/100${summary.score_band ? `, placing your program in the ${summary.score_band} range` : ''}.`,
   ];
 
   if (scoredDimensions.length > 0) {
@@ -169,7 +169,7 @@ export default function IntakeOpportunityIndexResults({ secureToken }: { secureT
           </div>
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-green-dark">Assessment complete</p>
-            <h1 className="font-display text-2xl font-bold text-navy mt-1">Your Well-being Opportunity Index Results</h1>
+            <h1 className="font-display text-2xl font-bold text-navy mt-1">Your Well-being Scorecard Results</h1>
             {summary.organization_name && (
               <p className="text-sm text-neutral-secondary mt-1">{summary.organization_name}</p>
             )}
