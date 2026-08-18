@@ -85,7 +85,7 @@ export function PriorityOpportunitiesSection({ recommendations }: { recommendati
 
 export function StrategyDimensionsSection({ dimensions }: { dimensions: StrategyDimension[] }) {
   return (
-    <section>
+    <section className="print-page-break-before">
       <h2 className="text-lg font-semibold text-navy mb-3.5 print-break-after-avoid">Strategy Dimensions</h2>
       <div className="grid gap-x-8 gap-y-3.5 md:grid-cols-2 print-block">
         {dimensions.map((dim) => (
