@@ -9,8 +9,8 @@ const corsHeaders = {
 
 const TEMPLATE_VERSION = "wellbeing-scorecard-deck-v3";
 const MATURITY_BANDS = ["Reactive", "Developing", "Established", "Strategic", "Leading"];
-const COVER_IMAGE_FILE = "business-meeting-cover-1280.jpg";
-const COVER_IMAGE_RAW_FALLBACK = "https://raw.githubusercontent.com/nlynpropel/propel-organizational-wellbeing-assessment/main/public/business-meeting-cover-1280.jpg";
+const COVER_IMAGE_FILE = "title-slide-graphic.jpg";
+const COVER_IMAGE_RAW_FALLBACK = "https://raw.githubusercontent.com/nlynpropel/propel-organizational-wellbeing-assessment/main/public/title-slide-graphic.jpg";
 
 const DRIVER_LABELS: Record<string, string> = {
   clarity_of_value: "Clarity of Value",
