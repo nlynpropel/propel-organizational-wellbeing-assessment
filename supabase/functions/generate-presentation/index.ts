@@ -7,7 +7,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
-const TEMPLATE_VERSION = "wellbeing-scorecard-deck-v7.4-static-help-slide";
+const TEMPLATE_VERSION = "wellbeing-scorecard-deck-v7.5-no-help-slide";
 const MATURITY_BANDS = ["Reactive", "Developing", "Established", "Strategic", "Leading"];
 const ASSET_BASE = "https://raw.githubusercontent.com/nlynpropel/propel-organizational-wellbeing-assessment/main/public";
 
@@ -194,7 +194,6 @@ async function loadAssets() {
     ["recAction", "recommendation-action.svg", "image/svg+xml"],
     ["buildIcon", "propel-build-icon.png", "image/png"],
     ["serviceIcon", "propel-service-icon.png", "image/png"],
-    ["helpSlide", "how-propel-can-help.png", "image/png"],
   ];
   const o: Record<string, string | null> = {};
   await Promise.all(entries.map(async ([k, f, m]) => (o[k] = await asset(f, m))));
@@ -408,7 +407,7 @@ Deno.serve(async (req: Request) => {
     }
 
     await supabase.from("presentation_generations").update({ status: "completed", storage_path: storagePath, file_name: fileName, completed_at: new Date().toISOString(), error_message: null }).eq("id", presentation_generation_id);
-    return new Response(JSON.stringify({ presentation_generation_id, status: "completed", storage_path: storagePath, file_name: fileName, template_version: TEMPLATE_VERSION, file_size: buf.byteLength, slide_count: 8 + payload.strategy.recommendations.length, payload_built_by: "server" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ presentation_generation_id, status: "completed", storage_path: storagePath, file_name: fileName, template_version: TEMPLATE_VERSION, file_size: buf.byteLength, slide_count: 7 + payload.strategy.recommendations.length, payload_built_by: "server" }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (err) {
     return new Response(JSON.stringify({ error: String(err instanceof Error ? err.message : err).slice(0, 500) }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
