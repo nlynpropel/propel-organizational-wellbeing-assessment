@@ -16,7 +16,7 @@ import {
 
 export const PROPEL_RESULTS_REVIEW_URL = 'https://outlook.office.com/book/Propel1@propelwellness.com/s/bvm2IO9QmE6nwShU51E3xg2?ismsaljsauthenabled';
 
-const CTA_INTRO = "If you want to understand your program's specific strengths and priority opportunities, schedule a 15 minute session with Propel to review your results.";
+const CTA_INTRO = "If you want to understand your program's specific strengths and priority opportunities, schedule a free 15-minute session with Propel to review your results.";
 
 const CTA_BENEFITS = [
   'Program maturity analysis',

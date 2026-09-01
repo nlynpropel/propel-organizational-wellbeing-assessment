@@ -11,6 +11,10 @@ export default function AssessmentCompletion({
 }) {
   const { version, template } = assessment;
   const showResults = version.respondent_results_enabled && result;
+  const completionMessage = template.name === 'Propel Well-being Scorecard'
+    ? 'Thank you for completing the Propel Well-being Scorecard. Your responses have been submitted and will be reviewed shortly.'
+    : version.completion_message ||
+      `Thank you for completing the ${template.name}. Your responses have been securely submitted and your advisor will follow up with a personalized report.`;
 
   return (
     <div className="bg-white rounded-lg shadow-md border border-neutral-border p-8 text-center">
@@ -19,8 +23,7 @@ export default function AssessmentCompletion({
       </div>
       <h1 className="font-display text-2xl font-semibold text-navy mt-5">Assessment complete</h1>
       <p className="text-sm text-neutral-secondary mt-3 leading-relaxed max-w-md mx-auto">
-        {version.completion_message ||
-          `Thank you for completing the ${template.name}. Your responses have been securely submitted and your advisor will follow up with a personalized report.`}
+        {completionMessage}
       </p>
 
       {showResults && (
