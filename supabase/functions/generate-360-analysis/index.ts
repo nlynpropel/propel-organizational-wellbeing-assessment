@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 const PROMPT_VERSION = "360-v2";
-const MODEL = "gpt-4o";
+const MODEL = Deno.env.get("OPENAI_MODEL") || "gpt-6-luna";
 const GUIDE_FILE_ID = "file-5sddQHMVKz7ALqZzJtb1ri";
 const SUCCESS_MEASURE_QUESTION_ID = "fdc0f589-fb1c-584c-af76-7f8245978b8d";
 
