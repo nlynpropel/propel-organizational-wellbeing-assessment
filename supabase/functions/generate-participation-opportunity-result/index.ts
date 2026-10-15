@@ -116,7 +116,7 @@ const corsHeaders = {
       let outputJson: unknown;
       let usedFallback = false;
       let errorMessage: string | null = null;
-      const modelName = Deno.env.get("OPENAI_MODEL") ?? "gpt-4o";
+      const modelName = Deno.env.get("OPENAI_MODEL") ?? "gpt-6-luna";
   
       try {
         const openaiApiKey = Deno.env.get("OPENAI_API_KEY");
